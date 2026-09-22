@@ -82,6 +82,8 @@ export interface Activity {
   commit?: string;
   refs?: string[]; // item ids or node paths
   system?: boolean; // written by Cortex itself (audit trail), not by the actor
+  // Structured facts for reports (system entries only): item type, status transition, draft kind and proposer.
+  meta?: { type?: string; from?: string; to?: string; kind?: string; proposed_by?: string };
 }
 
 export interface Actor {

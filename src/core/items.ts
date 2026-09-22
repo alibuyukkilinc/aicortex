@@ -200,7 +200,7 @@ export class ItemService {
       return { applied: false, id: item.id, draft_id: draftId, message: "Saved as draft. A human must approve it before it becomes visible." };
     }
     this.save(item);
-    this.c.activity.system(actor.id, "item.created", `Created ${item.type} "${item.title}"`, [item.id]);
+    this.c.activity.system(actor.id, "item.created", `Created ${item.type} "${item.title}"`, [item.id], { type: item.type, to: item.status });
     return { applied: true, id: item.id, status: item.status, message: `${item.type} created.` };
   }
 
@@ -249,7 +249,7 @@ export class ItemService {
     }
     this.save(next);
     const what = current.status !== next.status ? `${current.status} → ${next.status}` : "edited";
-    this.c.activity.system(actor.id, "item.updated", `Updated ${next.type} "${next.title}" (${what})`, [id]);
+    this.c.activity.system(actor.id, "item.updated", `Updated ${next.type} "${next.title}" (${what})`, [id], { type: next.type, from: current.status, to: next.status });
     return { applied: true, id, status: next.status, message: `${next.type} updated.` };
   }
 
@@ -282,7 +282,7 @@ export class ItemService {
     this.c.itemStore.addReply(reply);
     const next: Item = { ...item, status: to ?? item.status, updated_at: reply.created_at, updated_by: actor.id };
     this.save(next);
-    this.c.activity.system(actor.id, "item.replied", `Replied on ${item.type} "${item.title}"${reply.status_change ? ` (${reply.status_change.from} → ${reply.status_change.to})` : ""}`, [id]);
+    this.c.activity.system(actor.id, "item.replied", `Replied on ${item.type} "${item.title}"${reply.status_change ? ` (${reply.status_change.from} → ${reply.status_change.to})` : ""}`, [id], { type: item.type, ...(reply.status_change ?? {}) });
     return { applied: true, id, reply_id: reply.id, status: next.status, message: "Reply added." };
   }
 
@@ -360,7 +360,7 @@ export class ItemService {
   applyDraft(item: Item): void {
     const existed = this.c.itemStore.exists(item.id);
     this.save(item);
-    this.c.activity.system(item.updated_by, existed ? "item.updated" : "item.created", `${existed ? "Updated" : "Created"} ${item.type} "${item.title}" (approved draft)`, [item.id]);
+    this.c.activity.system(item.updated_by, existed ? "item.updated" : "item.created", `${existed ? "Updated" : "Created"} ${item.type} "${item.title}" (approved draft)`, [item.id], { type: item.type, to: item.status });
   }
 
   // ---- reads --------------------------------------------------------------

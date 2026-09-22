@@ -14,6 +14,7 @@ import { semanticEnabled } from "../search/runtime.js";
 import { SemanticIndex } from "../search/semantic.js";
 import { ActivityService } from "./activity.js";
 import { StalenessService } from "./staleness.js";
+import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
 import { Project, loadTokens, paths, rulesVersion } from "./project.js";
 import { DEFAULT_SCHEMAS, ItemSchema, describeSchema, loadActivitySchema, loadSchema } from "./schema.js";
@@ -77,6 +78,7 @@ export class Cortex {
 
   readonly semantic: SemanticIndex;
   readonly staleness: StalenessService;
+  readonly reports: ReportService;
   private syncTimer?: NodeJS.Timeout;
 
   // `embedder` overrides the semantic backend (tests pass a fake; null turns semantic search off).
@@ -96,6 +98,7 @@ export class Cortex {
     const factory = opts.embedder !== undefined ? opts.embedder : wantSemantic ? () => new TransformersEmbedder() : null;
     this.semantic = new SemanticIndex(this.index, factory);
     this.staleness = new StalenessService(this);
+    this.reports = new ReportService(this);
     // Every write and reindex emits "change"; batch them into one embedding pass.
     this.events.on("change", () => {
       clearTimeout(this.syncTimer);
@@ -483,7 +486,7 @@ export class Cortex {
   saveDraft(d: Omit<Draft, "id" | "proposed_at">): string {
     const draft = { ...d, id: ulid(), proposed_at: nowIso() } as Draft;
     this.drafts.save(draft);
-    this.activity.system(d.proposed_by, "draft.proposed", `Proposed a change to ${d.kind} "${d.kind === "node" ? d.target || "(root)" : d.data.title}"`, [d.target]);
+    this.activity.system(d.proposed_by, "draft.proposed", `Proposed a change to ${d.kind} "${d.kind === "node" ? d.target || "(root)" : d.data.title}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
     return draft.id;
   }
 
@@ -500,7 +503,7 @@ export class Cortex {
       this.items.applyDraft({ ...d.data, updated_at: nowIso() });
     }
     this.drafts.remove(d.id);
-    this.activity.system(actor.id, "draft.approved", `Approved ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"`, [d.target]);
+    this.activity.system(actor.id, "draft.approved", `Approved ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
     return { applied: true, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: `Approved draft from ${d.proposed_by}.` };
   }
 
@@ -508,7 +511,7 @@ export class Cortex {
     this.requireHuman(actor);
     const d = this.draftOr404(draftId);
     this.drafts.remove(d.id);
-    this.activity.system(actor.id, "draft.rejected", `Rejected ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"${reason ? `: ${reason}` : ""}`, [d.target]);
+    this.activity.system(actor.id, "draft.rejected", `Rejected ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"${reason ? `: ${reason}` : ""}`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
     return { applied: false, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: "Draft rejected." };
   }
 

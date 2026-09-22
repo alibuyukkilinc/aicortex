@@ -286,6 +286,14 @@ export class Index {
       .map((r) => JSON.parse(r.json as string) as Activity);
   }
 
+  // Every entry (audit entries included) in [since, until), oldest first: the raw material for reports.
+  activityBetween(since: string, until: string): Activity[] {
+    return this.db
+      .prepare("SELECT json FROM activity WHERE at >= ? AND at < ? ORDER BY id")
+      .all(since, until)
+      .map((r) => JSON.parse(r.json as string) as Activity);
+  }
+
   getActivity(id: string): Activity | null {
     const row = this.db.prepare("SELECT json FROM activity WHERE id = ?").get(id);
     return row ? (JSON.parse(row.json as string) as Activity) : null;

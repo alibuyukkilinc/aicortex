@@ -31,6 +31,7 @@ export const go = (path: string) => {
 const paths: Record<string, string> = {
   inbox: "M4 13h4l2 3h4l2-3h4M4 13l2-8h12l2 8v6H4z",
   board: "M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v11h-4z",
+  report: "M4 20h16M7 16v-4M12 16V6M17 16v-7",
   tree: "M6 4v16M6 8h8M6 16h8M14 6h6v4h-6zM14 14h6v4h-6z",
   activity: "M3 12h4l3-8 4 16 3-8h4",
   check: "M5 12l5 5L20 7",

@@ -6,6 +6,7 @@ import { Actor, CortexError } from "../core/types.js";
 import { ActivityInput } from "../core/activity.js";
 import { CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
 import { DocKind } from "../index/db.js";
+import { reportToMarkdown } from "../core/reportMarkdown.js";
 
 // Compact JSON: every byte here is a token the AI pays for.
 function result(data: object, meta: object) {
@@ -259,6 +260,25 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
       },
     },
     wrap(cortex, (a: { about: string; title: string; body?: string; assignee?: string; blocking?: boolean }) => cortex.items.ask(actor, a)),
+  );
+
+  server.registerTool(
+    "cortex_report",
+    {
+      description:
+        "Project report for a period: what changed and why, decisions, closed issues, what is waiting on people, knowledge health, " +
+        "per-actor approval rates. Counted from the files, not generated. Use it to brief a human, e.g. \"what happened this week?\".",
+      inputSchema: {
+        since: z.string().default("7d").describe("7d, 2w, 30d, a date (2026-09-01) or ISO datetime"),
+        until: z.string().optional(),
+        format: z.enum(["json", "markdown"]).default("json"),
+        lang: z.enum(["en", "tr"]).default("en").describe("Language of the markdown output"),
+      },
+    },
+    wrap(cortex, (a: { since: string; until?: string; format: "json" | "markdown"; lang: "en" | "tr" }) => {
+      const report = cortex.reports.build({ since: a.since, until: a.until });
+      return a.format === "markdown" ? { markdown: reportToMarkdown(report, a.lang) } : { report };
+    }),
   );
 
   // ---- activity -------------------------------------------------------------

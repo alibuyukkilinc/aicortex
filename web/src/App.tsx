@@ -7,6 +7,7 @@ import { Approvals } from "./pages/Approvals";
 import { Board } from "./pages/Board";
 import { Inbox } from "./pages/Inbox";
 import { Knowledge } from "./pages/Knowledge";
+import { Reports } from "./pages/Reports";
 import { Rules } from "./pages/Rules";
 import { Search } from "./pages/Search";
 import type { Activity as Entry, Me } from "./types";
@@ -105,6 +106,7 @@ const NAV: { key: Key; route: string; icon: string }[] = [
   { key: "nav.knowledge", route: "knowledge", icon: "tree" },
   { key: "nav.activity", route: "activity", icon: "activity" },
   { key: "nav.approvals", route: "approvals", icon: "check" },
+  { key: "nav.reports", route: "reports", icon: "report" },
   { key: "nav.rules", route: "rules", icon: "rules" },
 ];
 
@@ -152,6 +154,9 @@ function Shell({ me }: { me: Me }) {
       break;
     case "rules":
       content = <Rules name={route[1] ?? "_global"} />;
+      break;
+    case "reports":
+      content = <Reports />;
       break;
     case "search":
       content = <Search q={routeQuery().get("q") ?? ""} />;

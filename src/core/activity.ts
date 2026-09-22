@@ -66,8 +66,8 @@ export class ActivityService {
   }
 
   // Audit trail written by Cortex itself on every write.
-  system(actorId: string, action: string, summary: string, refs: string[] = []): void {
-    const entry: Activity = { id: ulid(), at: nowIso(), actor: actorId, action, summary, refs, system: true };
+  system(actorId: string, action: string, summary: string, refs: string[] = [], meta?: Activity["meta"]): void {
+    const entry: Activity = { id: ulid(), at: nowIso(), actor: actorId, action, summary, refs, system: true, ...(meta ? { meta } : {}) };
     this.c.activityStore.append(entry);
     this.c.index.addActivity(entry);
     this.c.events.emit("change", { type: "activity", entry });

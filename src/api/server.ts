@@ -8,6 +8,7 @@ import { loadTokens } from "../core/project.js";
 import { Actor, CortexError } from "../core/types.js";
 import { DocKind } from "../index/db.js";
 import { CSRF_HEADER, SESSION_COOKIE, verifyLoginCode } from "./auth.js";
+import { reportToMarkdown } from "../core/reportMarkdown.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -147,6 +148,15 @@ export function buildServer(cortex: Cortex): FastifyInstance {
   app.get("/api/tree/*", treeHandler);
 
   const nodeGet = async (req: FastifyRequest) => ok(cortex.nodeView((req.params as Q)["*"] ?? ""));
+
+  // ---- reports ------------------------------------------------------------------
+
+  app.get("/api/report", async (req, reply) => {
+    const q = req.query as Q;
+    const report = cortex.reports.build({ since: q.since, until: q.until });
+    if (q.format === "md") return reply.type("text/markdown; charset=utf-8").send(reportToMarkdown(report, q.lang === "tr" ? "tr" : "en"));
+    return ok({ report });
+  });
 
   // ---- code links & staleness ---------------------------------------------------
 

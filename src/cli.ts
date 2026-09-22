@@ -22,6 +22,8 @@ Usage: cortex <command> [options]
   bootstrap                          Print the task that lets your AI fill the tree
   reindex                            Rebuild the search index from files
   semantic [on|off|status]           Meaning-based search (one-time ~420 MB download, shared by all projects)
+  report [--since 7d] [--until <date>] [--lang en|tr] [--json] [--out <file>]
+                                     What happened, what is waiting, knowledge health (markdown by default)
 `;
 
 async function main() {
@@ -33,6 +35,11 @@ async function main() {
       port: { type: "string" },
       actor: { type: "string" },
       "agent-files": { type: "boolean" },
+      since: { type: "string" },
+      until: { type: "string" },
+      lang: { type: "string" },
+      json: { type: "boolean" },
+      out: { type: "string" },
     },
     allowPositionals: true,
   });
@@ -103,6 +110,24 @@ Next steps:
       const { bootstrapPrompt, findMarkdown } = await import("./core/init.js");
       const project = loadProject();
       console.log(bootstrapPrompt(project.config.project.name, findMarkdown(project.root)));
+      break;
+    }
+
+    case "report": {
+      const { Cortex } = await import("./core/cortex.js");
+      const { reportToMarkdown } = await import("./core/reportMarkdown.js");
+      const cortex = new Cortex(loadProject(), { embedder: null }); // a report never needs the search model
+      try {
+        const report = cortex.reports.build({ since: values.since, until: values.until });
+        const text = values.json ? JSON.stringify(report, null, 2) : reportToMarkdown(report, values.lang === "tr" ? "tr" : "en");
+        if (values.out) {
+          const { writeFileSync } = await import("node:fs");
+          writeFileSync(values.out, text, "utf8");
+          console.error(`✔ Report written to ${values.out}`);
+        } else console.log(text);
+      } finally {
+        cortex.close();
+      }
       break;
     }
 
