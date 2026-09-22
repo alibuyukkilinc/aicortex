@@ -677,6 +677,8 @@ export function MembersPage({ canManage }: { canManage: boolean }) {
   const members = useApi<{ members: ProjectMember[] }>("/api/members");
   const candidates = useApi<{ candidates: { id: string; name: string; kind: "human" | "ai" }[] }>(canManage ? "/api/members/candidates" : null);
   const [pick, setPick] = useState("");
+  const [adding, setAdding] = useState<"human" | "ai" | null>(null);
+  const [secret, setSecret] = useState<{ title: string; value: string; hint: string } | null>(null);
 
   const save = async (principal: string, body: object) => {
     try {
@@ -706,18 +708,29 @@ export function MembersPage({ canManage }: { canManage: boolean }) {
           <p>{t("hub.membersIntro")}</p>
         </div>
       </div>
-      {canManage && candidates.data && candidates.data.candidates.length > 0 && (
+      {canManage && (
         <div className="toolbar">
-          <select className="select" style={{ width: "auto", minWidth: 220 }} value={pick} onChange={(e) => setPick(e.target.value)}>
-            <option value="">{t("hub.pick")}</option>
-            {candidates.data.candidates.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.kind === "human" ? t("hub.person") : t("hub.agent")})
-              </option>
-            ))}
-          </select>
-          <button className="btn primary" disabled={!pick} onClick={() => void save(pick, {}).then(() => setPick(""))}>
-            <Icon name="plus" /> {t("hub.addMember")}
+          {candidates.data && candidates.data.candidates.length > 0 && (
+            <>
+              <select className="select" style={{ width: "auto", minWidth: 200 }} value={pick} onChange={(e) => setPick(e.target.value)} aria-label={t("hub.orExisting")}>
+                <option value="">{t("hub.orExisting")}</option>
+                {candidates.data.candidates.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.kind === "human" ? t("hub.person") : t("hub.agent")})
+                  </option>
+                ))}
+              </select>
+              <button className="btn" disabled={!pick} onClick={() => void save(pick, {}).then(() => setPick(""))}>
+                <Icon name="plus" /> {t("hub.addMember")}
+              </button>
+            </>
+          )}
+          <span className="spacer" />
+          <button className="btn" onClick={() => setAdding("ai")}>
+            <Icon name="plus" /> {t("hub.newAgent")}
+          </button>
+          <button className="btn primary" onClick={() => setAdding("human")}>
+            <Icon name="plus" /> {t("hub.invitePerson")}
           </button>
         </div>
       )}
@@ -792,6 +805,20 @@ export function MembersPage({ canManage }: { canManage: boolean }) {
       <p className="faint" style={{ fontSize: 12.5, marginTop: 14, maxWidth: "80ch" }}>
         {t("hub.rolesHelp")}
       </p>
+      {adding && (
+        <AddToProject
+          kind={adding}
+          onClose={() => setAdding(null)}
+          onDone={(result) => {
+            setAdding(null);
+            members.reload();
+            candidates.reload();
+            if (result) setSecret(result);
+            else toast({ text: t("hub.alreadyMember") });
+          }}
+        />
+      )}
+      {secret && <Secret title={secret.title} value={secret.value} hint={secret.hint} onClose={() => setSecret(null)} />}
     </>
   );
 }
@@ -813,5 +840,80 @@ function BranchesInput({ value, onSave }: { value: string[]; onSave: (branches: 
       onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
     />
+  );
+}
+
+// Invite a person, or create an AI agent, straight from a project. A project's owner or admin can do this;
+// what they hand out never reaches beyond this project.
+function AddToProject({ kind, onClose, onDone }: { kind: "human" | "ai"; onClose: () => void; onDone: (secret: { title: string; value: string; hint: string } | null) => void }) {
+  const t = useT();
+  const label = useLabels();
+  const [who, setWho] = useState(""); // email or agent id
+  const [name, setName] = useState("");
+  const [role, setRole] = useState(kind === "human" ? "member" : "contributor");
+  const [scope, setScope] = useState("all");
+  const [err, setErr] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      if (kind === "human") {
+        const r = await api<{ invite_url?: string }>("/api/members/invite", { method: "POST", body: { email: who, name, role, scope } });
+        onDone(r.invite_url ? { title: t("hub.inviteLink"), value: r.invite_url, hint: t("hub.inviteLinkHint") } : null);
+      } else {
+        const r = await api<{ token: string }>("/api/agents", { method: "POST", body: { id: who, name, role } });
+        onDone({ title: t("hub.token"), value: r.token, hint: t("hub.tokenHint") });
+      }
+    } catch (e) {
+      setErr(e);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal onClose={onClose} title={t(kind === "human" ? "hub.invitePerson" : "hub.newAgent")}>
+      <p className="muted" style={{ marginTop: 0 }}>{t(kind === "human" ? "hub.inviteHint" : "hub.agentHint")}</p>
+      <ErrorBox error={err} />
+      <div className="field">
+        <label>{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
+        <input className={`input ${kind === "ai" ? "mono" : ""}`} autoFocus type={kind === "human" ? "email" : "text"} value={who} onChange={(e) => setWho(e.target.value)} />
+        {kind === "ai" && <span className="hint">{t("hub.agentIdHint")}</span>}
+      </div>
+      <div className="field">
+        <label>{t("hub.name")}</label>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="grid2">
+        <div className="field">
+          <label>{t("hub.role")}</label>
+          <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
+            {(kind === "human" ? HUMAN_ROLES : AI_ROLES).map((r) => (
+              <option key={r} value={r}>
+                {label.role(r)}
+              </option>
+            ))}
+          </select>
+        </div>
+        {kind === "human" && (
+          <div className="field">
+            <label>{t("hub.scope")}</label>
+            <select className="select" value={scope} onChange={(e) => setScope(e.target.value)}>
+              <option value="all">{t("hub.scopeAll")}</option>
+              <option value="own">{t("hub.scopeOwn")}</option>
+            </select>
+          </div>
+        )}
+      </div>
+      <div className="modal-foot">
+        <button className="btn" onClick={onClose}>
+          {t("common.cancel")}
+        </button>
+        <button className="btn primary" disabled={busy || !who.trim() || (kind === "human" && !name.trim())} onClick={() => void save()}>
+          {t(kind === "human" ? "hub.invitePerson" : "hub.newAgent")}
+        </button>
+      </div>
+    </Modal>
   );
 }

@@ -322,3 +322,46 @@ test("MCP over HTTP: an AI that is not on this machine gets the same tools and t
     await t.cleanup();
   }
 });
+
+test("a project's owner can invite people and create agent tokens, without becoming an org admin", async () => {
+  const t = await setup();
+  try {
+    const admin = await t.login("ada@example.com", "correct-horse-1");
+    const lead = await invite(t, admin, "lead@example.com", "Mobil Lider", [{ id: "shop", role: "owner" }]);
+    const worker = await invite(t, admin, "dev@example.com", "Geliştirici", [{ id: "shop", role: "member" }]);
+
+    // A member cannot; the owner can.
+    assert.equal((await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: worker.cookie, payload: { email: "x@example.com", name: "X" } })).statusCode, 403);
+    const r = await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: lead.cookie, payload: { email: "yeni@example.com", name: "Yeni Kişi", role: "member", scope: "own" } });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.match(r.json().invite_url, /\/invite\/inv_/);
+    const created = t.store.userByEmail("yeni@example.com")!;
+    assert.equal(created.org_admin, false, "a project owner never hands out organization admin");
+    assert.deepEqual(t.store.memberships(created.id).map((m) => m.project_id), ["shop"], "only the project they run");
+    assert.equal(t.store.member("shop", created.id)!.scope, "own");
+    assert.equal((await t.call({ url: "/api/admin/users", cookie: lead.cookie })).statusCode, 403, "still not an org admin");
+
+    // Inviting someone who already has an account just adds them; no new password link.
+    const again = await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: lead.cookie, payload: { email: "dev@example.com", name: "Geliştirici", role: "viewer" } });
+    assert.equal(again.json().invite_url, undefined);
+    assert.equal(t.store.member("shop", worker.id)!.role, "viewer");
+
+    // Agents: created, listed and rotated by the project owner, scoped to this project.
+    const agent = await t.call({ method: "POST", url: "/api/p/shop/agents", cookie: lead.cookie, payload: { id: "shop-bot", name: "Shop Bot", role: "contributor" } });
+    assert.equal(agent.statusCode, 201, agent.body);
+    const token = agent.json().token;
+    assert.equal((await t.call({ url: "/api/p/shop/brief", token })).statusCode, 200);
+    assert.equal((await t.call({ url: "/api/p/blog/brief", token })).statusCode, 403, "the new agent sees only this project");
+    assert.deepEqual((await t.call({ url: "/api/p/shop/agents", cookie: lead.cookie })).json().agents.map((a: { id: string }) => a.id), ["shop-bot"]);
+
+    const rotated = (await t.call({ method: "POST", url: "/api/p/shop/agents/shop-bot/token", cookie: lead.cookie })).json().token;
+    assert.equal((await t.call({ url: "/api/p/shop/brief", token })).statusCode, 401, "the old token stopped working");
+    assert.equal((await t.call({ url: "/api/p/shop/brief", token: rotated })).statusCode, 200);
+
+    // Another project's owner cannot touch this agent's token.
+    await t.call({ method: "PUT", url: `/api/p/blog/members/${lead.id}`, cookie: admin, payload: { role: "owner" } });
+    assert.equal((await t.call({ method: "POST", url: "/api/p/blog/agents/shop-bot/token", cookie: lead.cookie })).statusCode, 404);
+  } finally {
+    await t.cleanup();
+  }
+});

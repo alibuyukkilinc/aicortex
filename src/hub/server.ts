@@ -314,6 +314,7 @@ export function buildHubServer(hub: Hub): FastifyInstance {
       });
       scope.put("/members/:principal", async (req) => {
         if (!req.access!.can("manage_members")) throw new CortexError("forbidden", "Your role cannot manage members.", 403);
+
         const { project, principal } = req.params as Q;
         const b = (req.body ?? {}) as { role?: string; scope?: string; branches?: string[] };
         // Only owners hand out or take away ownership.
@@ -325,6 +326,54 @@ export function buildHubServer(hub: Hub): FastifyInstance {
         hub.syncActors(project!);
         return { member: m };
       });
+      // A project's owner or admin can bring people and AI agents in without an organization admin.
+      // What they hand out is scoped to this project: never organization admin, never another project.
+      const canManage = (req: FastifyRequest) => {
+        if (!req.access!.can("manage_members")) throw new CortexError("forbidden", "Your role cannot manage members.", 403);
+      };
+
+      scope.post("/members/invite", async (req, reply) => {
+        canManage(req);
+        const project = (req.params as Q).project!;
+        const b = (req.body ?? {}) as { email?: string; name?: string; role?: string; scope?: string; branches?: string[] };
+        const existing = b.email ? store.userByEmail(b.email) : null;
+        const user = existing ?? store.createUser({ email: b.email ?? "", name: b.name ?? "" });
+        const member = store.setMember(project, user.id, { role: b.role, scope: b.scope, branches: b.branches });
+        hub.syncActors(project);
+        // Someone who already has a password signs in as usual; a new person needs a link to set one.
+        const invite_url = user.has_password ? undefined : inviteUrl(store.createInvite(user.id));
+        return reply.code(201).send({ user: { id: user.id, name: user.name, email: user.email }, member, ...(invite_url ? { invite_url } : {}) });
+      });
+
+      scope.get("/agents", async (req) => {
+        canManage(req);
+        const project = (req.params as Q).project!;
+        const agents = store
+          .members(project)
+          .filter((m) => m.kind === "ai")
+          .map((m) => ({ ...store.agent(m.principal), role: m.role }))
+          .filter((a) => a.id);
+        return { agents };
+      });
+
+      scope.post("/agents", async (req, reply) => {
+        canManage(req);
+        const project = (req.params as Q).project!;
+        const b = (req.body ?? {}) as { id?: string; name?: string; role?: string };
+        const r = store.createAgent({ id: b.id ?? "", name: b.name }, req.actor.id);
+        store.setMember(project, r.agent.id, { role: b.role ?? "contributor" });
+        hub.syncActors(project);
+        return reply.code(201).send({ ...r, note: "Copy the token now: it is shown only once." });
+      });
+
+      scope.post("/agents/:id/token", async (req) => {
+        canManage(req);
+        const { project, id } = req.params as Q;
+        // Only agents that work on this project, so one project cannot reset another project's agent.
+        if (store.member(project!, id!)?.kind !== "ai") throw new CortexError("not_found", `No agent "${id}" in this project.`, 404);
+        return { token: store.rotateAgentToken(id!), note: "The old token stopped working." };
+      });
+
       scope.delete("/members/:principal", async (req) => {
         if (!req.access!.can("manage_members")) throw new CortexError("forbidden", "Your role cannot manage members.", 403);
         const { project, principal } = req.params as Q;
