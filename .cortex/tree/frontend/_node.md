@@ -10,11 +10,11 @@ links:
   code:
     - file: web/src/App.tsx
     - file: web/src/api.ts
-verified_at_commit: d974755195f2cbd8301ad42d39a41c6250682b77
+verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
 id: 01M34Q1CBDWE3WNXKNMP6QK1W7
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:35:00.875Z
+updated_at: 2026-09-22T14:53:23.068Z
 ---
 
 - Adres çubuğunda # ile gezinme (`#/knowledge/...`); iskelet ve menü `web/src/App.tsx` içinde.

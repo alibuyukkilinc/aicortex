@@ -10,11 +10,11 @@ links:
     - file: web/src/pages
     - file: web/src/items.tsx
     - file: web/src/SchemaForm.tsx
-verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
+verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
 id: 01M34QY9ZWPSMQ85J1ACFRTWTS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:45:15.093Z
+updated_at: 2026-09-22T14:53:23.109Z
 ---
 
 - Gelen kutusu: seni bekleyenler, engelleyiciler üstte. Pano: tür başına kanban; yasak geçişler soluk ve açıklamalı.

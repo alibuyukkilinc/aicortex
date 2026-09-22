@@ -8,11 +8,11 @@ tags:
 links:
   code:
     - file: src/api/server.ts
-verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
+verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
 id: 01M34QY9R9NE0TTWX5ZP3R74J1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:45:15.077Z
+updated_at: 2026-09-22T14:53:23.085Z
 ---
 
 - Rotalar `buildServer` içinde (`src/api/server.ts`); tam liste README'de.

@@ -11,11 +11,11 @@ links:
     - file: src/core/cortex.ts
     - file: CORTEX_SPEC.md
     - file: README.md
-verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
+verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
 id: 01M34Q1CBAV6VRTFKAVCK99EC0
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:45:15.010Z
+updated_at: 2026-09-22T14:53:23.055Z
 ---
 
 ## Ne işe yarar?
@@ -36,5 +36,5 @@ Kontrol insandadır: AI'ın bilgiye yazdığı her şey önce taslak olur, insan
 Token dostu · tek komutla çalışır · git dostu · kontrol insanda · AI'ın yaptıkları şeffaf · API kendi kurallarını anlatır · basit.
 
 ## Markdown dosyaları
-`CORTEX_SPEC.md` ilk v1 spesifikasyonudur; tarihçedir, güncel tutulmaz. `README.md` kullanıcıya yönelik ürün tanıtımıdır.
-Projenin güncel bilgisi bu ağaçtır.
+`CORTEX_SPEC.md` ana spesifikasyondur ve kodla uyumlu tutulur (sistemin ne yaptığı). `README.md` kullanıcıya yönelik ürün tanıtımıdır.
+Ayrıntılı proje bilgisi (hangi dosya ne yapar, neden böyle karar verdik) bu ağaçtadır. npm paketi: `aicortex`.

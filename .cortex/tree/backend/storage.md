@@ -14,16 +14,16 @@ links:
     - file: src/store/drafts.ts
     - file: src/store/frontmatter.ts
     - file: src/core/project.ts
-verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
+verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
 id: 01M34QY98RMP56FT3WTB1B4Z09
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:45:15.086Z
+updated_at: 2026-09-22T14:53:23.128Z
 ---
 
 ```
 .cortex/
-├── cortex.config.yaml   aktörler ve onay politikası (commit'lenir)
+├── cortex.config.yaml   aktörler, onay politikası, rapor saat dilimi (commit'lenir)
 ├── .secrets.yaml        aktör token'ları (git'e girmez)
 ├── rules/               şemalar ve genel kurallar, yalnızca insan
 ├── tree/                _node.md = dal, <ad>.md = yaprak
@@ -37,3 +37,4 @@ updated_at: 2026-09-22T14:45:15.086Z
 - Kimlikler ULID: aynı anda yazan iki kişi çakışmaz.
 - Her aktörün kendi aktivite dosyası var: iki kişi aynı dosyaya yazmaz, birleştirme temiz olur.
 - `.cortex/.gitattributes` satır sonlarını LF'ye sabitler, Windows'ta farklar bozulmaz.
+- `loadProject` açılışta ayarları denetler: geçersiz aktör adı veya bilinmeyen saat dilimi açık bir hatayla reddedilir.
