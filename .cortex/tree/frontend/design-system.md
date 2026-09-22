@@ -12,11 +12,11 @@ links:
     - file: web/src/styles.css
     - file: web/src/charts.tsx
     - file: web/src/ui.tsx
-verified_at_commit: d974755195f2cbd8301ad42d39a41c6250682b77
+verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
 id: 01M34QYA1Q9QSJH06S50NZT2N4
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:35:00.958Z
+updated_at: 2026-09-22T14:45:15.051Z
 ---
 
 - Temalar: `:root`, `@media (prefers-color-scheme: dark)` ve `:root[data-theme="dark"]`; üçü de aynı değişkenleri tanımlamalı.

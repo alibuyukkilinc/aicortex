@@ -8,8 +8,9 @@ author: ai-agent
 fields:
   priority: high
 created_at: 2026-09-22T14:08:48.160Z
-updated_at: 2026-09-22T14:23:22.112Z
-updated_by: ai-agent
+updated_at: 2026-09-22T14:38:17.631Z
+updated_by: owner
+assignee: "@ai"
 ---
 
 Paket adı sorusunun cevabını bekliyor.

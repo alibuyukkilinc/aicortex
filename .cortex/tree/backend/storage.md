@@ -14,11 +14,11 @@ links:
     - file: src/store/drafts.ts
     - file: src/store/frontmatter.ts
     - file: src/core/project.ts
-verified_at_commit: d974755195f2cbd8301ad42d39a41c6250682b77
+verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
 id: 01M34QY98RMP56FT3WTB1B4Z09
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:35:00.900Z
+updated_at: 2026-09-22T14:45:15.086Z
 ---
 
 ```
@@ -32,7 +32,7 @@ updated_at: 2026-09-22T14:35:00.900Z
 ├── drafts/              onay bekleyen AI önerileri
 └── .index/              SQLite önbelleği (git'e girmez)
 ```
-- Bir yaprağa alt düğüm eklenince kendiliğinden dala dönüşür (`TreeStore.write`).
+- Bir yaprağa alt düğüm eklenince kendiliğinden dala dönüşür (`TreeStore.write`); son alt düğümü silinen dal tekrar tek dosyaya döner (`TreeStore.remove`). Silinen düğüm git geçmişinde kalır.
 - Yol parçaları: küçük harf, rakam ve tire (`normalizePath`).
 - Kimlikler ULID: aynı anda yazan iki kişi çakışmaz.
 - Her aktörün kendi aktivite dosyası var: iki kişi aynı dosyaya yazmaz, birleştirme temiz olur.

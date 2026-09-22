@@ -2,7 +2,7 @@
 id: 01M34Q5V9RQY668C2QT2KZD1M3
 type: issue
 title: Taslak düğümler aramada görünmüyor
-status: open
+status: review
 category_path: backend
 author: ai-agent
 fields:
@@ -12,7 +12,7 @@ fields:
   expected: Taslak, durumu 'draft' olarak döner.
   actual: İnsan onaylayana kadar sonuç yok.
 created_at: 2026-09-22T14:09:07.384Z
-updated_at: 2026-09-22T14:23:22.103Z
+updated_at: 2026-09-22T14:45:01.432Z
 updated_by: ai-agent
 ---
 

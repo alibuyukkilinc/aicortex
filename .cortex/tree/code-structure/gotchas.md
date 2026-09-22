@@ -12,11 +12,11 @@ links:
     - file: src/index/db.ts
     - file: src/git/git.ts
     - file: src/cli.ts
-verified_at_commit: d974755195f2cbd8301ad42d39a41c6250682b77
+verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
 id: 01M34QYABJE3KGV82NE6BGAWEK
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:35:00.967Z
+updated_at: 2026-09-22T14:45:15.045Z
 ---
 
 - **node:sqlite parametreleri**: `?1` gibi numaralı yer tutucular çalışmıyor; `:ad` ya da düz `?` kullan.

@@ -12,11 +12,11 @@ links:
     - file: src/core/items.ts
     - file: src/core/schema.ts
     - file: src/core/language.ts
-verified_at_commit: d974755195f2cbd8301ad42d39a41c6250682b77
+verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
 id: 01M34QY9EQ1V2FK6QYKKVTPEDB
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:35:00.915Z
+updated_at: 2026-09-22T14:45:15.038Z
 ---
 
 - Varsayılanlar `DEFAULT_SCHEMAS` içinde (`src/core/schema.ts`); `init` bunları `.cortex/rules/` altına yazar.
