@@ -50,6 +50,16 @@ const NODE_EXAMPLE = {
 
 const NON_ITEM_RULES = new Set(["node", "activity"]);
 const RRF_K = 60; // standard Reciprocal Rank Fusion constant
+const BRIEF_BUDGET = 800; // tokens; the spec's promise for the session opener
+
+// Cut to a whole word, with an ellipsis, so a trimmed summary still reads like a sentence.
+function shorten(text: string, max: number): string {
+  if (max === 0) return "";
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
 
 // Content hash of a node, so conflict detection does not depend on clock resolution.
 function revision(n: KnowledgeNode): string {
@@ -215,7 +225,9 @@ export class Cortex {
   // ---- reading ------------------------------------------------------------
 
   // The session opener: small, stable, and everything an AI needs to decide where to look next.
-  brief(actor: Actor) {
+  // It is trimmed to fit `budget` tokens: first the branch summaries get shorter, then the lists,
+  // because a project with many branches or a long queue must not turn the opener into a wall of text.
+  brief(actor: Actor, budget = BRIEF_BUDGET) {
     const root = this.tree.read("");
     const branches = this.index.children("").map((n) => {
       const open = this.index.openItemsUnder(n.path);
@@ -233,23 +245,25 @@ export class Cortex {
     const inbox = this.items.inbox(actor, 5);
     const recent = this.index.queryActivity({ includeSystem: false, limit: 3 }).map((a) => ({ id: a.id, actor: a.actor, at: a.at, summary: a.summary }));
 
-    return {
+    const build = ([chars, rows, activity]: [number, number, number]) => ({
       project: {
         name: this.project.config.project.name,
         summary: root?.summary ?? this.project.config.project.summary ?? "",
       },
       you: actor,
-      branches,
+      branches: branches.map((b) => ({ ...b, summary: shorten(b.summary, chars) })),
+      // Says out loud that this brief was shortened (cortex_tree has the full text), in as few tokens as it costs.
+      ...(chars < 300 ? { trimmed: true } : {}),
       attention: {
-        inbox: { count: inbox.count, top: inbox.items.map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })) },
+        inbox: { count: inbox.count, top: inbox.items.slice(0, rows).map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })) },
         // Count + a few: after a bootstrap there can be dozens, and the brief must stay small.
-        pending_approvals: { count: mine.length, top: mine.slice(0, 5).map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })) },
+        pending_approvals: { count: mine.length, top: mine.slice(0, rows).map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })) },
         // Knowledge whose code changed since it was verified: fix it or verify it when you touch that area.
         ...(stale.length
-          ? { stale_nodes: { count: stale.length, top: stale.slice(0, 5).map((s) => ({ path: s.path, files: s.changes.map((c) => c.file) })) } }
+          ? { stale_nodes: { count: stale.length, top: stale.slice(0, rows).map((s) => ({ path: s.path, files: s.changes.map((c) => c.file) })) } }
           : {}),
       },
-      recent_activity: recent,
+      recent_activity: recent.slice(0, activity),
       search: ["ready", "indexing"].includes(this.semantic.status().state) ? "hybrid" : "keyword",
       // The language rule is the first global rule; no separate field, every token counts here.
       rules: { version: rulesVersion(this.project.dir), global: this.globalRules(), item_types: this.itemTypes() },
@@ -258,7 +272,22 @@ export class Cortex {
         "cortex_search(q) before changing anything you don't fully understand",
         "cortex_tree(path) / cortex_node(path) to drill down; cortex_log_activity after each change",
       ],
-    };
+      });
+    // Steps tried in order until the brief fits: shorter branch summaries, then fewer rows.
+    const steps: [number, number, number][] = [
+      [300, 5, 3], // full summaries
+      [160, 5, 3],
+      [160, 3, 2],
+      [100, 3, 2],
+      [60, 2, 1],
+      [0, 1, 1], // last resort: titles only; cortex_tree has the summaries
+    ];
+    let out = build(steps[0]);
+    for (const step of steps.slice(1)) {
+      if (estimateTokens(out) <= budget) break;
+      out = build(step);
+    }
+    return out;
   }
 
   treeView(path: string, depth = 1, budget?: number) {

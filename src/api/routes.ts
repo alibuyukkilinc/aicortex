@@ -84,7 +84,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   // ---- knowledge --------------------------------------------------------------
 
   app.get("/brief", async (req) => {
-    const b = req.cortex.brief(req.actor);
+    const b = req.cortex.brief(req.actor, num((req.query as Q).budget));
     if (!req.access) return ok(req, b);
     const stale = b.attention.stale_nodes;
     const staleTop = stale?.top.filter((s) => seesNode(req, s.path)) ?? [];

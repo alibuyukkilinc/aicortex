@@ -182,3 +182,28 @@ test("Node version check: 22.16 is the minimum (node:sqlite has FTS5 from there)
   assert.equal(nodeTooOld("24.1.0"), false);
   assert.match(NODE_TOO_OLD_MESSAGE("22.13.0"), /Node\.js 22\.16 or newer \(you have 22\.13\.0\)/);
 });
+
+test("brief fits its token budget: summaries shrink, branches and rules stay", async () => {
+  const t = tempProject();
+  try {
+    // A project like a real one: many branches with full-length summaries.
+    for (let i = 0; i < 12; i++) {
+      t.cortex.putNode(t.human, { path: `branch-${i}`, title: `Branch ${i}`, summary: `${"Bu dal projenin bir parçasını anlatır ve özeti uzundur. ".repeat(5)}`.slice(0, 300) });
+      t.cortex.items.create(t.human, { type: "question", title: `Soru ${i}`, assignee: "@ai", fields: { blocking: true } });
+    }
+    const brief = t.cortex.brief(t.ai);
+    const size = estimateTokens(brief);
+    assert.ok(size <= 800, `brief is ${size} tokens`);
+    assert.equal(brief.branches.length, 19, "every branch is still listed (7 from init + 12)");
+    assert.ok(brief.trimmed, "the brief says it was shortened");
+    assert.equal(brief.rules.global.length, t.cortex.globalRules().length, "rules are never trimmed");
+    assert.ok(brief.attention.inbox.count >= 12, "counts stay honest even when the list is short");
+
+    // A caller that can afford more gets more.
+    const big = t.cortex.brief(t.ai, 4000);
+    assert.ok(estimateTokens(big) > size);
+    assert.ok(big.branches.every((b) => !b.summary.endsWith("…")), "with room, summaries are complete");
+  } finally {
+    t.cleanup();
+  }
+});

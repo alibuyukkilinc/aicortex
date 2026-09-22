@@ -42,10 +42,10 @@ export function buildMcpServer(api: McpApi): McpServer {
   server.registerTool(
     "cortex_brief",
     {
-      description: "Session opener (~600 tokens): project summary, top-level branches, your inbox, recent activity, global rules. Call this first.",
-      inputSchema: {},
+      description: "Session opener (under 800 tokens): project summary, top-level branches, your inbox, recent activity, global rules. Call this first.",
+      inputSchema: { budget: z.number().int().positive().optional().describe("Approximate max tokens; summaries and lists are trimmed to fit.") },
     },
-    wrap(() => get("/brief")),
+    wrap((a: { budget?: number }) => get("/brief", { budget: a.budget })),
   );
 
   server.registerTool(
