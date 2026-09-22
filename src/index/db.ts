@@ -79,7 +79,7 @@ const STOPWORDS = new Set(
 );
 
 // Bump when the table layout changes; an old cache is simply dropped and rebuilt from files.
-const INDEX_VERSION = 3;
+const INDEX_VERSION = 4;
 
 // The index is a disposable cache: everything here can be rebuilt from the files with reindex().
 export class Index {
@@ -93,7 +93,7 @@ export class Index {
     if (v !== INDEX_VERSION) {
       this.db.exec(`
         DROP TABLE IF EXISTS nodes; DROP TABLE IF EXISTS nodes_fts;
-        DROP TABLE IF EXISTS items; DROP TABLE IF EXISTS activity; DROP TABLE IF EXISTS docs_fts; DROP TABLE IF EXISTS doc_text;
+        DROP TABLE IF EXISTS items; DROP TABLE IF EXISTS activity; DROP TABLE IF EXISTS docs_fts; DROP TABLE IF EXISTS doc_text; DROP TABLE IF EXISTS code_links;
         PRAGMA user_version = ${INDEX_VERSION};`);
     }
     this.db.exec(`
@@ -120,6 +120,9 @@ export class Index {
         title, summary, body, tags,
         tokenize = 'unicode61 remove_diacritics 2'
       );
+      -- Which knowledge nodes and items point at which code (files or directories, relative to the project root).
+      CREATE TABLE IF NOT EXISTS code_links (kind TEXT NOT NULL, ref TEXT NOT NULL, file TEXT NOT NULL, lines TEXT);
+      CREATE INDEX IF NOT EXISTS code_links_file ON code_links(file);
       -- Raw text of every searchable document, the input for semantic embeddings.
       CREATE TABLE IF NOT EXISTS doc_text (
         kind TEXT NOT NULL, ref TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, type TEXT NOT NULL,
@@ -154,7 +157,7 @@ export class Index {
     activity: Activity[];
   }): void {
     this.tx(() => {
-      this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text;");
+      this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text; DELETE FROM code_links;");
       for (const n of data.nodes) this.insertNode(n);
       for (const i of data.items) this.insertItem(i.item, i.replies, i.terminal);
       for (const a of data.activity) this.insertActivity(a);
@@ -166,12 +169,14 @@ export class Index {
   upsertNode(node: KnowledgeNode): void {
     this.tx(() => {
       this.db.prepare("DELETE FROM nodes WHERE path = ?").run(node.path);
+      this.db.prepare("DELETE FROM code_links WHERE kind = 'node' AND ref = ?").run(node.path);
       this.deleteDoc("node", node.path);
       this.insertNode(node);
     });
   }
 
   private insertNode(n: KnowledgeNode): void {
+    this.insertCodeLinks("node", n.path, n.links?.code);
     const tags = n.tags ?? [];
     this.db
       .prepare("INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
@@ -193,11 +198,6 @@ export class Index {
     return (this.db.prepare("SELECT COUNT(*) AS c FROM nodes WHERE parent = ?").get(path) as { c: number }).c;
   }
 
-  countNodesByStatus(): Record<string, number> {
-    const rows = this.db.prepare("SELECT status, COUNT(*) AS c FROM nodes GROUP BY status").all() as { status: string; c: number }[];
-    return Object.fromEntries(rows.map((r) => [r.status, r.c]));
-  }
-
   // Open items filed under this node or any node below it.
   openItemsUnder(path: string): number {
     const sql =
@@ -213,12 +213,14 @@ export class Index {
   upsertItem(item: Item, replies: Reply[], terminal: boolean): void {
     this.tx(() => {
       this.db.prepare("DELETE FROM items WHERE id = ?").run(item.id);
+      this.db.prepare("DELETE FROM code_links WHERE kind = 'item' AND ref = ?").run(item.id);
       this.deleteDoc("item", item.id);
       this.insertItem(item, replies, terminal);
     });
   }
 
   private insertItem(i: Item, replies: Reply[], terminal: boolean): void {
+    this.insertCodeLinks("item", i.id, i.links?.code);
     const last = replies[replies.length - 1];
     this.db
       .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -305,6 +307,31 @@ export class Index {
   private deleteDoc(kind: DocKind, ref: string) {
     this.db.prepare("DELETE FROM docs_fts WHERE kind = ? AND ref = ?").run(kind, ref);
     this.db.prepare("DELETE FROM doc_text WHERE kind = ? AND ref = ?").run(kind, ref);
+  }
+
+  // ---- code links ---------------------------------------------------------
+
+  private insertCodeLinks(kind: DocKind, ref: string, links: { file: string; lines?: string }[] | undefined) {
+    const stmt = this.db.prepare("INSERT INTO code_links VALUES (?, ?, ?, ?)");
+    for (const l of links ?? []) stmt.run(kind, ref, normalizeFile(l.file), l.lines ?? null);
+  }
+
+  nodeCodeLinks(): { path: string; file: string; lines: string | null }[] {
+    return this.db.prepare("SELECT ref AS path, file, lines FROM code_links WHERE kind = 'node'").all() as { path: string; file: string; lines: string | null }[];
+  }
+
+  // Links that cover any of the files: exact match, a linked directory containing the file, or a file inside an asked-about directory.
+  linksForFiles(files: string[]): { kind: DocKind; ref: string; file: string; lines: string | null }[] {
+    const out = new Map<string, { kind: DocKind; ref: string; file: string; lines: string | null }>();
+    const stmt = this.db.prepare(
+      // substr instead of LIKE: "_" and "%" are common in file names and must not act as wildcards.
+      "SELECT kind, ref, file, lines FROM code_links WHERE file = :f " +
+        "OR substr(:f, 1, length(file) + 1) = file || '/' OR substr(file, 1, length(:f) + 1) = :f || '/'",
+    );
+    for (const f of files.map(normalizeFile)) {
+      for (const r of stmt.all({ f }) as { kind: DocKind; ref: string; file: string; lines: string | null }[]) out.set(`${r.kind}:${r.ref}:${r.file}`, r);
+    }
+    return [...out.values()];
   }
 
   // ---- semantic -----------------------------------------------------------
@@ -399,4 +426,8 @@ function toItem(r: Record<string, unknown>): IndexedItem {
     reply_count: r.reply_count as number,
     last_reply_by: (r.last_reply_by as string | null) ?? null,
   };
+}
+
+export function normalizeFile(f: string): string {
+  return f.trim().replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
 }

@@ -283,3 +283,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .tree { max-height: 40vh; }
   .kv { grid-template-columns: 1fr; }
 }
+
+/* ---- staleness ------------------------------------------------------------------ */
+
+.stale-banner { border: 1px solid var(--warn); background: var(--warn-soft); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 16px; }
+.stale-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.nav-count.warn { background: var(--warn); }

@@ -30,6 +30,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
       instructions:
         "Cortex is this project's shared brain. Call cortex_brief first, then cortex_inbox. Navigate with cortex_tree (summaries only), " +
         "search with cortex_search, and read full detail with cortex_node only when needed. Never try to load everything. " +
+        "Before editing files call cortex_code_context; knowledge marked stale may be wrong. " +
         "After each meaningful change call cortex_log_activity. When unsure, cortex_ask instead of guessing.",
     },
   );
@@ -59,10 +60,34 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
   server.registerTool(
     "cortex_node",
     {
-      description: "Read one knowledge node in full (summary, body, code links). Use after tree/search told you it is relevant.",
+      description:
+        "Read one knowledge node in full (summary, body, code links). If its code changed since it was written, " +
+        "the response includes `staleness` with the changed files and commits: do not trust it blindly.",
       inputSchema: { path: z.string().describe('Node path, e.g. "backend/auth/jwt-refresh".') },
     },
-    wrap(cortex, (a: { path: string }) => ({ node: cortex.node(a.path) })),
+    wrap(cortex, (a: { path: string }) => cortex.nodeView(a.path)),
+  );
+
+  server.registerTool(
+    "cortex_code_context",
+    {
+      description:
+        "Before editing files: which knowledge nodes, decisions and open items cover them. Accepts files or directories " +
+        "relative to the project root. Tells you what to keep consistent and what to update afterwards.",
+      inputSchema: { files: z.array(z.string()).min(1).max(50) },
+    },
+    wrap(cortex, (a: { files: string[] }) => cortex.codeContext(a.files)),
+  );
+
+  server.registerTool(
+    "cortex_verify_node",
+    {
+      description:
+        "Mark a knowledge node as still accurate at the current commit (clears staleness) without changing its content. " +
+        "Only after you actually checked the code. May become a draft for human approval.",
+      inputSchema: { path: z.string(), note: z.string().optional().describe("What you checked") },
+    },
+    wrap(cortex, (a: { path: string; note?: string }) => cortex.verifyNode(actor, a.path, a.note)),
   );
 
   server.registerTool(

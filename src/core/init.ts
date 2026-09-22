@@ -22,6 +22,8 @@ const GLOBAL_RULES = {
   rules: [
     "Start every session with cortex_brief. Do not read the whole tree.",
     "Search Cortex before changing code you do not fully understand.",
+    "Before editing files, call cortex_code_context to see which knowledge and decisions cover them.",
+    "Knowledge marked stale may be wrong: check the code, then update the node or verify it.",
     "If search does not answer your question, ask a human instead of assuming.",
     "Keep summaries under 300 characters: they are what other AIs read first.",
     "Explain WHY in every change, not only WHAT. Log each meaningful change with cortex_log_activity.",
@@ -165,6 +167,7 @@ export const AGENT_HINT = `<!-- cortex:start -->
 This project's knowledge lives in Cortex, not in markdown files.
 - Session start: call \`cortex_brief\`, then \`cortex_inbox\` for questions and issues waiting on you.
 - Before changing code you don't fully understand: \`cortex_search\`, then \`cortex_tree\` / \`cortex_node\`.
+- Before editing files: \`cortex_code_context(files)\` shows the knowledge, decisions and open items that cover them.
 - Unsure? Open a question (\`cortex_ask\` or \`cortex_create_item\` type "question") instead of assuming.
 - After a meaningful change: \`cortex_log_activity\` (what, why, files, commit), and update the relevant node.
 Do not update docs in .md files; update Cortex.

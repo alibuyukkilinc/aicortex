@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, qs, useApi } from "../api";
 import { useT } from "../i18n";
-import type { ItemSummary, KnowledgeNode, NodeSummary } from "../types";
+import type { ItemSummary, KnowledgeNode, NodeSummary, StaleInfo } from "../types";
 import { ActorChip, Ago, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, go, useSession, useToast } from "../ui";
 
 export function Knowledge({ path }: { path: string }) {
@@ -67,7 +67,7 @@ function TreeNode({ node, active, depth }: { node: NodeSummary; active: string; 
 function NodeView({ path }: { path: string }) {
   const t = useT();
   const { actors, ask, openItem } = useSession();
-  const { data, error, loading } = useApi<{ node: KnowledgeNode }>(`/api/node/${path}`);
+  const { data, error, loading, reload } = useApi<{ node: KnowledgeNode; staleness?: StaleInfo }>(`/api/node/${path}`);
   const items = useApi<{ items: ItemSummary[]; total: number }>(`/api/items${qs({ path: path || undefined, open: true, limit: 20 })}`);
   const [editing, setEditing] = useState<"edit" | "child" | null>(null);
 
@@ -99,6 +99,7 @@ function NodeView({ path }: { path: string }) {
         </button>
       </div>
       <p className="summary">{n.summary}</p>
+      {data.staleness && <StaleBanner info={data.staleness} path={n.path} onEdit={() => setEditing("edit")} onVerified={reload} />}
       <div className="row muted" style={{ fontSize: 12.5, gap: 6, marginBottom: 16 }}>
         <StatusChip status={n.status} />
         {t("tree.updated")} <ActorChip id={n.updated_by} actors={actors} /> · <Ago iso={n.updated_at} />
@@ -205,5 +206,73 @@ function NodeEditor({ node, parent, onClose }: { node: KnowledgeNode | null; par
         </button>
       </div>
     </Modal>
+  );
+}
+
+function StaleBanner({ info, path, onEdit, onVerified }: { info: StaleInfo; path: string; onEdit: () => void; onVerified: () => void }) {
+  const t = useT();
+  const toast = useToast();
+  const verify = async () => {
+    try {
+      const r = await api<{ applied: boolean; message: string }>(`/api/verify/${path}`, { method: "POST", body: {} });
+      toast({ text: r.applied ? t("stale.verified") : r.message });
+      onVerified();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    }
+  };
+  return (
+    <div className="stale-banner" role="status">
+      <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
+        <span style={{ color: "var(--warn)", marginTop: 2 }}>
+          <Icon name="alert" />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <strong>{t("stale.title")}</strong>
+          {info.reason === "unknown_commit" ? (
+            <p style={{ margin: "4px 0 0" }}>{t("stale.unknown")}</p>
+          ) : (
+            <>
+              <p style={{ margin: "4px 0 6px" }}>{t("stale.body")}</p>
+              <ul className="stale-list">
+                {info.changes.map((c) => (
+                  <li key={c.file}>
+                    <span className="mono">{c.file}</span>
+                    {c.lines && (
+                      <span className="faint">
+                        {" "}
+                        ({t("stale.lines")} {c.lines})
+                      </span>
+                    )}{" "}
+                    {c.status === "deleted" && <span className="chip danger">{t("stale.deleted")}</span>}
+                    {c.status === "renamed" && (
+                      <span className="chip warn">
+                        {t("stale.renamed")} {c.renamed_to}
+                      </span>
+                    )}
+                    {c.last && (
+                      <div className="faint" style={{ fontSize: 12.5 }}>
+                        {c.commits} {t("stale.commits")} · <span className="mono">{c.last.hash.slice(0, 7)}</span> “{c.last.subject}” — {c.last.author}, <Ago iso={c.last.date} />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>
+            {t("stale.verifiedAt")}: <span className="mono">{info.verified_at_commit.slice(0, 7)}</span>
+          </div>
+        </div>
+      </div>
+      <div className="row" style={{ marginTop: 10, justifyContent: "flex-end" }}>
+        <button className="btn sm" onClick={() => void verify()}>
+          <Icon name="check" size={14} /> {t("stale.verify")}
+        </button>
+        <button className="btn sm primary" onClick={onEdit}>
+          <Icon name="edit" size={14} /> {t("common.edit")}
+        </button>
+      </div>
+    </div>
   );
 }

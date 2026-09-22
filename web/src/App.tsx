@@ -230,7 +230,12 @@ function SideBar({ page }: { page: string }) {
   const t = useT();
   const inbox = useApi<{ count: number }>("/api/inbox?limit=1");
   const drafts = useApi<{ drafts: unknown[] }>("/api/approvals");
-  const counts: Record<string, number> = { inbox: inbox.data?.count ?? 0, approvals: drafts.data?.drafts.length ?? 0 };
+  const stale = useApi<{ nodes: unknown[] }>("/api/stale");
+  const counts: Record<string, number> = {
+    inbox: inbox.data?.count ?? 0,
+    approvals: drafts.data?.drafts.length ?? 0,
+    knowledge: stale.data?.nodes.length ?? 0, // knowledge that may be out of date
+  };
   const { lang, setLang } = useContext(LangContext);
   const logout = async () => {
     await api("/api/logout", { method: "POST" }).catch(() => {});
@@ -243,7 +248,7 @@ function SideBar({ page }: { page: string }) {
         <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`}>
           <Icon name={n.icon} />
           {t(n.key)}
-          {counts[n.route] ? <span className="nav-count">{counts[n.route]}</span> : null}
+          {counts[n.route] ? <span className={`nav-count ${n.route === "knowledge" ? "warn" : ""}`}>{counts[n.route]}</span> : null}
         </a>
       ))}
       <div className="sidebar-foot">

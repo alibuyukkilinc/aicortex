@@ -13,6 +13,7 @@ import { Embedder, TransformersEmbedder } from "../search/embedder.js";
 import { semanticEnabled } from "../search/runtime.js";
 import { SemanticIndex } from "../search/semantic.js";
 import { ActivityService } from "./activity.js";
+import { StalenessService } from "./staleness.js";
 import { ItemService, itemRevision } from "./items.js";
 import { Project, loadTokens, paths, rulesVersion } from "./project.js";
 import { DEFAULT_SCHEMAS, ItemSchema, describeSchema, loadActivitySchema, loadSchema } from "./schema.js";
@@ -75,6 +76,7 @@ export class Cortex {
   private watcher?: FSWatcher;
 
   readonly semantic: SemanticIndex;
+  readonly staleness: StalenessService;
   private syncTimer?: NodeJS.Timeout;
 
   // `embedder` overrides the semantic backend (tests pass a fake; null turns semantic search off).
@@ -93,6 +95,7 @@ export class Cortex {
     const wantSemantic = project.config.search?.semantic !== false && semanticEnabled();
     const factory = opts.embedder !== undefined ? opts.embedder : wantSemantic ? () => new TransformersEmbedder() : null;
     this.semantic = new SemanticIndex(this.index, factory);
+    this.staleness = new StalenessService(this);
     // Every write and reindex emits "change"; batch them into one embedding pass.
     this.events.on("change", () => {
       clearTimeout(this.syncTimer);
@@ -106,6 +109,7 @@ export class Cortex {
     this.closed = true;
     clearTimeout(this.syncTimer);
     clearTimeout(this.watchTimer);
+    clearInterval(this.headPoll);
     this.semantic.close();
     this.watcher?.close();
     this.index.close();
@@ -129,7 +133,20 @@ export class Cortex {
         }
       }, 300);
     });
+    // Commits happen outside .cortex; poll HEAD so staleness (and open boards) update without a restart.
+    let head = this.staleness.currentHead();
+    this.headPoll = setInterval(() => {
+      if (this.closed) return;
+      const now = this.staleness.currentHead();
+      if (now !== head) {
+        head = now;
+        this.events.emit("change", { type: "git", head });
+      }
+    }, 5000);
+    this.headPoll.unref();
   }
+
+  private headPoll?: NodeJS.Timeout;
 
   reindex(): { nodes: number; items: number; activity: number } {
     const nodes = this.tree.all();
@@ -208,7 +225,7 @@ export class Cortex {
     });
     const drafts = this.drafts.list();
     const mine = actor.kind === "human" ? drafts : drafts.filter((d) => d.proposed_by === actor.id);
-    const counts = this.index.countNodesByStatus();
+    const stale = this.staleness.list();
     const inbox = this.items.inbox(actor, 5);
     const recent = this.index.queryActivity({ includeSystem: false, limit: 3 }).map((a) => ({ id: a.id, actor: a.actor, at: a.at, summary: a.summary }));
 
@@ -222,7 +239,10 @@ export class Cortex {
       attention: {
         inbox: { count: inbox.count, top: inbox.items.map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })) },
         pending_approvals: mine.map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })),
-        ...(counts.stale ? { stale_nodes: counts.stale } : {}),
+        // Knowledge whose code changed since it was verified: fix it or verify it when you touch that area.
+        ...(stale.length
+          ? { stale_nodes: { count: stale.length, top: stale.slice(0, 5).map((s) => ({ path: s.path, files: s.changes.map((c) => c.file) })) } }
+          : {}),
       },
       recent_activity: recent,
       search: ["ready", "indexing"].includes(this.semantic.status().state) ? "hybrid" : "keyword",
@@ -243,7 +263,7 @@ export class Cortex {
     let used = 0;
     let truncated = false;
     const build = (n: IndexedNode, level: number): NodeSummary => {
-      const s: NodeSummary = { path: n.path, title: n.title, summary: n.summary, status: n.status };
+      const s: NodeSummary = { path: n.path, title: n.title, summary: n.summary, status: this.staleness.get(n.path) ? "stale" : n.status };
       const open = this.index.openItemsUnder(n.path);
       if (open) s.open_items = open;
       used += estimateTokens(s);
@@ -263,6 +283,65 @@ export class Cortex {
     };
     const node = build(self, 0);
     return { node, truncated, ...(truncated ? { hint: "Budget reached. Open a child path directly." } : {}) };
+  }
+
+  // A node plus whether it can still be trusted: what the API and MCP return.
+  nodeView(path: string) {
+    const node = this.node(path);
+    const stale = this.staleness.get(node.path);
+    return {
+      node,
+      ...(stale
+        ? {
+            staleness: {
+              ...stale,
+              hint: "The linked code changed after this was written. Check the changes, then update the node or verify it (cortex_verify_node).",
+            },
+          }
+        : {}),
+    };
+  }
+
+  // Everything Cortex knows about some files: read this before editing them.
+  codeContext(files: string[]) {
+    if (!files.length) throw new CortexError("invalid_request", "Pass at least one file or directory path.", 400, { example: ["src/auth/login.ts"] });
+    const links = this.index.linksForFiles(files);
+    const nodes = new Map<string, Record<string, unknown>>();
+    const items = new Map<string, Record<string, unknown>>();
+    for (const l of links) {
+      if (l.kind === "node") {
+        const n = this.index.getNode(l.ref);
+        if (!n) continue;
+        const cur = (nodes.get(l.ref) ?? { path: n.path, title: n.title, summary: n.summary, files: [] as string[] }) as { files: string[] } & Record<string, unknown>;
+        cur.files.push(l.lines ? `${l.file}:${l.lines}` : l.file);
+        if (this.staleness.get(n.path)) cur.stale = true;
+        nodes.set(l.ref, cur);
+      } else {
+        const i = this.index.getItem(l.ref);
+        if (i) items.set(i.id, { id: i.id, type: i.type, title: i.title, status: i.status, via: "code link" });
+      }
+    }
+    // Open items and decisions filed under the matched knowledge also concern these files.
+    for (const path of nodes.keys()) {
+      for (const i of this.index.queryItems({ under: path, limit: 20, offset: 0 }).items) {
+        if (!items.has(i.id) && (!i.terminal || i.type === "decision")) items.set(i.id, { id: i.id, type: i.type, title: i.title, status: i.status, via: path });
+      }
+    }
+    return {
+      files,
+      knowledge: [...nodes.values()],
+      items: [...items.values()],
+      ...(nodes.size === 0 ? { hint: "No knowledge links these files yet. After your change, link them from the relevant node (links.code)." } : {}),
+    };
+  }
+
+  // "Still true" without changing content: moves the node's verification point to HEAD.
+  verifyNode(actor: Actor, path: string, note?: string): WriteResult {
+    const head = this.staleness.currentHead();
+    if (!head) throw new CortexError("no_git", "Verification needs a git repository with at least one commit.", 400);
+    const n = this.node(path);
+    const { id: _id, status: _s, updated_by: _u, updated_at: _a, ...content } = n;
+    return this.putNode(actor, { ...content, verified_at_commit: head, reason: note ?? `Verified still accurate at ${head.slice(0, 7)}` });
   }
 
   node(path: string): KnowledgeNode {
@@ -316,7 +395,7 @@ export class Cortex {
   private describeHit(kind: DocKind, ref: string, score: number): Record<string, unknown> | null {
     if (kind === "node") {
       const n = this.index.getNode(ref);
-      return n && { kind, path: n.path, title: n.title, summary: n.summary, status: n.status, score };
+      return n && { kind, path: n.path, title: n.title, summary: n.summary, status: this.staleness.get(n.path) ? "stale" : n.status, score };
     }
     if (kind === "item") {
       const i = this.index.getItem(ref);
@@ -347,6 +426,16 @@ export class Cortex {
     const { reason, ...data } = parsed.data;
     const path = normalizePath(data.path);
     const existing = this.tree.read(path);
+    if (data.links?.code?.length && this.staleness.enabled()) {
+      if (data.verified_at_commit) {
+        if (!this.staleness.git.commitExists(data.verified_at_commit)) {
+          throw new CortexError("invalid_node", `verified_at_commit "${data.verified_at_commit}" is not a commit in this repository.`, 400);
+        }
+      } else {
+        // Whoever writes the node vouches for it as of now.
+        data.verified_at_commit = this.staleness.currentHead() ?? undefined;
+      }
+    }
     const node: KnowledgeNode = {
       ...data,
       path,

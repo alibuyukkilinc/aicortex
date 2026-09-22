@@ -65,10 +65,18 @@ Everything updates live (server-sent events), including changes made by an AI in
 | Work queue | `cortex_inbox` | questions, issues and answers waiting on you |
 | Collaborate | `cortex_create_item`, `cortex_update_item`, `cortex_reply`, `cortex_items`, `cortex_item` | tasks, issues, questions, notes, decisions |
 | Ask instead of guessing | `cortex_ask(about, title)` | routed to whoever made the thing you ask about |
-| Leave a trail | `cortex_log_activity`, `cortex_activity` | what changed, **why**, files, commit |
+| Leave a trail | `cortex_log_activity`, `cortex_activity` | what changed, **why**, files, commit; the reply lists knowledge describing the files you touched |
+| Before editing files | `cortex_code_context(files)` | knowledge, decisions and open items that cover those files |
+| Keep knowledge honest | `cortex_verify_node(path)` | mark a node still accurate at the current commit |
 
 Every response carries `_meta.rules_version`; the AI re-reads rules only when it changes.
 Invalid writes are rejected with the broken rule **and** a correct example, so the AI can fix itself.
+
+## Knowledge that knows when it is out of date
+
+Nodes link to code (`links.code`: files, directories, optional line ranges such as `src/auth/login.ts` lines `40-60`). When a node is written, Cortex pins it to the current git commit. Later commits that touch the linked code (only the linked lines, when a range is given) mark the node **stale**, with the files, commits, authors and messages that changed it. Deletions and moves are detected too.
+
+Stale nodes show up in the AI's brief, in search results, in the tree and on the board (with **Still accurate** and **Edit** buttons), and the board updates by itself when new commits land. Nothing is written to your files for this: it is computed from git, so it adds no noise to your history. Uncommitted edits do not count. Outside a git repository the feature simply stays off.
 
 ## Items and rules
 
@@ -108,7 +116,9 @@ All endpoints need `Authorization: Bearer <token>` and answer only on localhost.
 ```
 GET  /api/brief
 GET  /api/tree/{path}?depth=1&budget=
-GET  /api/node/{path}          PUT /api/node/{path}
+GET  /api/node/{path}          PUT /api/node/{path}   (GET includes staleness)
+GET  /api/stale                POST /api/verify/{path}
+GET  /api/code?files=a,b
 GET  /api/search?q=&kind=node,item,activity&type=&path=&limit=&budget=
 GET  /api/rules[/{name}]
 GET  /api/approvals[/{id}]     POST /api/approvals/{id}/approve|reject
@@ -126,7 +136,7 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 - [x] **Slice 2:** items (task, issue, question, note, decision), inbox, ask-about-anything, activity log, per-type schemas, custom types
 - [x] **Slice 3:** web board (inbox, kanban, knowledge explorer, live activity feed, approvals, rules editor) in TR/EN
 - [x] **Slice 4:** opt-in semantic search with a local multilingual model, hybrid ranking, incremental background indexing
-- [ ] **Slice 5:** code links → stale detection from git history
+- [x] **Slice 5:** code links, stale detection from git history (line-range aware, renames and deletions), verify, code context, live updates on new commits
 - [ ] Later: reports, team server, multi-project
 
 ## Development
@@ -155,6 +165,8 @@ npx projcortex start
 ```
 
 `start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx projcortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+
+**Eskiyen bilgi:** Bilgi düğümleri koda bağlanır. Bağlı kod (satır aralığı verildiyse yalnızca o satırlar) sonradan bir commit ile değişirse düğüm "eskimiş olabilir" diye işaretlenir; hangi dosyanın, hangi commit ile, kim tarafından değiştiği gösterilir. Bu bilgi git geçmişinden hesaplanır, dosyalarınıza hiçbir şey yazılmaz.
 
 ## License
 

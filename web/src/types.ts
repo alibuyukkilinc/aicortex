@@ -96,6 +96,7 @@ export interface KnowledgeNode {
   body: string;
   tags?: string[];
   links?: { code?: CodeLink[]; items?: string[] };
+  verified_at_commit?: string;
   status: string;
   updated_by: string;
   updated_at: string;
@@ -137,4 +138,18 @@ export interface SearchHit {
   at?: string;
   score: number;
   match?: "keyword" | "semantic" | "both";
+}
+
+export interface StaleInfo {
+  path: string;
+  verified_at_commit: string;
+  reason: "changed" | "unknown_commit";
+  changes: {
+    file: string;
+    status: "modified" | "deleted" | "renamed";
+    renamed_to?: string;
+    lines?: string;
+    commits: number;
+    last?: { hash: string; author: string; date: string; subject: string };
+  }[];
 }

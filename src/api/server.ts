@@ -146,7 +146,18 @@ export function buildServer(cortex: Cortex): FastifyInstance {
   app.get("/api/tree", treeHandler);
   app.get("/api/tree/*", treeHandler);
 
-  const nodeGet = async (req: FastifyRequest) => ok({ node: cortex.node((req.params as Q)["*"] ?? "") });
+  const nodeGet = async (req: FastifyRequest) => ok(cortex.nodeView((req.params as Q)["*"] ?? ""));
+
+  // ---- code links & staleness ---------------------------------------------------
+
+  app.get("/api/code", async (req) => ok(cortex.codeContext(list((req.query as Q).files) ?? [])));
+  app.get("/api/stale", async () =>
+    ok({ enabled: cortex.staleness.enabled(), head: cortex.staleness.currentHead(), nodes: cortex.staleness.list() }),
+  );
+  app.post("/api/verify/*", async (req, reply) => {
+    const r = cortex.verifyNode(req.actor, (req.params as Q)["*"] ?? "", ((req.body ?? {}) as Q).note);
+    return reply.code(r.applied ? 200 : 202).send(ok(r));
+  });
   const nodePut = async (req: FastifyRequest, reply: FastifyReply) => {
     const path = (req.params as Q)["*"] ?? "";
     const body = (req.body ?? {}) as Record<string, unknown>;

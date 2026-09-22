@@ -28,7 +28,7 @@ export class ActivityService {
   constructor(private c: Cortex) {}
 
   // What an actor did and why. Humans read this feed to stay in control of what the AI changed.
-  log(actor: Actor, input: ActivityInput): { id: string; message: string } {
+  log(actor: Actor, input: ActivityInput) {
     const schema = this.c.activitySchema();
     const parsed = ActivityInput.safeParse(input);
     const issues = parsed.success ? [] : parsed.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`);
@@ -51,7 +51,18 @@ export class ActivityService {
     this.c.activityStore.append(entry);
     this.c.index.addActivity(entry);
     this.c.events.emit("change", { type: "activity", entry });
-    return { id: entry.id, message: "Activity logged." };
+    // Close the loop: knowledge describing the files you just changed may now be wrong.
+    const related = entry.files?.length ? this.c.codeContext(entry.files).knowledge : [];
+    return {
+      id: entry.id,
+      message: "Activity logged.",
+      ...(related.length
+        ? {
+            related_knowledge: related.map((n) => ({ path: n.path, title: n.title })),
+            hint: "These nodes describe files you changed. Update them if your change affects what they say, or verify them if they are still true.",
+          }
+        : {}),
+    };
   }
 
   // Audit trail written by Cortex itself on every write.
