@@ -1,4 +1,5 @@
 import type { Report } from "./reports.js";
+import { dayKey } from "../util/time.js";
 
 type Lang = "en" | "tr";
 
@@ -115,14 +116,14 @@ const L = {
 export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
   const t = L[lang];
   const esc = (s: string) => s.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
-  const day = (iso: string) => iso.slice(0, 10);
+  const day = (iso: string) => dayKey(Date.parse(iso), r.period.timezone ?? "UTC");
   const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
   const list = (rows: string[]) => (rows.length ? rows.map((x) => `- ${x}`).join("\n") : `_${t.nothing}_`);
   const T = r.totals;
   const k = r.knowledge;
 
   const out: string[] = [];
-  out.push(`# ${t.title}`, "", `**${t.period}:** ${day(r.period.since)} → ${day(r.period.until)} (${r.period.days} ${t.days})`, "");
+  out.push(`# ${t.title}`, "", `**${t.period}:** ${day(r.period.since)} → ${day(r.period.until)} (${r.period.days} ${t.days}, ${r.period.timezone ?? "UTC"})`, "");
 
   out.push(`## ${t.atAGlance}`, "");
   out.push(`| | |`, `|---|---|`);

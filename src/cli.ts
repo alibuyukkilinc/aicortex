@@ -65,10 +65,10 @@ async function main() {
       }
       console.log(`
 Next steps:
-  1. npx projcortex start                   start the local API on http://localhost:4747
+  1. npx aicortex start                   start the local API on http://localhost:4747
   2. Add the MCP server to your AI tool, e.g. Claude Code:
-       claude mcp add cortex -- npx projcortex mcp --actor ai-agent
-  3. npx projcortex bootstrap               give the printed task to your AI to fill the tree
+       claude mcp add cortex -- npx aicortex mcp --actor ai-agent
+  3. npx aicortex bootstrap               give the printed task to your AI to fill the tree
 `);
       if (r.markdownCandidates.length) {
         console.log(`Found ${r.markdownCandidates.length} markdown file(s) the bootstrap task will import.`);
@@ -145,7 +145,7 @@ Next steps:
         console.log(`runtime:          ${rt.runtimeInstalled() ? "installed" : "not installed"}`);
         console.log(`model:            ${rt.MODEL} (${rt.modelDownloaded() ? "downloaded" : "not downloaded"})`);
         console.log(`location:         ${rt.cortexHome()}`);
-        if (!rt.semanticEnabled()) console.log("\nSearch is keyword-only. Turn on meaning-based search with: npx projcortex semantic on");
+        if (!rt.semanticEnabled()) console.log("\nSearch is keyword-only. Turn on meaning-based search with: npx aicortex semantic on");
         break;
       }
       if (sub === "off") {

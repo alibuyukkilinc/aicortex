@@ -8,6 +8,7 @@ import { TreeStore, normalizePath } from "../store/tree.js";
 import { nowIso, ulid } from "../util/text.js";
 import { ACTIVITY_SCHEMA, DEFAULT_SCHEMAS } from "./schema.js";
 import { languageRule } from "./language.js";
+import { systemTimeZone } from "../util/time.js";
 
 export const DEFAULT_BRANCHES: [string, string, string][] = [
   ["backend", "Backend", "APIs, business logic, data access and background jobs."],
@@ -74,7 +75,7 @@ export function resolveBranches(names?: string[]): [string, string, string][] {
   return out;
 }
 
-export function initProject(root: string, name = basename(root), opts: { language?: string; branches?: string[] } = {}): InitResult {
+export function initProject(root: string, name = basename(root), opts: { language?: string; branches?: string[]; timezone?: string } = {}): InitResult {
   const dir = join(root, CORTEX_DIR);
   if (existsSync(join(dir, "cortex.config.yaml"))) {
     throw new CortexError("already_initialized", `Cortex is already initialized in ${dir}.`, 409);
@@ -85,6 +86,7 @@ export function initProject(root: string, name = basename(root), opts: { languag
   const config: CortexConfig = {
     project: { name },
     port: 4747,
+    timezone: opts.timezone ?? systemTimeZone(),
     actors: [
       { id: "owner", kind: "human" },
       { id: "ai-agent", kind: "ai" },
@@ -96,6 +98,7 @@ export function initProject(root: string, name = basename(root), opts: { languag
     p.config,
     "# Cortex project settings. Safe to commit.\n" +
       "# approval (for AI actors): auto = writes directly, review = writes become drafts a human approves, human_only = AI cannot write.\n" +
+      "# timezone: the zone reports count days in (e.g. Europe/Istanbul).\n" +
       YAML.stringify(config),
     "utf8",
   );

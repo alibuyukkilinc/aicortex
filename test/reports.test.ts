@@ -15,7 +15,7 @@ test("periods: relative, absolute and invalid", () => {
   const now = Date.parse("2026-09-22T12:00:00Z");
   assert.equal(parsePeriod("7d", undefined, now).since, "2026-09-16T00:00:00.000Z");
   assert.equal(parsePeriod("2w", undefined, now).days, 14);
-  assert.deepEqual(parsePeriod("2026-09-01", "2026-09-08", now), { since: "2026-09-01T00:00:00.000Z", until: "2026-09-08T00:00:00.000Z", days: 7 });
+  assert.deepEqual(parsePeriod("2026-09-01", "2026-09-08", now), { since: "2026-09-01T00:00:00.000Z", until: "2026-09-08T00:00:00.000Z", days: 7, timezone: "UTC" });
   for (const [s, u] of [["yesterday", undefined], ["2026-09-10", "2026-09-01"], ["400d", undefined]] as const) {
     assert.throws(() => parsePeriod(s, u, now), (e: CortexError) => e.code === "invalid_period");
   }
@@ -162,6 +162,50 @@ test("markdown in both languages, over REST and MCP", async () => {
   } finally {
     await client.close();
     await app.close();
+    t.cleanup();
+  }
+});
+
+test("reports count days in the project's time zone", async () => {
+  const { addDays, dayKey, startOfDay } = await import("../src/util/time.js");
+  // 01:30 in Istanbul is still the previous day in UTC.
+  const lateNight = Date.parse("2026-09-21T22:30:00Z");
+  assert.equal(dayKey(lateNight, "UTC"), "2026-09-21");
+  assert.equal(dayKey(lateNight, "Europe/Istanbul"), "2026-09-22");
+  assert.equal(new Date(startOfDay("2026-09-22", "Europe/Istanbul")).toISOString(), "2026-09-21T21:00:00.000Z");
+  // A DST change day: New York gains an hour on 2026-11-01, the day still starts at local midnight.
+  assert.equal(new Date(startOfDay("2026-11-01", "America/New_York")).toISOString(), "2026-11-01T04:00:00.000Z");
+  assert.equal(new Date(startOfDay("2026-11-02", "America/New_York")).toISOString(), "2026-11-02T05:00:00.000Z");
+  assert.equal(addDays("2026-02-28", 1), "2026-03-01");
+
+  const now = Date.parse("2026-09-22T12:00:00Z");
+  const p = parsePeriod("7d", undefined, now, "Europe/Istanbul");
+  assert.equal(p.since, "2026-09-15T21:00:00.000Z", "7 Istanbul days: 16-22 September");
+  assert.equal(p.timezone, "Europe/Istanbul");
+  assert.equal(parsePeriod("2026-09-01", "2026-09-08", now, "Europe/Istanbul").since, "2026-08-31T21:00:00.000Z");
+
+  const t = tempProject();
+  try {
+    t.cortex.project.config.timezone = "Europe/Istanbul";
+    const r = t.cortex.reports.build({ since: "7d" });
+    assert.equal(r.daily.length, 7);
+    assert.equal(r.daily.at(-1)!.date, dayKey(Date.now(), "Europe/Istanbul"));
+    assert.match(reportToMarkdown(r, "tr"), /Europe\/Istanbul/);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("an unknown time zone in cortex.config.yaml is refused with a clear message", async () => {
+  const { writeFileSync, readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { loadProject } = await import("../src/core/project.js");
+  const t = tempProject();
+  try {
+    const file = join(t.cortex.project.dir, "cortex.config.yaml");
+    writeFileSync(file, readFileSync(file, "utf8").replace("timezone: UTC", "timezone: Mars/Olympus"));
+    assert.throws(() => loadProject(t.root), /Unknown timezone "Mars\/Olympus"/);
+  } finally {
     t.cleanup();
   }
 });

@@ -71,7 +71,7 @@ export type FeatureExtractor = (texts: string[], opts: Record<string, unknown>) 
 
 export async function loadTransformers(): Promise<Transformers> {
   const path = resolveRuntime();
-  if (!path) throw new Error("Semantic runtime is not installed. Run `npx projcortex semantic on`.");
+  if (!path) throw new Error("Semantic runtime is not installed. Run `npx aicortex semantic on`.");
   // The CommonJS build arrives as a namespace whose exports may sit under `default`.
   const mod = (await import(pathToFileURL(path).href)) as Partial<Transformers> & { default?: Transformers };
   const tf = (mod.pipeline ? mod : mod.default) as Transformers;

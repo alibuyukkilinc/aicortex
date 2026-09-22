@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
 import { CortexConfig, CortexError } from "./types.js";
 import { shortHash } from "../util/text.js";
+import { isTimeZone } from "../util/time.js";
 
 export const CORTEX_DIR = ".cortex";
 
@@ -39,7 +40,7 @@ export function findProjectRoot(start = process.cwd()): string | null {
 export function loadProject(start?: string): Project {
   const root = findProjectRoot(start);
   if (!root) {
-    throw new CortexError("not_initialized", "No .cortex folder found. Run `npx projcortex init` first.", 404);
+    throw new CortexError("not_initialized", "No .cortex folder found. Run `npx aicortex init` first.", 404);
   }
   const dir = join(root, CORTEX_DIR);
   const config = YAML.parse(readFileSync(paths(dir).config, "utf8")) as CortexConfig;
@@ -51,6 +52,9 @@ export function loadProject(start?: string): Project {
     if (!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(a.id ?? "") || (a.kind !== "human" && a.kind !== "ai")) {
       throw new CortexError("invalid_config", `Invalid actor ${JSON.stringify(a)} in cortex.config.yaml: id must be letters, digits, - or _, kind must be human or ai.`, 500);
     }
+  }
+  if (config.timezone !== undefined && !isTimeZone(String(config.timezone))) {
+    throw new CortexError("invalid_config", `Unknown timezone "${config.timezone}" in cortex.config.yaml. Use a name like Europe/Istanbul or UTC.`, 500);
   }
   return { root, dir, config };
 }

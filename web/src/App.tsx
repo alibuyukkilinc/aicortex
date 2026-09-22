@@ -65,7 +65,7 @@ function LoginScreen() {
         </div>
         <h1 style={{ marginBottom: 8 }}>{t("login.title")}</h1>
         <p className="muted">{t("login.body")}</p>
-        <pre className="card" style={{ padding: "10px 12px", margin: "12px 0" }}>npx projcortex login</pre>
+        <pre className="card" style={{ padding: "10px 12px", margin: "12px 0" }}>npx aicortex login</pre>
         <p className="muted">{t("login.after")}</p>
       </div>
     </div>

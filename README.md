@@ -5,7 +5,7 @@ Knowledge tree, decisions, questions and AI activity in one place, versioned in 
 
 > 🇹🇷 Türkçe açıklama aşağıda.
 
-> **Status:** early (v0.1). Package name `projcortex` is provisional.
+> **Status:** early (v0.1). Package: `aicortex` (the CLI is also available as `cortex`).
 
 ## Why
 
@@ -18,27 +18,27 @@ Humans stay in control: AI writes to knowledge become **drafts** until a human a
 Requires Node.js 22.13 or newer. Nothing else: no database, no Docker, no API key.
 
 ```bash
-npx projcortex init          # creates .cortex/ in your repo; asks which knowledge branches you need
+npx aicortex init          # creates .cortex/ in your repo; asks which knowledge branches you need
                              # (--branches backend,frontend --lang tr|en to skip the questions)
-npx projcortex start         # API + web board on http://localhost:4747
+npx aicortex start         # API + web board on http://localhost:4747
 ```
 
-`start` prints a one-time login link for the board (run `npx projcortex login` for a fresh one). No passwords: the link is signed with your actor token and expires in 10 minutes.
+`start` prints a one-time login link for the board (run `npx aicortex login` for a fresh one). No passwords: the link is signed with your actor token and expires in 10 minutes.
 
 Connect your AI tool over MCP (Claude Code example):
 
 ```bash
-claude mcp add cortex -- npx projcortex mcp --actor ai-agent
+claude mcp add cortex -- npx aicortex mcp --actor ai-agent
 ```
 
-Then fill the tree: `npx projcortex bootstrap` prints a task you hand to your AI.
+Then fill the tree: `npx aicortex bootstrap` prints a task you hand to your AI.
 
 ### Search by meaning (optional)
 
 Keyword search (Turkish-aware) works out of the box. To also search by **meaning** — so "why were orders confirmed twice?" finds the webhook fix even without shared words, across Turkish and English — run once per machine:
 
 ```bash
-npx projcortex semantic on
+npx aicortex semantic on
 ```
 
 It installs a local model runtime and a multilingual model (~420 MB, one time, under `~/.cortex`, shared by all projects). Nothing leaves your machine and no tokens are spent. Results are ranked by keyword and meaning together (Reciprocal Rank Fusion); each result says whether it matched by `keyword`, `semantic` or `both`. If the model is missing or fails, search quietly falls back to keywords. `semantic status` shows the state, `semantic off` turns it off; a project can opt out with `search: { semantic: false }` in `cortex.config.yaml`.
@@ -99,7 +99,7 @@ Assign items to an actor, to `@humans` or to `@ai`.
 
 ```
 .cortex/
-├── cortex.config.yaml   actors + approval policy (commit this)
+├── cortex.config.yaml   actors, approval policy, timezone for reports (commit this)
 ├── .secrets.yaml        actor tokens (git-ignored)
 ├── rules/               rules & schemas — humans only
 ├── tree/                the knowledge tree, one markdown file per node
@@ -141,7 +141,7 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 - [x] **Slice 3:** web board (inbox, kanban, knowledge explorer, live activity feed, approvals, rules editor) in TR/EN
 - [x] **Slice 4:** opt-in semantic search with a local multilingual model, hybrid ranking, incremental background indexing
 - [x] **Slice 5:** code links, stale detection from git history (line-range aware, renames and deletions), verify, code context, live updates on new commits
-- [x] **Slice 6:** reports (period summary, AI trust, knowledge health) on the board, REST, MCP and CLI
+- [x] **Slice 6:** reports (period summary, AI trust, knowledge health) on the board, REST, MCP and CLI; days are counted in the project's `timezone` (set by `init` from your computer, default UTC)
 - [ ] Later: team server, multi-project
 
 ## Development
@@ -165,11 +165,11 @@ npm run dev:web        # board with hot reload on :5173, proxied to :4747
 **Kurulum** (yalnızca Node.js 22.13+ gerekir):
 
 ```bash
-npx projcortex init
-npx projcortex start
+npx aicortex init
+npx aicortex start
 ```
 
-`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx projcortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx aicortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx aicortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
 
 **Eskiyen bilgi:** Bilgi düğümleri koda bağlanır. Bağlı kod (satır aralığı verildiyse yalnızca o satırlar) sonradan bir commit ile değişirse düğüm "eskimiş olabilir" diye işaretlenir; hangi dosyanın, hangi commit ile, kim tarafından değiştiği gösterilir. Bu bilgi git geçmişinden hesaplanır, dosyalarınıza hiçbir şey yazılmaz.
 

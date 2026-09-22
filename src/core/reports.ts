@@ -1,5 +1,6 @@
 import type { Cortex } from "./cortex.js";
 import { Activity, ActorKind, CortexError, Item } from "./types.js";
+import { addDays, dayKey, startOfDay } from "../util/time.js";
 
 // Reports answer "what happened, what is waiting, can we trust it" from the files and the activity log.
 // No LLM involved: every number is counted, so it costs nothing and is the same every time.
@@ -18,23 +19,25 @@ export interface Period {
   since: string;
   until: string;
   days: number;
+  timezone: string; // days are counted in this zone (cortex.config.yaml "timezone", default UTC)
 }
 
 // "7d", "2w", "2026-09-01" or a full ISO datetime; until defaults to now.
-export function parsePeriod(since?: string, until?: string, now = Date.now()): Period {
-  const end = until ? parseInstant(until, "until") : now;
+export function parsePeriod(since?: string, until?: string, now = Date.now(), tz = "UTC"): Period {
+  const end = until ? parseInstant(until, "until", tz) : now;
   let start: number;
   const rel = /^(\d{1,3})\s*([dw])$/i.exec(since ?? "7d");
-  // Calendar-aligned: "7d" is today plus the six UTC days before it, so the chart shows exactly 7 columns.
-  if (rel) start = Math.floor(end / DAY) * DAY - (Number(rel[1]) * (rel[2].toLowerCase() === "w" ? 7 : 1) - 1) * DAY;
-  else start = parseInstant(since!, "since");
+  // Calendar-aligned: "7d" is today plus the six days before it (in the project's zone), so the chart shows 7 columns.
+  if (rel) start = startOfDay(addDays(dayKey(end, tz), -(Number(rel[1]) * (rel[2].toLowerCase() === "w" ? 7 : 1) - 1)), tz);
+  else start = parseInstant(since!, "since", tz);
   if (!(start < end)) throw new CortexError("invalid_period", "since must be before until.", 400);
   if (end - start > 366 * DAY) throw new CortexError("invalid_period", "A report covers at most 366 days.", 400);
-  return { since: new Date(start).toISOString(), until: new Date(end).toISOString(), days: Math.ceil((end - start) / DAY) };
+  return { since: new Date(start).toISOString(), until: new Date(end).toISOString(), days: Math.ceil((end - start) / DAY), timezone: tz };
 }
 
-function parseInstant(v: string, name: string): number {
-  const t = Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v}T00:00:00Z` : v);
+// A bare date means the start of that day in the project's zone.
+function parseInstant(v: string, name: string, tz: string): number {
+  const t = /^\d{4}-\d{2}-\d{2}$/.test(v) ? startOfDay(v, tz) : Date.parse(v);
   if (isNaN(t)) throw new CortexError("invalid_period", `${name} must be like 7d, 2w, 2026-09-01 or an ISO datetime.`, 400);
   return t;
 }
@@ -63,7 +66,8 @@ export class ReportService {
   constructor(private c: Cortex) {}
 
   build(opts: { since?: string; until?: string } = {}) {
-    const p = parsePeriod(opts.since, opts.until);
+    const tz = this.c.project.config.timezone ?? "UTC";
+    const p = parsePeriod(opts.since, opts.until, Date.now(), tz);
     const now = new Date().toISOString();
     const kindOf = (id: string): ActorKind => this.c.project.config.actors.find((a) => a.id === id)?.kind ?? "human";
     const events = this.c.index.activityBetween(p.since, p.until);
@@ -76,12 +80,11 @@ export class ReportService {
 
     // ---- daily volume, by who did it --------------------------------------------
     const daily = new Map<string, { date: string; ai: number; human: number }>();
-    for (let t = Date.parse(p.since.slice(0, 10)); t < Date.parse(p.until); t += DAY) {
-      const date = new Date(t).toISOString().slice(0, 10);
-      daily.set(date, { date, ai: 0, human: 0 });
+    for (let d = dayKey(Date.parse(p.since), tz); startOfDay(d, tz) < Date.parse(p.until); d = addDays(d, 1)) {
+      daily.set(d, { date: d, ai: 0, human: 0 });
     }
     for (const e of events) {
-      const day = daily.get(e.at.slice(0, 10));
+      const day = daily.get(dayKey(Date.parse(e.at), tz));
       if (day) day[kindOf(e.actor)]++;
     }
 

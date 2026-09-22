@@ -1,7 +1,8 @@
 # Cortex — İnsan + AI Ortak Proje Beyni
 
-> Bu dosya, Cortex projesinin **ana prompt'u ve temel spesifikasyonudur**. Bir AI'a veya geliştiriciye verildiğinde sistemi sıfırdan kurabilecek kadar net olmalıdır.
-> Durum: v1 taslağı · Lisans: MIT · Dil: Kod/API İngilizce, arayüz ve README İngilizce + Türkçe
+> Bu dosya Cortex'in **ana spesifikasyonudur** ve kodla uyumlu tutulur. Bir AI'a veya geliştiriciye verildiğinde sistemi sıfırdan kurabilecek kadar net olmalıdır.
+> Ayrıntılı ve güncel proje bilgisi (hangi dosya ne yapar, neden böyle karar verdik) Cortex'in kendi bilgi ağacındadır: `.cortex/`.
+> Durum: v1 tamam (6 dilim) · Paket: `aicortex` · Lisans: MIT · Dil: kod/API İngilizce; arayüz ve README İngilizce + Türkçe; projeye yazılan içerik projenin seçtiği dilde
 
 ---
 
@@ -17,9 +18,9 @@ Bugün AI ile yazılım geliştirirken:
 ## 2. Temel ilkeler (pazarlık dışı)
 
 1. **Token dostu:** AI hiçbir zaman "her şeyi" çekmez. Önce özet alır, sonra ihtiyaç duyduğu dala iner (kademeli yükleme). Sistemin kendisi hiçbir LLM çağrısı yapmaz.
-2. **Tek komutla ayağa kalkar:** `npx cortex init` ve `npx cortex start` yeterlidir. Harici veritabanı, Docker veya API anahtarı gerekmez.
+2. **Tek komutla ayağa kalkar:** `npx aicortex init` ve `npx aicortex start` yeterlidir. Harici veritabanı, Docker veya API anahtarı gerekmez.
 3. **Git dostu:** Veri projenin içindeki `.cortex/` klasöründe, okunabilir dosyalar olarak durur. Git ile versiyonlanır, diff alınır, merge edilir.
-4. **Kontrol insanda:** Kuralları, şemaları ve onay politikalarını insan belirler. AI'ın kritik değişiklikleri onaya düşer.
+4. **Kontrol insanda:** Kuralları, şemaları, yazım dilini ve onay politikalarını insan belirler. AI'ın kritik değişiklikleri onaya düşer.
 5. **Şeffaflık:** AI'ın her anlamlı eylemi (ne, neden, hangi dosya, hangi commit) kaydedilir ve insan tarafından sorgulanabilir.
 6. **Kendini anlatan API:** AI bir ucu kullanırken o ucun kurallarını da öğrenir. Ayrı dokümana ihtiyaç yoktur.
 7. **Basitlik:** Yeni bir geliştirici veya AI, 5 dakikada kullanmaya başlayabilmelidir.
@@ -28,13 +29,13 @@ Bugün AI ile yazılım geliştirirken:
 
 | Katman | Seçim | Not |
 |---|---|---|
-| Çalışma ortamı | Node.js ≥ 22 (TypeScript) | `npx` ile dağıtım |
-| HTTP API | Fastify | REST + OpenAPI çıktısı |
-| MCP | `@modelcontextprotocol/sdk` | stdio + HTTP transport |
-| İndeks | SQLite (`node:sqlite` veya `better-sqlite3`) + FTS5 + `sqlite-vec` | **Yeniden üretilebilir önbellektir**, git'e girmez |
-| Embedding | `@huggingface/transformers` + çok dilli küçük model (ör. `multilingual-e5-small`, quantized) | İlk kullanımda bir kez indirilir, TR/EN destekler |
+| Çalışma ortamı | Node.js ≥ 22.13 (TypeScript) | `npx aicortex` ile dağıtım; komut `cortex` adıyla da gelir |
+| HTTP API | Fastify | Yalnızca 127.0.0.1 |
+| MCP | `@modelcontextprotocol/sdk` | stdio |
+| İndeks | Node'un yerleşik `node:sqlite` modülü + FTS5 | **Yeniden üretilebilir önbellektir**, git'e girmez. Yerel derleme gerektiren paket yok |
+| Anlamla arama | `@huggingface/transformers` + `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (q8) | İsteğe bağlı: `aicortex semantic on` bilgisayar başına bir kez `~/.cortex` altına kurar. Vektörler SQLite'ta saklanır, arama bellekte çarpım taramasıdır |
 | Web pano | React + Vite | Derlenmiş hâli pakete gömülü gelir |
-| Dosya formatı | Markdown + YAML frontmatter, log için JSONL | İnsan okuyabilir, diff alınabilir |
+| Dosya formatı | Markdown + YAML frontmatter, aktivite için JSONL | İnsan okuyabilir, diff alınabilir |
 | Kimlik | ULID | Paralel yazımda çakışma olmaz |
 
 ## 4. Depolama düzeni
@@ -42,112 +43,121 @@ Bugün AI ile yazılım geliştirirken:
 ```
 proje/
 └── .cortex/
-    ├── cortex.config.yaml       # proje ayarları, aktörler, onay politikaları
+    ├── cortex.config.yaml       # proje adı, aktörler, onay politikası, rapor saat dilimi (commit'lenir)
+    ├── .secrets.yaml            # aktör token'ları (git'e girmez)
     ├── rules/                   # insan kontrolündeki kurallar ve şemalar
-    │   ├── _global.yaml         # tüm AI'lara geçerli kurallar
-    │   ├── issue.schema.yaml
-    │   ├── decision.schema.yaml
-    │   └── ...
+    │   ├── _global.yaml         # tüm AI'lara geçerli kurallar + yazım dili (language: tr)
+    │   ├── node.schema.yaml  activity.schema.yaml
+    │   ├── task.schema.yaml  issue.schema.yaml  question.schema.yaml  note.schema.yaml  decision.schema.yaml
+    │   └── <özel-tür>.schema.yaml
     ├── tree/                    # bilgi ağacı (klasör = dal)
+    │   ├── _node.md             # kök özet
     │   ├── backend/
     │   │   ├── _node.md         # dalın özeti
-    │   │   └── auth/
-    │   │       ├── _node.md
-    │   │       └── jwt-refresh.md
-    │   ├── frontend/  seo/  security/  server/  mobile/  code-structure/ ...
-    ├── items/                   # kartlar, issue'lar, sorular, notlar, kararlar
-    │   └── 01J9Z...-login-rate-limit.md
-    ├── activity/                # AI + insan aktivite günlüğü (append-only)
-    │   └── 2026-09-22.jsonl
-    └── .index/                  # SQLite + vektörler (gitignore'da)
+    │   │   └── auth.md          # yaprak (alt düğüm eklenince klasöre dönüşür)
+    │   └── ...                  # dallar init sırasında seçilir
+    ├── items/                   # her kalem bir klasör
+    │   └── 01J9Z...-login-rate-limit/
+    │       ├── item.md
+    │       └── replies/01J9Z....md
+    ├── activity/                # yalnızca eklenen günlük
+    │   └── 2026-09-22/<aktör>.jsonl   # aktör başına günde bir dosya: iki kişi aynı dosyaya yazmaz
+    ├── drafts/                  # onay bekleyen AI önerileri
+    └── .index/                  # SQLite önbelleği (git'e girmez)
 ```
 
 - Her kayıt tek bir dosyadır. Bu sayede merge çakışmaları azalır.
 - `.index/` silinirse `cortex reindex` ile dosyalardan yeniden üretilir.
+- `.cortex/.gitattributes` satır sonlarını LF'ye sabitler.
 
 ## 5. Veri modeli
 
 ### 5.1 Bilgi düğümü (Node)
 ```yaml
 id: 01J9Z...
-path: backend/auth/jwt-refresh
 title: JWT yenileme akışı
 summary: "Access token 15dk, refresh token 30 gün; refresh rotation aktif."   # ≤ 300 karakter, zorunlu
 tags: [auth, security]
 links:
-  code: [{ file: src/auth/refresh.ts, lines: "10-80" }]
+  code: [{ file: src/auth/refresh.ts, lines: "10-80" }]   # dosya veya klasör, isteğe bağlı satır aralığı
   items: [01J9Y...]             # ilgili karar/issue
-verified_at_commit: a1b2c3d     # bilginin doğrulandığı commit
-status: active | draft | stale | deprecated
+verified_at_commit: a1b2c3d     # bilginin doğrulandığı commit (koda bağlı düğüm yazılınca otomatik)
+status: active | deprecated
 updated_by: claude-code
 updated_at: 2026-09-22T10:15:00Z
 ---
 (detay gövdesi: markdown)
 ```
+- Yol dosya konumundan gelir (`backend/auth/jwt-refresh`); parçalar küçük harf, rakam ve tire.
+- "Eskimiş" (stale) durumu dosyaya yazılmaz, git'ten hesaplanır (Bölüm 9). "Taslak" durumu `drafts/` altındaki öneridir (Bölüm 8).
 
 ### 5.2 Kalem (Item) türleri
-Tüm türler ortak alanları paylaşır (`id, type, title, status, column, category_path, author, assignee, created_at, updated_at, links, thread`), türe özel alanları ise `rules/*.schema.yaml` tanımlar.
+Tüm türler ortak alanları paylaşır (`id, type, title, status, category_path, author, assignee, tags, links, fields, created_at, updated_at, updated_by`); türe özel alanları, durumları ve geçişleri `rules/*.schema.yaml` tanımlar.
 
-| Tür | Amaç |
-|---|---|
-| `task` | Trello kartı: kolonlarda ilerler (Backlog → Yapılıyor → İnceleme → Bitti) |
-| `issue` | Hata/sorun kaydı |
-| `question` | İnsan→AI, AI→insan veya AI→AI soru |
-| `note` | Serbest not |
-| `decision` | Ne karar verdik, **neden**, alternatifler nelerdi, sonuçları neler (ADR) |
+| Tür | Durumlar | Hazır kurallar |
+|---|---|---|
+| `task` | backlog → todo → doing → review → done | yalnızca insan "done" yapar |
+| `issue` | open → in_progress → review → closed | severity + kategori zorunlu; `fixed` yanıtı commit ve dosya listelemeli |
+| `question` | open → answered → closed | başkası yanıtlayınca "answered" olur; `blocking` sorular önce gelir |
+| `note` | active → archived | |
+| `decision` | proposed → accepted / rejected → superseded | AI önerebilir, kabul/ret yalnızca insanda (ADR: bağlam, alternatifler, sonuçlar) |
 
-`thread`: Her kalemin yanıt zinciri vardır. Yanıtlar da şemaya tabidir.
+- Atama: bir aktör, `@humans` veya `@ai`.
+- Yeni tür: `rules/<tür>.schema.yaml` dosyası bırakmak yeter.
+- Her kalemin yanıt zinciri vardır; yanıtlar da şemaya tabidir.
 
 ### 5.3 Aktivite
 ```json
-{"id":"01J9...","actor":"claude-code","action":"code_change","summary":"Login'e rate limit eklendi","why":"issue 01J9Y... gereği","files":["src/auth/login.ts"],"commit":"d4e5f6","refs":["01J9Y..."],"at":"2026-09-22T10:20:00Z"}
+{"id":"01J9...","actor":"claude-code","action":"fix","summary":"Login'e rate limit eklendi","why":"issue 01J9Y... gereği","files":["src/auth/login.ts"],"commit":"d4e5f6a","refs":["01J9Y...","backend/auth"],"at":"2026-09-22T10:20:00Z"}
 ```
+- Eylemler ve "neden zorunlu" listesi `rules/activity.schema.yaml`'dadır (varsayılan: code_change, fix, refactor, config, deploy için `why` zorunlu).
+- Cortex'in kendi denetim kayıtları (`node.updated`, `node.deleted`, `draft.*`, `item.*`, `rules.updated`) `system: true` ve yapılandırılmış `meta` (tür, eski/yeni durum, taslak türü, öneren) taşır; raporlar buradan sayar.
 
 ### 5.4 Aktör
-`cortex.config.yaml` içinde tanımlanır: `{ id: "ali", kind: "human" }`, `{ id: "claude-code", kind: "ai", token: "..." }`. Her istek bir aktör token'ı taşır, kimin ne yaptığı her zaman bellidir. Tam login sistemi v2'ye kalır.
+`cortex.config.yaml` içinde tanımlanır: `{ id: "ali", kind: "human" }`, `{ id: "claude-code", kind: "ai" }`. Token'lar git'e girmeyen `.secrets.yaml`'dadır. Her istek bir aktör token'ı taşır, kimin ne yaptığı her zaman bellidir. Tam login sistemi ekip sunucusuyla gelecek.
 
 ## 6. Kademeli yükleme (token ekonomisinin kalbi)
 
 AI şu sırayla çalışır:
 
-1. **`GET /api/brief`** (oturum başı, ~500 token hedefi):
-   - Projenin tek paragraflık özeti
-   - Üst seviye dallar ve her birinin 1 satırlık özeti
-   - **Bu aktöre yönelik** bekleyen sorular, açık issue'lar, onay bekleyen taslaklar
-   - Global kuralların kısa hâli ve `rules_version` hash'i
+1. **`GET /api/brief`** (oturum başı, **800 tokenin altında**, testle korunur):
+   - Projenin tek paragraflık özeti ve üst dallar (1 satırlık özet, alt düğüm ve açık kayıt sayısı)
+   - **Bu aktöre yönelik** gelen kutusu, onay bekleyen taslaklar ve eskimiş bilgi: hepsi "sayı + ilk 5"
+   - Son aktiviteler, arama modu (keyword/hybrid)
+   - Global kurallar (ilk kural yazım dilidir) ve `rules_version`
 2. **`GET /api/tree/{path}?depth=1`**: Bir dalın çocuklarını yalnızca özetleriyle getirir.
-3. **`GET /api/node/{path}`**: Yalnızca gerektiğinde tam detayı getirir.
-4. **`GET /api/search?q=...`**: Anlamadığı her yerde arama yapar. Sonuçlar tam içerik değil, `path + summary + skor` döner.
+3. **`GET /api/node/{path}`**: Yalnızca gerektiğinde tam detayı ve eskime bilgisini getirir.
+4. **`GET /api/search?q=...`**: Anlamadığı her yerde arama yapar. Sonuçlar tam içerik değil, `path/id + summary + skor + nasıl eşleşti` döner.
 
-Tüm listeleme uçlarında şunlar bulunur:
-- `fields=`: Yalnızca istenen alanlar döner.
-- `limit/cursor`: Sayfalama.
-- `budget=`: Yaklaşık token bütçesi. Sunucu, cevabı bütçeye sığacak şekilde özetler ve keser.
+Listeleme uçlarında `limit/cursor` sayfalama ve `budget=` (yaklaşık token bütçesi; cevap sığacak kadar kesilir) bulunur.
 
 ## 7. Kendini anlatan API ve kurallar
 
-- Her kalem türünün bir şeması vardır (`rules/<type>.schema.yaml`): zorunlu alanlar, alan formatları (ör. tarih ISO-8601 UTC), izinli durum geçişleri, yanıt kuralları ve AI'a yönelik düz dil talimatları.
+- Her kalem türünün bir şeması vardır (`rules/<tür>.schema.yaml`): zorunlu alanlar, alan formatları, izinli durum geçişleri, yalnızca insanın koyabileceği durumlar, yanıt kuralları ve AI'a yönelik düz dil talimatları.
+- **Yazım dili** bir kuraldır: `rules/_global.yaml` içindeki `language: tr`. `init --lang` ile belirlenir (verilmezse bilgisayarın dili), brief'te ilk kural olarak her AI'a gider.
 - Her cevapta bir `_meta` alanı bulunur:
   ```json
-  "_meta": { "rules_version": "r-7f3a", "rules_url": "/api/rules/issue" }
+  "_meta": { "rules_version": "r-7f3a1c2e" }
   ```
   AI, `rules_version` değişmediyse kuralları yeniden çekmez. Böylece token harcanmaz.
-- Geçersiz bir yazım denemesinde sunucu yalnızca hata döndürmez, **hangi kuralın ihlal edildiğini ve doğru örneği** de döndürür. AI bu sayede kendini düzeltir.
-- Kuralları **yalnızca `human` aktörler** değiştirebilir (panel veya dosya). AI kural değişikliğini yalnızca `proposal` olarak önerebilir.
+- Geçersiz bir yazım denemesinde sunucu yalnızca hata döndürmez, **hangi kuralın ihlal edildiğini ve doğru örneği** de döndürür (`error.hint`). İzin verilmeyen bir durum geçişinde buradan hangi durumlara gidilebileceği söylenir. AI bu sayede kendini düzeltir.
+- Kuralları **yalnızca `human` aktörler** değiştirebilir (panel veya dosya). Panelden kaydedilen kural önce denetlenir; bir yazım hatası tüm yazımları bozamaz. AI kural değişikliğini yalnızca `@humans`'a soru açarak önerebilir.
 
 Örnek şema parçası:
 ```yaml
 type: issue
+statuses: [open, in_progress, review, closed]
+category_required: true
 fields:
-  severity: { enum: [low, medium, high, critical], required: true }
-  category_path: { type: tree_path, required: true }
+  severity: { type: enum, values: [low, medium, high, critical], required: true }
 reply:
-  required: [body, resolution]
-  resolution: { enum: [fixed, wontfix, needs_info, duplicate] }
-  must_link_commit_if: "resolution == fixed"
+  fields:
+    resolution: { type: enum, values: [fixed, wontfix, needs_info, duplicate, cannot_reproduce] }
+  require_when:
+    - { when: { resolution: fixed }, require: [commits, files] }
 transitions:
   open: [in_progress, closed]
-  in_progress: [review, open]
+  in_progress: [review, open, closed]
 ai_instructions: >
   Bir issue'yu 'fixed' kapatırken commit hash'i ve değişen dosyaları ekle.
   Emin olmadığın durumda kapatma, soru aç.
@@ -155,123 +165,140 @@ ai_instructions: >
 
 ## 8. Onay politikası (AI yetkisi)
 
-`cortex.config.yaml` içinde tür bazında belirlenir:
+`cortex.config.yaml` içinde tür bazında belirlenir (`auto` = direkt yazılır, `review` = taslak olur, `human_only` = AI yazamaz). `init` varsayılanı:
 ```yaml
 approval:
-  activity: auto         # direkt yazılır
-  note: auto
-  question: auto
+  node: review       # bilgi ağacı değişiklikleri taslak olarak düşer
   task: auto
   issue: auto
-  node: review           # bilgi ağacı değişiklikleri taslak olarak düşer
-  decision: review
-  rules: human_only
+  question: auto
+  note: auto
+  decision: auto     # kabul/ret zaten yalnızca insanda, öneri direkt görünür
 ```
-`review` olan yazımlar `status: draft` ile kaydedilir ve panelde "Onay bekleyenler" listesine düşer. İnsan tek tıkla onaylar, reddeder veya düzenler. Taslak bilgi, arama sonuçlarında açıkça "taslak" etiketiyle görünür.
+- `review` olan yazımlar `drafts/` altına kaydedilir ve panelde "Onay bekleyenler" listesine düşer. İnsan tek tek ya da **toplu** onaylar veya reddeder. Toplu onayda üst düğümler önce onaylanır; biri hata verirse (ör. çakışma) diğerleri devam eder.
+- Taslaktan sonra hedef değiştiyse onay reddedilir (409), insan farkı görüp zorlayabilir.
+- AI aynı düğüme yeniden taslak önerirse eski taslağının yerine geçer.
+- Taslak bilgi **aramada** "taslak" etiketiyle (`status: "draft"`, `draft_id`, `proposed_by`) görünür.
+- Bilgi düğümünü **yalnızca insan silebilir**; kök, alt düğümü olan dal ve altında açık kayıt olan düğüm silinmez. Silinen düğüm git geçmişinde kalır.
+- Kurallar her zaman `human_only`'dir.
 
 ## 9. Kod bağı ve eskime tespiti
 
-- Düğüm ve aktiviteler, ilgili dosya/satır aralığını ve `verified_at_commit` bilgisini tutar.
-- `cortex check` (ve sunucu arka planda) git geçmişine bakar. Bağlı dosyalar o commit'ten sonra değiştiyse düğümü `stale` olarak işaretler.
-- `stale` düğümler `brief` içinde "gözden geçirilmesi gerekenler" olarak AI'a ve insana gösterilir. **Eskimiş dokümanın ilacı budur.**
+- Düğümler dosya/klasör ve isteğe bağlı satır aralığıyla koda bağlanır; koda bağlı bir düğüm yazılınca o anki commit `verified_at_commit` olarak kaydedilir.
+- Sunucu git geçmişine bakar: bağlı kod o commit'ten sonra değiştiyse (satır aralığı varsa yalnızca o satırlar) düğüm **eskimiş** sayılır; değişen dosya, commit sayısı, son commit, yazar ve mesajı gösterilir. Silinen ve taşınan dosyalar ayrıca raporlanır. Kaydedilmemiş değişiklikler sayılmaz.
+- Bu bilgi dosyalara yazılmaz, git'ten hesaplanır. HEAD 5 saniyede bir kontrol edilir; açık pano yeni commit'te kendiliğinden güncellenir.
+- Eskimiş düğümler brief'te, aramada, ağaçta ve panoda görünür. "Hâlâ doğru" (`verify`) içeriği değiştirmeden doğrulama noktasını HEAD'e taşır; AI yaparsa onaya düşer. **Eskimiş dokümanın ilacı budur.**
+- `GET /api/code?files=` ters aramadır: "Bu dosyaları hangi bilgi, karar ve açık iş kapsıyor?" AI aktivite bildirirken değiştirdiği dosyaları anlatan düğümler cevapta listelenir.
+- Git deposu değilse bu özellik kapalı kalır, gerisi aynen çalışır.
 
 ## 10. Arama
 
-- Hibrit arama: FTS5 (kelime) + vektör (anlam) skorları birleştirilir (ör. Reciprocal Rank Fusion).
-- Filtreler: `type`, `category_path`, `status`, `author`, `since`.
-- Her dosya değiştiğinde (API veya diskte elle düzenleme; dosya izleyici ile) indeks artımlı olarak güncellenir.
-- Model ilk kullanımda indirilir. İndirilemezse sistem kelime aramasıyla çalışmaya devam eder.
+- Kelime araması SQLite FTS5 ile yapılır; Türkçe harfler katlanır ("kullanici" → "Kullanıcı"). Önce tüm kelimeler, sonuç yoksa anlamlı kelimelerden herhangi biri aranır.
+- Anlamla arama açıksa iki sıralama Reciprocal Rank Fusion (k=60) ile birleştirilir; her sonuç `keyword`, `semantic` veya `both` ile nasıl bulunduğunu söyler.
+- Aranan: bilgi düğümleri, onay bekleyen bilgi taslakları, kalemler (yanıtlarıyla) ve aktivite.
+- Filtreler: `kind` (node, item, activity), `path` (dal altı), `status`, `type`.
+- Her yazımda ve dosya izleyiciyle yakalanan elle düzenlemede indeks güncellenir; anlam vektörleri yalnızca değişen metinler için arka planda hesaplanır.
+- Model yoksa veya yüklenemezse sistem kelime aramasıyla çalışmaya devam eder.
 
 ## 11. Gelen kutusu (soru-cevap akışı)
 
 - Sistem kendi başına hiçbir LLM çağırmaz.
-- İnsan, bir aktiviteye veya karta "Bunu neden böyle yaptın?" diye soru bırakır. Soru, `assignee: claude-code` ile kaydedilir.
+- İnsan, bir aktiviteye, düğüme veya karta "Bunu neden böyle yaptın?" diye soru bırakır (`ask`). Soru, sorulan şeyi yapan aktöre atanır.
 - AI bir sonraki oturumda `brief` içinde "Sana yönelik 2 soru var" bilgisini görür ve cevaplar.
 - Ters yön de aynıdır: AI emin olmadığında insana soru açar ve **cevap gelene kadar o konuda varsayım yapmaz**.
-- Panelde okunmamış sayacı ve bildirim bulunur.
+- Gelen kutusunda neler var: sana veya grubuna atananlar, cevaplanan soruların, yazdığın kayıtlara gelen yeni yanıtlar, (insanlar için) onay bekleyen kararlar. Engelleyici sorular önce, sonra en son güncellenen.
 
-## 12. Arayüzler (v1)
+## 12. Arayüzler
 
 ### 12.1 REST API (temel katman)
+Tüm uçlar `Authorization: Bearer <token>` ister (pano: oturum çerezi + `x-cortex-csrf` başlığı) ve yalnızca localhost'a cevap verir.
 ```
 GET    /api/brief
-GET    /api/tree/{path}?depth=&fields=
-GET    /api/node/{path}
-PUT    /api/node/{path}
-GET    /api/search?q=&type=&path=&budget=
-GET    /api/items?type=&status=&assignee=&path=
-POST   /api/items
-GET    /api/items/{id}
-PATCH  /api/items/{id}
-POST   /api/items/{id}/replies
+GET    /api/tree/{path}?depth=&budget=
+GET    /api/node/{path}            PUT /api/node/{path}        DELETE /api/node/{path}?reason=   (silme: yalnızca insan)
+GET    /api/stale                  POST /api/verify/{path}
+GET    /api/code?files=a,b
+GET    /api/search?q=&kind=&path=&status=&type=&limit=&budget=
+GET    /api/items?type=&status=&assignee=&author=&path=&open=&limit=&cursor=
+POST   /api/items                  GET/PATCH /api/items/{id}   POST /api/items/{id}/replies
+POST   /api/ask                    { about, title, body?, blocking? }
 GET    /api/inbox
-POST   /api/activity
-GET    /api/activity?since=&actor=
-GET    /api/rules  |  GET /api/rules/{type}
-GET    /api/approvals  |  POST /api/approvals/{id}/{approve|reject}
-GET    /api/openapi.json
+POST   /api/activity               GET /api/activity?since=&actor=&ref=&include_system=   GET /api/activity/{id}
+GET    /api/rules[/{name}]         GET/PUT /api/rules/{name}/source   (yazma: yalnızca insan)
+GET    /api/approvals[/{id}]       POST /api/approvals/{id}/approve|reject
+POST   /api/approvals/approve      { ids, force? }      POST /api/approvals/reject  { ids, reason? }
+GET    /api/report?since=7d&until=&format=md&lang=tr
+GET    /api/events                 (panonun canlı güncelleme akışı, SSE)
 ```
 
 ### 12.2 MCP sunucusu
-Aynı çekirdeğin ince bir sarmalayıcısıdır: `cortex_brief`, `cortex_tree`, `cortex_node`, `cortex_search`, `cortex_items`, `cortex_create_item`, `cortex_reply`, `cortex_log_activity`, `cortex_rules`, `cortex_update_node`.
-Kurulum: `npx cortex mcp` (stdio). README'de Claude Code, Cursor ve VS Code için tek satırlık yapılandırma örnekleri bulunur.
+Aynı çekirdeğin ince bir sarmalayıcısıdır: `cortex_brief`, `cortex_tree`, `cortex_node`, `cortex_search`, `cortex_code_context`, `cortex_verify_node`, `cortex_update_node`, `cortex_rules`, `cortex_inbox`, `cortex_items`, `cortex_item`, `cortex_create_item`, `cortex_update_item`, `cortex_reply`, `cortex_ask`, `cortex_log_activity`, `cortex_activity`, `cortex_report`.
+Kurulum: `npx aicortex mcp --actor ai-agent` (stdio). Örnek: `claude mcp add cortex -- npx aicortex mcp --actor ai-agent`.
 
 ### 12.3 Web pano (`http://localhost:4747`)
-- **Pano:** Kanban kolonları, kategori (dal) filtresi.
-- **Ağaç:** Bilgi ağacı gezgini (özet → detay), stale/draft rozetleri.
-- **Aktivite akışı:** AI ne yaptı, neden, hangi dosya. Her satırda "Soru sor" butonu.
-- **Gelen kutusu** ve **Onay bekleyenler**.
-- **Kurallar:** Şemaları görüntüleme ve düzenleme (yalnızca insan).
-- **Arama çubuğu:** Her ekranda bulunur.
-- TR/EN dil desteği, açık/koyu tema.
+- **Gelen kutusu:** seni bekleyenler, engelleyiciler önce.
+- **Pano:** tür başına kanban; kolonlar kurallardaki durumlar, yasak geçişler soluk ve açıklamalı.
+- **Bilgi:** ağaç gezgini (özet → detay), eskimiş/açık kayıt rozetleri, düzenle, alt düğüm ekle, sil.
+- **Aktivite:** AI ne yaptı, neden, hangi dosya; canlı. Her satırda "Bunu sor" düğmesi.
+- **Onaylar:** mevcut ve önerilen yan yana; tek tek veya toplu onay/ret.
+- **Raporlar:** Bölüm 15.
+- **Kurallar:** şemaları ve genel kuralları görüntüleme ve düzenleme (yalnızca insan).
+- **Arama çubuğu** her ekranda. TR/EN, açık/koyu tema. Giriş: `cortex login` ile 10 dakikalık imzalı bağlantı, şifre yok.
 
 ## 13. İlk kurulum akışı
 
 ```bash
-npx cortex init      # .cortex/ oluşturur, şablon dalları ve varsayılan kuralları koyar, .gitignore'a .index ekler
-npx cortex start     # API + pano + dosya izleyici
+npx aicortex init      # .cortex/ oluşturur: dalları sorar, varsayılan kuralları koyar
+npx aicortex start     # API + pano + dosya izleyici
 ```
+- `init` seçenekleri: `--lang tr` (AI'ların yazım dili; varsayılan bilgisayarın dili), `--branches backend,frontend,odeme` (terminalde sormadan dal seçimi; şablon: backend, frontend, server, mobile, security, seo, code-structure; yeni adlar da kabul edilir), `--agent-files`. Rapor saat dilimi bilgisayardan alınıp `cortex.config.yaml`'a yazılır.
+
 `init` sonrasında:
 1. Mevcut `.md` dosyaları (README, docs/, CLAUDE.md vb.) taranır ve "içe aktarım adayları" olarak listelenir.
-2. Sistem, kullanıcının kendi AI'ına verilecek hazır bir **bootstrap görevi** üretir: "Projeyi tara, ağacı kur, her dala özet yaz, kararları çıkar." AI bu görevi API/MCP üzerinden yapar. Tüm yazımlar `draft` olarak düşer.
-3. İnsan panelden onaylar. Onaylanan bilgi aktif olur.
-4. Projedeki `CLAUDE.md` veya `AGENTS.md` dosyasına **tek bir kısa blok** eklenir: "Bu projede bilgi kaynağı Cortex'tir. Oturum başında `cortex_brief` çağır, değişiklikten önce `cortex_search` yap, değişiklikten sonra `cortex_log_activity` gönder." Bundan sonra `.md` dosyalarında doküman güncellenmez.
+2. `aicortex bootstrap`, kullanıcının kendi AI'ına verilecek hazır bir görev yazdırır: "Projeyi tara, ağacı kur, her dala özet yaz, kararları çıkar, çelişkileri soru olarak aç." Görev yazım dilini de söyler. AI bu görevi API/MCP üzerinden yapar; bilgi yazımları taslak olarak düşer.
+3. İnsan panelden (toplu) onaylar. Uymayan dalları siler.
+4. `--agent-files` verilmişse projedeki mevcut `CLAUDE.md` veya `AGENTS.md` dosyasına **tek bir kısa blok** eklenir: "Bu projede bilgi kaynağı Cortex'tir. Oturum başında `cortex_brief` çağır, değişiklikten önce `cortex_search` yap, değişiklikten sonra `cortex_log_activity` gönder." Bundan sonra `.md` dosyalarında doküman güncellenmez.
 
 ## 14. AI çalışma protokolü (her AI'a öğretilecek)
 
-1. Oturum başında `brief` çağır. Sana yönelik soruları ve issue'ları gör.
-2. Bir değişiklikten önce ilgili konuyu `search` ile ara, gerekirse ilgili dala in. Tüm ağacı okuma.
+1. Oturum başında `brief` çağır, sonra `inbox`. Sana yönelik soruları ve issue'ları gör, önce onları cevapla.
+2. Bir değişiklikten önce ilgili konuyu `search` ile ara, gerekirse ilgili dala in. Tüm ağacı okuma. Düzenleyeceğin dosyalar için `code_context` çağır.
 3. Anlamadığın bir yerde önce ara. Sonuç yoksa insana `question` aç, varsayım yapma.
 4. Kod değiştirdikten sonra `activity` gönder (ne, neden, dosyalar, commit, ilgili kalem).
-5. Mimari veya davranış değiştiyse ilgili düğümü güncelle veya `decision` aç (onaya düşer).
-6. Kurallara uy. `rules_version` değiştiyse kuralları yeniden çek.
+5. Mimari veya davranış değiştiyse ilgili düğümü güncelle veya `decision` aç. Eskimiş düğümleri kontrol et: değiştiyse güncelle, değilse doğrula.
+6. Kurallara ve yazım diline uy. `rules_version` değiştiyse kuralları yeniden çek.
 
-## 15. Kapsam
+## 15. Raporlar
 
-**v1 (bu sürüm):** Bölüm 4–14'ün tamamı, tek proje, yerel çalışma, basit aktör kimliği.
+- Dönem: `7d`, `30d`, `90d`, `2w` veya tarih aralığı; en fazla 366 gün. Göreli dönemler **projenin saat diliminde** takvim gününe hizalıdır ("7 gün" = bugün + önceki 6 gün). Saat dilimi `cortex.config.yaml` → `timezone` (ör. `Europe/Istanbul`); yoksa UTC.
+- İçerik: AI ve insan aktivitesi (günlük), AI'ın gerekçeli/gerekçesiz değişiklikleri, açılan/kapanan kayıtlar, soruların cevaplanma süresi, kararlar, AI taslak onay oranı (güven göstergesi), issue yaşı, bekleyen onaylar, eskimiş ve belgelenmemiş bilgi, aktör bazında tablo.
+- Hepsi sayılarak hesaplanır, LLM yok. Erişim: pano (grafikler + tablo görünümü), REST (JSON veya TR/EN markdown), MCP `cortex_report`, CLI `aicortex report`.
+
+## 16. Kapsam
+
+**v1 (tamam):** Bölüm 4–15, tek proje, yerel çalışma, basit aktör kimliği.
 
 **Sonra:**
-- Raporlar (haftalık özet, AI aktivite istatistikleri, açık issue yaşlanması, stale bilgi oranı)
+- npm yayını ve CI (Windows, macOS, Linux)
 - Merkezi/ekip sunucusu, tam login ve rol yönetimi
 - Çoklu proje
 - İsteğe bağlı anlık AI cevabı (kullanıcının kendi API anahtarıyla)
 - Webhook'lar, GitHub Issues/PR senkronizasyonu
 - VS Code eklentisi
 
-## 16. Kabul kriterleri (v1 "bitti" sayılır, eğer)
+## 17. Kabul kriterleri (v1 "bitti" sayılır, eğer)
 
-- [ ] Temiz bir Windows, macOS ve Linux makinede, yalnızca Node kuruluyken `npx cortex init && npx cortex start` 2 dakikadan kısa sürede çalışıyorsa
-- [ ] `brief` cevabı örnek bir projede 800 tokenin altında kalıyorsa
-- [ ] Hibrit arama Türkçe ve İngilizce sorgularda ilgili düğümü ilk 3 sonuçta getiriyorsa
-- [ ] Şemaya aykırı bir yazım, ihlal edilen kural ve doğru örnekle reddediliyorsa
-- [ ] `review` türündeki AI yazımları onaysız aktif olmuyorsa
-- [ ] Bağlı dosya değiştiğinde düğüm `stale` işaretleniyorsa
-- [ ] `.index/` silinip `reindex` çalıştırıldığında hiçbir veri kaybolmuyorsa
-- [ ] Claude Code MCP üzerinden, Bölüm 14'teki protokolü baştan sona uygulayabiliyorsa
-- [ ] İki geliştirici `.cortex/` üzerinde paralel çalışıp git merge yaptığında veri bozulmuyorsa
+- [ ] Temiz bir Windows, macOS ve Linux makinede, yalnızca Node kuruluyken `npx aicortex init && npx aicortex start` 2 dakikadan kısa sürede çalışıyorsa — *CI ile doğrulanacak*
+- [x] `brief` cevabı örnek bir projede 800 tokenin altında kalıyorsa — *testle korunuyor, 30 taslakla bile*
+- [x] Hibrit arama Türkçe ve İngilizce sorgularda ilgili düğümü ilk 3 sonuçta getiriyorsa — *sahte (deterministik) modelle test ediliyor*
+- [x] Şemaya aykırı bir yazım, ihlal edilen kural ve doğru örnekle reddediliyorsa
+- [x] `review` türündeki AI yazımları onaysız aktif olmuyorsa
+- [x] Bağlı dosya değiştiğinde düğüm `stale` işaretleniyorsa — *gerçek git deposunda gerçek commit'lerle test ediliyor*
+- [x] `.index/` silinip `reindex` çalıştırıldığında hiçbir veri kaybolmuyorsa
+- [ ] Claude Code MCP üzerinden, Bölüm 14'teki protokolü baştan sona uygulayabiliyorsa — *Cortex kendi reposunda bu protokolle geliştiriliyor; otomatik test yok*
+- [ ] İki geliştirici `.cortex/` üzerinde paralel çalışıp git merge yaptığında veri bozulmuyorsa — *dosya düzeni buna göre tasarlandı (kayıt başına dosya, aktör başına günlük); otomatik test yok*
 
-## 17. Açık sorular
+## 18. Açık sorular
 
-- İsim çakışması: npm'de `cortex` alınmış olabilir, ayrıca Snowflake Cortex ve Cortex (Prometheus) gibi ürünler var. Alternatifler: `@cortex-dev/cli`, `cortexhq`, `projcortex`. Kontrol edilmeli.
-- Varsayılan port: 4747 uygun mu?
-- Varsayılan dal şablonu: backend, frontend, server, mobile, security, seo, code-structure. Başka dallar gerekiyor mu?
+- Komut adı: paket `aicortex`, komut hem `aicortex` hem `cortex`. Global kurulumda `cortex` başka bir araçla çakışabilir; kısa adı tutmaya devam edelim mi?
+- Sürümleme ve yayın süreci (değişiklik günlüğü, npm yayın yetkisi) henüz belirlenmedi.

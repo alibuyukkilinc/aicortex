@@ -97,6 +97,7 @@ export interface CortexConfig {
   actors: Actor[];
   approval: Record<string, ApprovalPolicy>;
   search?: { semantic?: boolean }; // false turns semantic search off for this project
+  timezone?: string; // IANA zone reports count days in, e.g. "Europe/Istanbul"; default UTC
 }
 
 export type Draft =

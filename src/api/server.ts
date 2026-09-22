@@ -103,7 +103,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
       return reply
         .code(401)
         .type("text/html")
-        .send(page("Login link expired or invalid", "Run <code>npx projcortex login</code> in your project for a fresh link."));
+        .send(page("Login link expired or invalid", "Run <code>npx aicortex login</code> in your project for a fresh link."));
     }
     reply.setCookie(SESSION_COOKIE, tokens[actor.id], { httpOnly: true, sameSite: "strict", path: "/", maxAge: 60 * 60 * 24 * 30 });
     return reply.redirect("/");

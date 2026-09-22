@@ -1,5 +1,5 @@
 {
-  "name": "projcortex",
+  "name": "aicortex",
   "version": "0.1.0",
   "description": "Shared project brain for humans and AIs: knowledge tree, board, decisions and AI activity in one place.",
   "scripts": {
@@ -43,7 +43,7 @@
   },
   "bin": {
     "cortex": "dist/cli.js",
-    "projcortex": "dist/cli.js"
+    "aicortex": "dist/cli.js"
   },
   "files": [
     "dist"
