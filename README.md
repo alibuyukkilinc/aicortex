@@ -45,12 +45,13 @@ It installs a local model runtime and a multilingual model (~420 MB, one time, u
 
 ## The board (for humans)
 
-- **Inbox**: everything waiting on you; blocking questions first
+- **Notifications**: everything waiting on you, counted and explained in plain words: blocking questions, items assigned to you, answers to your questions, drafts to approve, knowledge that went out of date
 - **Board**: kanban per item type, columns = statuses from the rules; forbidden moves are dimmed and explained
 - **Knowledge**: the tree with open-item counts, markdown, code links; edit nodes, add children, delete what does not apply
 - **Activity**: what each AI did and **why**, live; one click to ask about any entry
 - **Approvals**: current vs proposed side by side; approve or reject AI drafts one by one or in bulk
 - **Rules**: edit the YAML rules; invalid rules are refused before they are saved
+- **Guide**: what Cortex is, a normal day, the exact command to connect an AI, the role table, and a glossary of the English words the board keeps (they are explained on hover)
 
 Everything updates live (server-sent events), including changes made by an AI in another process. Turkish and English, light and dark.
 
@@ -134,7 +135,13 @@ npx aicortex hub add-project /srv/repos/shop
 
 Every membership also says what the member **sees**: everything, or only their own items (written by or assigned to them), optionally limited to some branches (e.g. only `frontend`). Hidden things answer 404, and partial views get no project-wide report. An AI can never approve, edit rules or manage members.
 
-AI agents on a hub use the REST API under `/api/p/<project>/` with `Authorization: Bearer <token>`.
+AI agents on a hub connect the same way as anywhere else, over MCP:
+
+```bash
+claude mcp add cortex -- npx aicortex mcp --hub https://cortex.acme.com --project shop --token <agent token>
+```
+
+The tools are identical to a local project; the agent's role and visibility apply to them. Anything that cannot speak MCP can use the same REST API under `/api/p/<project>/` with `Authorization: Bearer <token>`.
 
 ## REST API
 
@@ -168,7 +175,8 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 - [x] **Slice 5:** code links, stale detection from git history (line-range aware, renames and deletions), verify, code context, live updates on new commits
 - [x] **Slice 6:** reports (period summary, AI trust, knowledge health) on the board, REST, MCP and CLI; days are counted in the project's `timezone` (set by `init` from your computer, default UTC)
 - [x] **Hub:** team server with many projects, people (email + password), AI agents (tokens), roles and visibility per project
-- [ ] Later: MCP for hub agents, SSO, webhooks
+- [x] **MCP everywhere:** the same MCP tools against a local project or a hub project
+- [ ] Later: SSO, invite emails, webhooks, GitHub sync
 
 ## Development
 

@@ -234,15 +234,17 @@ GET    /api/events                 (panonun canlı güncelleme akışı, SSE)
 ### 12.2 MCP sunucusu
 Aynı çekirdeğin ince bir sarmalayıcısıdır: `cortex_brief`, `cortex_tree`, `cortex_node`, `cortex_search`, `cortex_code_context`, `cortex_verify_node`, `cortex_update_node`, `cortex_rules`, `cortex_inbox`, `cortex_items`, `cortex_item`, `cortex_create_item`, `cortex_update_item`, `cortex_reply`, `cortex_ask`, `cortex_log_activity`, `cortex_activity`, `cortex_report`.
 Kurulum: `npx aicortex mcp --actor ai-agent` (stdio). Örnek: `claude mcp add cortex -- npx aicortex mcp --actor ai-agent`.
+Ekip sunucusundaki bir proje için: `npx aicortex mcp --hub <url> --project <id> --token <ajan tokenı>` (ya da `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN`). Araçlar birebir aynıdır: MCP araçları proje REST API'sini konuşur (yerelde süreç içinde, merkezde HTTP ile), böylece kurallar, rol ve görünürlük iki yolda da aynen uygulanır.
 
 ### 12.3 Web pano (`http://localhost:4747`)
-- **Gelen kutusu:** seni bekleyenler, engelleyiciler önce.
+- **Bildirimler:** seni bekleyen her şey sayıyla ve düz cümleyle: işi durduran sorular, sana atananlar, grubunu bekleyenler, cevaplanan soruların, yeni yanıtlar, onay bekleyen kararlar ve taslaklar, eskimiş olabilecek bilgi.
 - **Pano:** tür başına kanban; kolonlar kurallardaki durumlar, yasak geçişler soluk ve açıklamalı.
 - **Bilgi:** ağaç gezgini (özet → detay), eskimiş/açık kayıt rozetleri, düzenle, alt düğüm ekle, sil.
 - **Aktivite:** AI ne yaptı, neden, hangi dosya; canlı. Her satırda "Bunu sor" düğmesi.
 - **Onaylar:** mevcut ve önerilen yan yana; tek tek veya toplu onay/ret.
 - **Raporlar:** Bölüm 15.
 - **Kurallar:** şemaları ve genel kuralları görüntüleme ve düzenleme (yalnızca insan).
+- **Kılavuz:** sistem nasıl işler, AI nasıl bağlanır (komut sunucuya ve projeye göre hazır yazılır), roller ve görünürlük, mobil ekip örneği, İngilizce terimler sözlüğü. Panoda kalan İngilizce terimlerin üstüne gelince açıklaması çıkar.
 - **Arama çubuğu** her ekranda. TR/EN, açık/koyu tema. Giriş: `cortex login` ile 10 dakikalık imzalı bağlantı, şifre yok.
 
 ## 13. İlk kurulum akışı
@@ -284,6 +286,7 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (
 - **Roller (proje başına):** İnsanlar için Sahip, Yönetici (her şey), Üye (kayıt ve bilgi yazar, taslak onaylar), İzleyici (okur, soru sorar ve cevaplar). AI için Okuyucu (okur), Katkıcı (kayıt yazar, bilgi yazımları taslağa düşer), Güvenilir (bilgiye doğrudan yazar). AI hiçbir rolde onaylayamaz, kural değiştiremez, üye yönetemez. Organizasyon yöneticileri her projede Sahip sayılır; projenin son sahibi çıkarılamaz, sahipliği yalnızca sahipler değiştirir.
 - **Görünürlük:** Her üyelik "her şeyi" ya da "yalnızca kendi kayıtlarını" (yazdığı, kendisine veya grubuna atanan) görür; isteğe bağlı dal kısıtı (ör. yalnızca `frontend`) bilgi ağacını, düğümleri, kayıtları, aramayı, aktiviteyi, gelen kutusunu, brief'i ve canlı olayları süzer. Gizli olan 404 döner; kısmi görünüm proje raporu alamaz.
 - **Web:** `/` projelerim, `/admin` organizasyon (kişiler, AI ajanları, projeler), `/p/<proje>/` proje panosu (proje değiştirici, Üyeler sayfası), `/invite/<token>` şifre belirleme.
+- **AI bağlantısı:** `aicortex mcp --hub <url> --project <id> --token <t>`; MCP araçları merkezdeki proje API'sini kullanır, rol ve görünürlük aynen geçerlidir.
 - **Komutlar:** `aicortex hub init | start | add-project <klasör> | invite <e-posta>`. İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılır ve `public_url` https adrese ayarlanır.
 
 ## 17. Kapsam
@@ -294,7 +297,6 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (
 
 **Sonra:**
 - npm yayını
-- Merkezdeki AI ajanları için MCP (şimdilik REST)
 - SSO (GitHub/Google), e-postayla davet gönderimi
 - İsteğe bağlı anlık AI cevabı (kullanıcının kendi API anahtarıyla)
 - Webhook'lar, GitHub Issues/PR senkronizasyonu
