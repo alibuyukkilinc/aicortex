@@ -25,6 +25,10 @@ Usage: cortex <command> [options]
   bootstrap                          Print the task that lets your AI fill the tree
   reindex                            Rebuild the search index from files
   semantic [on|off|status]           Meaning-based search (one-time ~420 MB download, shared by all projects)
+  hub init --org <name> --admin-email <e> --admin-name <n> [--public-url <https://...>]
+  hub start [--host 0.0.0.0] [--port 4747]    Team server: many projects, people with passwords, AI agents with tokens
+  hub add-project <folder> [--id] [--name] [--init]
+  hub invite <email>                 New invite / password-reset link for a user
   report [--since 7d] [--until <date>] [--lang en|tr] [--json] [--out <file>]
                                      What happened, what is waiting, knowledge health (markdown by default)
 `;
@@ -33,7 +37,7 @@ async function main() {
   // Before anything touches node:sqlite: a clear message instead of "no such module: fts5".
   if (nodeTooOld()) throw new Error(NODE_TOO_OLD_MESSAGE());
   const [cmd, ...rest] = process.argv.slice(2);
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: rest,
     options: {
       name: { type: "string" },
@@ -46,6 +50,14 @@ async function main() {
       lang: { type: "string" },
       json: { type: "boolean" },
       out: { type: "string" },
+      org: { type: "string" },
+      "admin-email": { type: "string" },
+      "admin-name": { type: "string" },
+      "public-url": { type: "string" },
+      host: { type: "string" },
+      dir: { type: "string" },
+      id: { type: "string" },
+      init: { type: "boolean" },
     },
     allowPositionals: true,
   });
@@ -180,6 +192,11 @@ Next steps:
       break;
     }
 
+    case "hub": {
+      await hubCommand(positionals[0], positionals[1], values);
+      break;
+    }
+
     case "reindex": {
       const { Cortex } = await import("./core/cortex.js");
       const cortex = new Cortex(loadProject());
@@ -191,6 +208,81 @@ Next steps:
     default:
       console.log(HELP);
       if (cmd && cmd !== "help" && cmd !== "--help") process.exitCode = 1;
+  }
+}
+
+// The team server: people sign in with email + password, AI agents with tokens, one board for many projects.
+async function hubCommand(sub: string | undefined, arg: string | undefined, v: Record<string, string | boolean | undefined>) {
+  const { join, resolve, basename } = await import("node:path");
+  const { homedir } = await import("node:os");
+  const { existsSync } = await import("node:fs");
+  const { HubStore } = await import("./hub/store.js");
+  const dir = resolve((v.dir as string | undefined) ?? process.env.CORTEX_HUB ?? join(homedir(), ".cortex", "hub"));
+  const str = (k: string) => v[k] as string | undefined;
+
+  if (sub === "init") {
+    const email = str("admin-email");
+    const name = str("admin-name");
+    if (!email || !name) throw new Error('Usage: aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" [--public-url https://cortex.acme.com]');
+    const port = Number(str("port") ?? 4747);
+    const store = HubStore.init(dir, {
+      org: str("org") ?? "My organization",
+      host: str("host") ?? "127.0.0.1",
+      port,
+      ...(str("public-url") ? { public_url: str("public-url")!.replace(/\/+$/, "") } : {}),
+    });
+    const admin = store.createUser({ email, name, org_admin: true });
+    const url = `${(store.settings.public_url ?? `http://localhost:${port}`)}/invite/${store.createInvite(admin.id)}`;
+    store.close();
+    console.log(`✔ Hub created in ${dir} (keep this folder private: it holds password hashes)\n`);
+    console.log(`Start it:            aicortex hub start`);
+    console.log(`Then set your password (link valid 7 days):\n  ${url}\n`);
+    console.log(`Add a project:       aicortex hub add-project <folder>   (or from the board: Organization → Projects)`);
+    return;
+  }
+
+  const store = new HubStore(dir);
+  try {
+    if (sub === "start") {
+      const { Hub, buildHubServer } = await import("./hub/server.js");
+      const host = str("host") ?? store.settings.host ?? "127.0.0.1";
+      const port = Number(str("port") ?? store.settings.port ?? 4747);
+      if (str("public-url")) store.settings.public_url = str("public-url")!.replace(/\/+$/, "");
+      store.settings.port = port;
+      const app = buildHubServer(new Hub(store));
+      await app.listen({ host, port });
+      console.log(`Cortex hub "${store.settings.org}" running at http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
+      if (host !== "127.0.0.1" && host !== "localhost" && !(store.settings.public_url ?? "").startsWith("https://")) {
+        console.log("⚠ Listening on the network without HTTPS. Put it behind a reverse proxy with TLS and set public_url to the https address.");
+      }
+      return; // keep running
+    }
+    if (sub === "add-project") {
+      if (!arg) throw new Error("Usage: aicortex hub add-project <folder> [--id shop] [--name Shop] [--init]");
+      const path = resolve(arg);
+      const name = str("name") ?? basename(path);
+      if (!existsSync(join(path, ".cortex", "cortex.config.yaml"))) {
+        if (!v.init) throw new Error(`${path} has no .cortex yet. Add --init to create one.`);
+        const { initProject } = await import("./core/init.js");
+        initProject(path, name, { language: str("lang") });
+      }
+      const id = (str("id") ?? name).toLowerCase().normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^[-_]+|[-_]+$/g, "");
+      store.addProject({ id, name, path });
+      console.log(`✔ Project "${name}" registered as ${id}. Organization admins can open it; add members on the board.`);
+      return;
+    }
+    if (sub === "invite") {
+      const u = arg ? store.userByEmail(arg) : null;
+      if (!u) throw new Error("Usage: aicortex hub invite <email of an existing user>");
+      console.log(`${(store.settings.public_url ?? `http://localhost:${store.settings.port}`)}/invite/${store.createInvite(u.id)}`);
+      console.log("Valid 7 days, once. Setting a password ends that user's other sessions.");
+      store.close();
+      return;
+    }
+    throw new Error("Usage: aicortex hub init | start | add-project <folder> | invite <email>");
+  } catch (e) {
+    store.close();
+    throw e;
   }
 }
 

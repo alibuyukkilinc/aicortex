@@ -89,6 +89,8 @@ export interface Activity {
 export interface Actor {
   id: string;
   kind: ActorKind;
+  // Per-actor approval overrides (a hub role such as "trusted" AI writes knowledge directly); falls back to the project's policy.
+  policy?: Record<string, ApprovalPolicy>;
 }
 
 export interface CortexConfig {

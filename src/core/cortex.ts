@@ -462,7 +462,7 @@ export class Cortex {
       updated_at: nowIso(),
     };
 
-    const policy = this.project.config.approval.node ?? "review";
+    const policy = actor.policy?.node ?? this.project.config.approval.node ?? "review";
     if (actor.kind === "ai" && policy === "human_only") {
       throw new CortexError("forbidden", "Only humans may change knowledge nodes in this project.", 403);
     }

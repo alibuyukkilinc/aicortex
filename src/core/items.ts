@@ -148,7 +148,7 @@ export class ItemService {
   }
 
   private policyGate(actor: Actor, type: string): "direct" | "draft" {
-    const policy = this.c.project.config.approval[type] ?? "auto";
+    const policy = actor.policy?.[type] ?? this.c.project.config.approval[type] ?? "auto";
     if (actor.kind !== "ai" || policy === "auto") return "direct";
     if (policy === "human_only") throw new CortexError("forbidden", `Only humans may write ${type} items in this project.`, 403);
     return "draft";
