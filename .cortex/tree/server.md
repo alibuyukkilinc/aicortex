@@ -14,11 +14,11 @@ links:
     - file: vite.config.ts
     - file: .github/workflows/ci.yml
     - file: scripts/smoke.mjs
-verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
+verified_at_commit: d91d320723a54e1bc12bc4b69074b8fd11dd20d4
 id: 01M34Q1CBEMJA6S58G199HVFBQ
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T15:10:02.449Z
+updated_at: 2026-09-22T16:00:57.544Z
 ---
 
 - Node 22.16 veya üstü gerekir (node:sqlite'ın FTS5'li ilk sürümü). Veritabanı sunucusu, Docker veya API anahtarı gerekmez.

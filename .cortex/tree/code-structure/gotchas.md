@@ -13,11 +13,11 @@ links:
     - file: src/index/db.ts
     - file: src/git/git.ts
     - file: src/cli.ts
-verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
+verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
 id: 01M34QYABJE3KGV82NE6BGAWEK
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T15:10:02.475Z
+updated_at: 2026-09-22T17:21:53.446Z
 ---
 
 - **En düşük Node 22.16**: 22.13, 22.14 ve 22.15'teki node:sqlite FTS5 içermiyor, Cortex hiç açılmıyordu. Yerelde 22.16 kullanıldığı için CI'daki en eski sürüm testine kadar fark edilmedi.
@@ -26,5 +26,5 @@ updated_at: 2026-09-22T15:10:02.475Z
 - **ExperimentalWarning**: `src/cli.ts` SQLite uyarısını gizler; ondan önce hiçbir şey node:sqlite yüklememeli.
 - **Taşıma tespiti**: `git diff` bağlı yolla sınırlanınca taşınan dosyanın yeni yeri görünmüyor; silinmiş görünen dosyalar için ayrıca kontrol ediliyor.
 - **HEAD kontrolü**: 5 saniyede bir (`Cortex.watch`); Windows'ta her git çağrısı yaklaşık 20 ms.
-- **Sunucu açıkken pano yeniden derlenirse** tarayıcı eski index.html'i tutabilir; sayfayı yenile.
+- **Statik dosyalar ve yeniden derleme**: `@fastify/static` `wildcard: false` ile dosya listesini yalnızca açılışta çıkarıyordu; sunucu açıkken derlenen pano boş sayfa gösteriyordu (yeni JS dosyası yerine HTML dönüyordu). Önceki teşhis "tarayıcı önbelleği" yanlıştı. Artık `wildcard: true` ve eksik dosyada 404.
 - **Brief boyutu**: 800 token sınırı testle korunuyor; listeler "sayı + ilk 5" şeklinde tutulur.

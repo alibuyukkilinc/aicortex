@@ -10,14 +10,16 @@ links:
   code:
     - file: web/src/App.tsx
     - file: web/src/api.ts
-verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
+    - file: web/src/hub.tsx
+verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
 id: 01M34Q1CBDWE3WNXKNMP6QK1W7
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:53:23.068Z
+updated_at: 2026-09-22T17:21:53.421Z
 ---
 
 - Adres çubuğunda # ile gezinme (`#/knowledge/...`); iskelet ve menü `web/src/App.tsx` içinde.
+- Hangi ekran: `Root` önce `/api/health` ile tek proje mi hub mı öğrenir. Hub'da `/` projelerim, `/admin` organizasyon, `/p/<proje>/` pano, `/invite/<token>` şifre belirleme. `apiPath()` proje isteklerini `/api/p/<proje>/…` ucuna çevirir.
 - `useApi` (`web/src/api.ts`) sunucu bir değişiklik bildirdiğinde (`LiveContext`) veriyi yeniden çeker; yeni sayfa yüklenirken önceki veriyi ekranda tutar.
 - Yazma isteklerinde `x-cortex-csrf: 1` başlığı gönderilir (çerezle giriş).
 - Geliştirme: `npm run dev:web` 5173 portunda açılır, /api ve /login isteklerini 4747'ye yönlendirir.

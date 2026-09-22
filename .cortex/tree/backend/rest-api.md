@@ -1,23 +1,26 @@
 ---
 title: REST API
-summary: Fastify, yalnızca 127.0.0.1. Bearer token ile ya da panonun oturum
-  çerezi + CSRF başlığıyla. Her cevapta _meta.rules_version var; hatalar kod,
-  mesaj ve ihlal edilen kuralla doğru örneği içeren bir ipucu taşır.
+summary: Proje rotaları src/api/routes.ts'de; tek projede /api altında (Bearer
+  token veya pano çerezi, yalnızca localhost), hub'da /api/p/:project altında
+  (e-posta+şifre oturumu veya ajan tokenı) sunulur. Hub'da her rota rol
+  yetkisini ve görünürlüğü denetler.
 tags:
   - api
 links:
   code:
+    - file: src/api/routes.ts
     - file: src/api/server.ts
-verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
+    - file: src/api/access.ts
+verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
 id: 01M34QY9R9NE0TTWX5ZP3R74J1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:53:23.085Z
+updated_at: 2026-09-22T17:21:53.478Z
 ---
 
-- Rotalar `buildServer` içinde (`src/api/server.ts`); tam liste README'de.
+- Rotalar `projectRoutes` içinde (`src/api/routes.ts`); `req.cortex` projeyi, `req.access` (yalnızca hub) rolü taşır. `need(req, perm)` yetkisi olmayanı 403 ile durdurur; gizli kayıtlar 404 döner. Tek proje sunucusu `buildServer`, ortak parçalar `baseServer` (`src/api/server.ts`).
 - `GET /api/events` panonun canlı güncelleme akışı (SSE).
 - Toplu onay: `POST /api/approvals/approve` `{ ids, force? }`, toplu ret: `POST /api/approvals/reject` `{ ids, reason? }`. Bazıları başarısız olsa da 200 döner, her taslak için sonucu bildirir.
 - Düğüm silme: `DELETE /api/node/{yol}?reason=`, yalnızca insan. Kök, alt düğümü olan dal ve altında açık kayıt olan düğüm silinmez; 409 cevabı hangi alt düğümlerin/kayıtların engel olduğunu söyler.
-- Derlenmiş panoyu `dist/web` altından sunar (kaynaktan çalışırken son build'i kullanır).
+- Derlenmiş panoyu `dist/web` altından sunar (kaynaktan çalışırken son build'i kullanır). Dosyalar her istekte aranır (`wildcard: true`), böylece sunucu açıkken yeniden derlenen pano yeniden başlatmadan gelir. Uzantısız yollar (ör. `/knowledge/x`) panonun sayfasına düşer; bulunamayan dosya (ör. `/assets/x.js`) 404 döner.
 - Hata biçimi: `{ error: { code, message, hint }, _meta }`.

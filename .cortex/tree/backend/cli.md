@@ -1,8 +1,8 @@
 ---
 title: Komut satırı (CLI)
 summary: "`aicortex` (kısa adı `cortex`) komutları: init, start, login, mcp,
-  bootstrap, reindex, semantic on|off|status, report. Ağır modüller yalnızca o
-  komut çalışınca yüklenir."
+  bootstrap, reindex, semantic, report ve ekip sunucusu için hub init | start |
+  add-project | invite. Ağır modüller yalnızca o komut çalışınca yüklenir."
 tags:
   - cli
 links:
@@ -11,11 +11,11 @@ links:
     - file: src/core/init.ts
     - file: src/core/agentFiles.ts
     - file: src/util/runtime-check.ts
-verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
+verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
 id: 01M34QY9W1VNPQMRXK141RRDFS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T15:10:02.460Z
+updated_at: 2026-09-22T17:21:53.472Z
 ---
 
 - `init`: .cortex/ klasörünü, token'ları, varsayılan kuralları ve üst dalları oluşturur. Hangi dalların açılacağını terminalde numaralı listeyle sorar (Enter = hepsi); `--branches backend,frontend,odeme` ile sormadan seçilir, şablonda olmayan adlar da kabul edilir (`resolveBranches`). `--lang tr` AI'ların yazım dilini belirler (verilmezse bilgisayarın dili). Rapor saat dilimi bilgisayardan alınıp `cortex.config.yaml`'a yazılır. `--agent-files` var olan CLAUDE.md/AGENTS.md dosyalarına kısa bir Cortex notu ekler.
@@ -23,3 +23,4 @@ updated_at: 2026-09-22T15:10:02.460Z
 - `login`: pano için 10 dakika geçerli, imzalı bir giriş bağlantısı yazdırır.
 - node:sqlite uyarı filtresi, node:sqlite yüklenmeden önce çalışmalı; komutların modülleri geç yüklemesinin sebebi bu.
 - Her komuttan önce Node sürümüne bakılır: 22.16'dan eskiyse "Cortex needs Node.js 22.16 or newer" mesajıyla durur (`src/util/runtime-check.ts`).
+- `hub init --org --admin-email --admin-name [--public-url]` merkezi ve ilk organizasyon yöneticisini oluşturup şifre belirleme bağlantısını yazar; `hub start [--host 0.0.0.0]` ağa açılırken HTTPS yoksa uyarır; `hub add-project <klasör> [--init]`; `hub invite <e-posta>` yeni bağlantı (şifre sıfırlama).

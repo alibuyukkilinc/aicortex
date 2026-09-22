@@ -8,12 +8,14 @@ tags:
 links:
   code:
     - file: src/core/cortex.ts
-verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
+verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
 id: 01M34Q1CBCMK0W5QXHSQAY5PHG
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T15:10:02.441Z
+updated_at: 2026-09-22T17:21:53.414Z
 ---
+
+İki çalışma biçimi var: `aicortex start` tek projeyi yalnızca localhost'ta sunar (`src/api/server.ts`), `aicortex hub start` çok projeyi ekip için sunar (`src/hub`). İkisi de aynı proje rotalarını kullanır (`src/api/routes.ts`).
 
 Her iş `Cortex` sınıfından geçer (`src/core/cortex.ts`): okuma, düğüm yazma, taslak ve onay, kurallar, arama.
 Kalemler ve aktivite için ayrı servisler var (`ItemService`, `ActivityService`), çekirdeğe bağlılar.

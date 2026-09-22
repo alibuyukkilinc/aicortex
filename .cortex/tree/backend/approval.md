@@ -13,11 +13,11 @@ links:
       lines: 420-560
     - file: src/store/drafts.ts
     - file: web/src/pages/Approvals.tsx
-verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
+verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
 id: 01M34QY9GN6ZWRZ7CKCPF5SVBN
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:45:15.032Z
+updated_at: 2026-09-22T17:21:53.465Z
 ---
 
 - `init` sonrası varsayılan: `node: review`, diğerleri `auto`. Kararlar `auto` çünkü kabul ve ret zaten yalnızca insana ait.
@@ -27,3 +27,5 @@ updated_at: 2026-09-22T14:45:15.032Z
 - Toplu onay/ret (`approveMany`, `rejectMany`): önce üst düğümler onaylanır, böylece yeni bir dal ve altındakiler birlikte onaylanabilir. Biri hata verirse diğerleri devam eder, hatalı olan ayrıca bildirilir.
 - Onay ve ret yalnızca insana ait ve denetim kaydı bırakır (`draft.approved` / `draft.rejected`); raporlar AI güven oranını buradan hesaplar.
 - Taslaklar `.cortex/drafts/` altında dosyadır; bekleyen onaylar da git'te saklanır.
+- Aktör başına onay istisnası: `Actor.policy` (ör. hub'daki Güvenilir AI rolü `{ node: "auto" }`), yoksa projenin politikası geçerli.
+- Hub'da onay listesi: onaylama yetkisi olan kendi görebildiği tüm taslakları, olmayan yalnızca kendi önerdiklerini görür.
