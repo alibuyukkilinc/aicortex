@@ -58,6 +58,7 @@ export function Rules({ name }: { name: string }) {
 function RuleEditor({ name }: { name: string }) {
   const t = useT();
   const toast = useToast();
+  const { can } = useSession();
   const { data, error, loading } = useApi<{ source: string; exists: boolean; file: string }>(`/api/rules/${name}/source`);
   const [source, setSource] = useState<string | null>(null);
   const [err, setErr] = useState<unknown>(null);
@@ -86,7 +87,7 @@ function RuleEditor({ name }: { name: string }) {
         <h2 className="mono" style={{ flex: 1 }}>
           .cortex/rules/{data?.file}
         </h2>
-        <button className="btn primary" disabled={!dirty} onClick={() => void save()}>
+        <button className="btn primary" disabled={!dirty || !can("edit_rules")} onClick={() => void save()}>
           {t("common.save")}
         </button>
       </div>

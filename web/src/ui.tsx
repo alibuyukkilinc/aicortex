@@ -49,6 +49,7 @@ const paths: Record<string, string> = {
   alert: "M12 9v4M12 17v.5M10.3 4.3L2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z",
   edit: "M4 20h4L19 9l-4-4L4 16zM13 7l4 4",
   chat: "M5 5h14v10H9l-4 4z",
+  user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-3.3 3.6-6 8-6s8 2.7 8 6",
   globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z",
 };
 
@@ -246,6 +247,7 @@ export interface Session {
   projectName: string;
   openItem: (id: string) => void;
   ask: (about: string, label: string) => void;
+  can: (perm: string) => boolean;
 }
 export const SessionContext = createContext<Session>(null as unknown as Session);
 export const useSession = () => useContext(SessionContext);

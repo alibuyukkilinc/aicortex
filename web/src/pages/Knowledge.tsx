@@ -66,7 +66,7 @@ function TreeNode({ node, active, depth }: { node: NodeSummary; active: string; 
 
 function NodeView({ path }: { path: string }) {
   const t = useT();
-  const { actors, ask, openItem } = useSession();
+  const { actors, ask, openItem, can } = useSession();
   const { data, error, loading, reload } = useApi<{ node: KnowledgeNode; staleness?: StaleInfo }>(`/api/node/${path}`);
   const items = useApi<{ items: ItemSummary[]; total: number }>(`/api/items${qs({ path: path || undefined, open: true, limit: 20 })}`);
   const [editing, setEditing] = useState<"edit" | "child" | null>(null);
@@ -105,13 +105,17 @@ function NodeView({ path }: { path: string }) {
           <button className="btn sm" onClick={() => ask(n.path, n.title)}>
             <Icon name="ask" size={14} /> {t("tree.ask")}
           </button>
-          <button className="btn sm" onClick={() => setEditing("edit")}>
-            <Icon name="edit" size={14} /> {t("common.edit")}
-          </button>
-          <button className="btn sm" onClick={() => setEditing("child")}>
-            <Icon name="plus" size={14} /> {t("tree.newChild")}
-          </button>
-          {n.path !== "" && (
+          {can("write_knowledge") && (
+            <>
+              <button className="btn sm" onClick={() => setEditing("edit")}>
+                <Icon name="edit" size={14} /> {t("common.edit")}
+              </button>
+              <button className="btn sm" onClick={() => setEditing("child")}>
+                <Icon name="plus" size={14} /> {t("tree.newChild")}
+              </button>
+            </>
+          )}
+          {n.path !== "" && can("delete_knowledge") && (
             <button className="btn sm ghost danger" onClick={() => void remove(n)} title={t("tree.delete")}>
               <Icon name="x" size={14} /> {t("tree.delete")}
             </button>

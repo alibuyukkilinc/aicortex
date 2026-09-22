@@ -9,6 +9,16 @@ export interface Me {
   project: { name: string };
   actors: Actor[];
   item_types: string[];
+  // Hub only: the member's role in this project and what it allows.
+  role?: string;
+  perms?: string[];
+  restricted?: boolean;
+}
+
+export interface HubMe {
+  org: string;
+  principal: { id: string; kind: "human" | "ai"; email?: string; name: string; org_admin?: boolean };
+  projects: { id: string; name: string; role: string }[];
 }
 
 export interface FieldSpec {

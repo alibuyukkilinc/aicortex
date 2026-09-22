@@ -11,9 +11,19 @@ export class ApiError extends Error {
   }
 }
 
+// On a hub the board lives at /p/<project>/ and talks to /api/p/<project>/...; a single project uses /api/...
+export const currentProject = (): string | null => /^\/p\/([^/]+)/.exec(location.pathname)?.[1] ?? null;
+const HUB_LEVEL = /^\/api\/(auth|admin|hub|health)(\/|$)/;
+
+export function apiPath(path: string): string {
+  const p = currentProject();
+  if (!p || !path.startsWith("/api/") || HUB_LEVEL.test(path)) return path;
+  return `/api/p/${encodeURIComponent(p)}${path.slice(4)}`;
+}
+
 // Cookie auth + the CSRF header the server requires on writes.
 export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiPath(path), {
     method: init.method ?? "GET",
     credentials: "same-origin",
     headers: {

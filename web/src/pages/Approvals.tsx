@@ -9,7 +9,7 @@ type BulkResult = { done: string[]; failed: { id: string; code: string; message:
 export function Approvals() {
   const t = useT();
   const toast = useToast();
-  const { actors } = useSession();
+  const { actors, can } = useSession();
   const { data, error, loading } = useApi<{ drafts: Draft[] }>("/api/approvals");
   const [open, setOpen] = useState<string | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -71,7 +71,7 @@ export function Approvals() {
       ) : (
         <div className="card list">
           {drafts.length === 0 && <div className="empty">{t("approvals.empty")}</div>}
-          {drafts.length > 0 && (
+          {drafts.length > 0 && can("approve") && (
             <div className="bulk-bar">
               <label className="check">
                 <input type="checkbox" checked={all} onChange={() => setPicked(all ? new Set() : new Set(drafts.map((d) => d.id)))} />
@@ -127,7 +127,7 @@ type Doc = { title: string; summary?: string; body: string; status?: string; fie
 function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const t = useT();
   const toast = useToast();
-  const { actors } = useSession();
+  const { actors, can } = useSession();
   const { data, error } = useApi<{ draft: Draft & { data: Doc }; current: Doc | null }>(`/api/approvals/${id}`);
   const [err, setErr] = useState<unknown>(null);
 
@@ -170,7 +170,7 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
         </>
       }
     >
-      <div className="row" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ marginBottom: 16, display: can("approve") ? undefined : "none" }}>
         <button className="btn primary" onClick={() => void act("approve")}>
           {t("approvals.approve")}
         </button>

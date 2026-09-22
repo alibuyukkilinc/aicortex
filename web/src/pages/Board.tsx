@@ -9,7 +9,7 @@ export function Board({ type }: { type: string }) {
   const t = useT();
   const label = useLabels();
   const toast = useToast();
-  const { actors, itemTypes, openItem, me } = useSession();
+  const { actors, itemTypes, openItem, me, can } = useSession();
   const schema = useSchema(type);
   const branches = useBranches();
   const [branch, setBranch] = useState("");
@@ -70,9 +70,11 @@ export function Board({ type }: { type: string }) {
           ))}
         </select>
         <span className="spacer" />
-        <button className="btn primary" onClick={() => setCreating(true)}>
-          <Icon name="plus" /> {t("board.new")}
-        </button>
+        {(type === "question" ? can("ask") : can("write_items")) && (
+          <button className="btn primary" onClick={() => setCreating(true)}>
+            <Icon name="plus" /> {t("board.new")}
+          </button>
+        )}
       </div>
       {schema?.description && (
         <p className="muted" style={{ margin: "-6px 0 14px" }}>

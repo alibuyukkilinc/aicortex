@@ -1,5 +1,5 @@
 import { ReactNode, useContext, useState } from "react";
-import { qs, useApi } from "../api";
+import { apiPath, qs, useApi } from "../api";
 import { HBars, StackedColumns } from "../charts";
 import { LangContext, useT } from "../i18n";
 import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, useSession, useToast } from "../ui";
@@ -48,7 +48,7 @@ export function Reports() {
   const r = data?.report;
 
   const markdown = async () => {
-    const res = await fetch(`/api/report${qs({ since, format: "md", lang })}`, { credentials: "same-origin" });
+    const res = await fetch(apiPath(`/api/report${qs({ since, format: "md", lang })}`), { credentials: "same-origin" });
     return res.text();
   };
   const download = async () => {
