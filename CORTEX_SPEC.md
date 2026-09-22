@@ -234,6 +234,7 @@ GET    /api/events                 (panonun canlı güncelleme akışı, SSE)
 ### 12.2 MCP sunucusu
 Aynı çekirdeğin ince bir sarmalayıcısıdır: `cortex_brief`, `cortex_tree`, `cortex_node`, `cortex_search`, `cortex_code_context`, `cortex_verify_node`, `cortex_update_node`, `cortex_rules`, `cortex_inbox`, `cortex_items`, `cortex_item`, `cortex_create_item`, `cortex_update_item`, `cortex_reply`, `cortex_ask`, `cortex_log_activity`, `cortex_activity`, `cortex_report`.
 Kurulum: `npx aicortex mcp --actor ai-agent` (stdio). Örnek: `claude mcp add cortex -- npx aicortex mcp --actor ai-agent`.
+Merkezde ayrıca HTTP ucu vardır: `POST <url>/mcp/p/<proje>`, `Authorization: Bearer <ajan tokenı>` (durumsuz JSON-RPC). Bu bilgisayarda çalışmayan AI'lar (ör. ChatGPT) böyle bağlanır; token, rol ve görünürlük REST ile aynı boru hattından geçer.
 Ekip sunucusundaki bir proje için: `npx aicortex mcp --hub <url> --project <id> --token <ajan tokenı>` (ya da `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN`). Araçlar birebir aynıdır: MCP araçları proje REST API'sini konuşur (yerelde süreç içinde, merkezde HTTP ile), böylece kurallar, rol ve görünürlük iki yolda da aynen uygulanır.
 
 ### 12.3 Web pano (`http://localhost:4747`)

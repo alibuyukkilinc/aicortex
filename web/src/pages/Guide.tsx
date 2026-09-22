@@ -78,6 +78,12 @@ export function Guide() {
           <li>{t("guide.aiStep3")}</li>
           <li>{t("guide.aiStep4")}</li>
         </ul>
+        {hub && (
+          <>
+            <p className="muted">{t("guide.aiRemote")}</p>
+            <Copy text={`${origin}/mcp/p/${project}`} />
+          </>
+        )}
         <p className="muted">{t("guide.aiRest")}</p>
         <Copy text={`curl -H "Authorization: Bearer <TOKEN>" ${origin}${hub ? `/api/p/${project}` : "/api"}/brief`} />
       </Section>

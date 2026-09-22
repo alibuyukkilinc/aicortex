@@ -141,7 +141,7 @@ AI agents on a hub connect the same way as anywhere else, over MCP:
 claude mcp add cortex -- npx aicortex mcp --hub https://cortex.acme.com --project shop --token <agent token>
 ```
 
-The tools are identical to a local project; the agent's role and visibility apply to them. Anything that cannot speak MCP can use the same REST API under `/api/p/<project>/` with `Authorization: Bearer <token>`.
+The tools are identical to a local project; the agent's role and visibility apply to them. An AI that does not run on the team's machines (ChatGPT, a hosted agent) connects to the same tools over HTTP at `https://cortex.acme.com/mcp/p/<project>` with the agent token as a bearer header. Anything that cannot speak MCP can use the same REST API under `/api/p/<project>/` with `Authorization: Bearer <token>`.
 
 ## REST API
 

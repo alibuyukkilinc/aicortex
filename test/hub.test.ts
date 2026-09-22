@@ -283,3 +283,42 @@ test("MCP over the hub: same tools, and the agent's role still decides", async (
     await t.cleanup();
   }
 });
+
+test("MCP over HTTP: an AI that is not on this machine gets the same tools and the same role", async () => {
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+  const t = await setup();
+  const clients: { close: () => Promise<void> }[] = [];
+  try {
+    const admin = await t.login("ada@example.com", "correct-horse-1");
+    const token = (await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id: "remote-bot", projects: [{ id: "shop", role: "contributor" }] } })).json().token;
+    await t.app.listen({ port: 0, host: "127.0.0.1" });
+    const url = `http://127.0.0.1:${(t.app.server.address() as { port: number }).port}`;
+
+    const connect = async (tok: string, project = "shop") => {
+      const client = new Client({ name: "remote", version: "1" });
+      await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp/p/${project}`), { requestInit: { headers: { authorization: `Bearer ${tok}` } } }));
+      clients.push(client);
+      return client;
+    };
+    const call = async (c: Awaited<ReturnType<typeof connect>>, name: string, args: Record<string, unknown> = {}) => {
+      const r = (await c.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+      return { error: r.isError === true, data: JSON.parse(r.content[0].text) };
+    };
+
+    const bot = await connect(token);
+    assert.equal((await bot.listTools()).tools.length, 18);
+    const brief = await call(bot, "cortex_brief");
+    assert.equal(brief.data.you.id, "remote-bot");
+    assert.equal(brief.data.you.role, "contributor");
+    assert.equal((await call(bot, "cortex_update_node", { path: "backend/x", title: "X", summary: "y", reason: "test" })).data.applied, false, "still a draft");
+    assert.equal((await call(bot, "cortex_create_item", { type: "task", title: "Over HTTP", fields: {} })).data.applied, true);
+
+    // Wrong token and a project the agent is not in are refused at connect time.
+    await assert.rejects(() => connect("ctx_nope"), /Unknown or disabled agent token/);
+    await assert.rejects(() => connect(token, "blog"), /not a member/);
+  } finally {
+    for (const c of clients) await c.close();
+    await t.cleanup();
+  }
+});

@@ -12,6 +12,8 @@ import { buildAccess } from "./access.js";
 import { PASSWORD_MIN, hashPassword, verifyPassword } from "./crypto.js";
 import { ROLE_POLICY } from "./roles.js";
 import { HubStore, Member, Principal, SESSION_DAYS, User } from "./store.js";
+import { registerMcpHttp } from "./mcpHttp.js";
+import type { McpApi } from "../mcp/client.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -338,6 +340,40 @@ export function buildHubServer(hub: Hub): FastifyInstance {
     },
     { prefix: "/api/p/:project" },
   );
+
+  // MCP over HTTP for agents that do not run on this machine. Every tool call goes through the same
+  // routes, token check and role as REST: the MCP endpoint just replays it into this server.
+  registerMcpHttp(app, (project, token) => {
+    const agent = store.agentByToken(token);
+    if (!agent) throw new CortexError("unauthorized", "Unknown or disabled agent token.", 401);
+    if (!store.project(project)) throw new CortexError("not_found", `No project "${project}".`, 404);
+    if (!hub.membership(project, { kind: "ai", agent })) throw new CortexError("forbidden", `${agent.id} is not a member of "${project}".`, 403);
+    const base = `/api/p/${encodeURIComponent(project)}`;
+    const api: McpApi = {
+      where: `${project} @ ${store.settings.org}`,
+      async call(method, path, opts = {}) {
+        const query = new URLSearchParams();
+        for (const [k, v] of Object.entries(opts.query ?? {})) {
+          if (v === undefined || v === null || v === "") continue;
+          query.set(k, Array.isArray(v) ? v.join(",") : String(v));
+        }
+        const q = query.toString();
+        const res = await app.inject({
+          method: method as "GET",
+          url: `${base}${path}${q ? `?${q}` : ""}`,
+          headers: { authorization: `Bearer ${token}` },
+          ...(opts.body !== undefined ? { payload: opts.body as object } : {}),
+        });
+        if (res.statusCode >= 400) {
+          const e = (res.json() as { error?: { code?: string; message?: string; hint?: unknown } }).error ?? {};
+          throw new CortexError(e.code ?? "error", e.message ?? `Request failed (${res.statusCode}).`, res.statusCode, e.hint);
+        }
+        return opts.text ? res.body : res.json();
+      },
+      close: async () => {},
+    };
+    return api;
+  });
 
   app.addHook("onClose", async () => hub.close());
   return app;
