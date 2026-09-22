@@ -70,6 +70,19 @@ function NodeView({ path }: { path: string }) {
   const { data, error, loading, reload } = useApi<{ node: KnowledgeNode; staleness?: StaleInfo }>(`/api/node/${path}`);
   const items = useApi<{ items: ItemSummary[]; total: number }>(`/api/items${qs({ path: path || undefined, open: true, limit: 20 })}`);
   const [editing, setEditing] = useState<"edit" | "child" | null>(null);
+  const toast = useToast();
+
+  // The server refuses when children or open items remain, and says which; we show that message.
+  const remove = async (node: KnowledgeNode) => {
+    if (!confirm(t("tree.confirmDelete").replace("{title}", node.title))) return;
+    try {
+      const r = await api<{ message: string }>(`/api/node/${node.path}`, { method: "DELETE" });
+      toast({ text: r.message });
+      go(`knowledge/${node.path.includes("/") ? node.path.slice(0, node.path.lastIndexOf("/")) : ""}`);
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    }
+  };
 
   if (error) return <div className="doc"><ErrorBox error={error} /></div>;
   if (loading || !data) return <Loading />;
@@ -97,6 +110,11 @@ function NodeView({ path }: { path: string }) {
         <button className="btn sm" onClick={() => setEditing("child")}>
           <Icon name="plus" /> {t("tree.newChild")}
         </button>
+        {n.path !== "" && (
+          <button className="btn sm danger" onClick={() => void remove(n)}>
+            <Icon name="x" /> {t("tree.delete")}
+          </button>
+        )}
       </div>
       <p className="summary">{n.summary}</p>
       {data.staleness && <StaleBanner info={data.staleness} path={n.path} onEdit={() => setEditing("edit")} onVerified={reload} />}

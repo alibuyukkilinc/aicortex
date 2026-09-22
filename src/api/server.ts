@@ -178,6 +178,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
   app.get("/api/node/*", nodeGet);
   app.put("/api/node", nodePut);
   app.put("/api/node/*", nodePut);
+  app.delete("/api/node/*", async (req) => ok(cortex.deleteNode(req.actor, (req.params as Q)["*"] ?? "", (req.query as Q).reason)));
 
   app.get("/api/search", async (req) => {
     const q = req.query as Q;

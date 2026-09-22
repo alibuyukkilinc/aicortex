@@ -18,7 +18,8 @@ Humans stay in control: AI writes to knowledge become **drafts** until a human a
 Requires Node.js 22.13 or newer. Nothing else: no database, no Docker, no API key.
 
 ```bash
-npx projcortex init          # creates .cortex/ in your repo (--lang tr|en: the language AIs write in)
+npx projcortex init          # creates .cortex/ in your repo; asks which knowledge branches you need
+                             # (--branches backend,frontend --lang tr|en to skip the questions)
 npx projcortex start         # API + web board on http://localhost:4747
 ```
 
@@ -46,7 +47,7 @@ It installs a local model runtime and a multilingual model (~420 MB, one time, u
 
 - **Inbox**: everything waiting on you; blocking questions first
 - **Board**: kanban per item type, columns = statuses from the rules; forbidden moves are dimmed and explained
-- **Knowledge**: the tree with open-item counts, markdown, code links; edit nodes or add children
+- **Knowledge**: the tree with open-item counts, markdown, code links; edit nodes, add children, delete what does not apply
 - **Activity**: what each AI did and **why**, live; one click to ask about any entry
 - **Approvals**: current vs proposed side by side; approve or reject AI drafts one by one or in bulk
 - **Rules**: edit the YAML rules; invalid rules are refused before they are saved
@@ -59,7 +60,7 @@ Everything updates live (server-sent events), including changes made by an AI in
 |---|---|---|
 | Session start | `cortex_brief` | ~600 tokens: project summary, branches, inbox, recent activity, rules |
 | Navigate | `cortex_tree(path)` | titles + summaries only |
-| Understand | `cortex_search(q)` | paths + summaries (Turkish & English) |
+| Understand | `cortex_search(q)` | paths + summaries (Turkish & English); pending drafts come back labelled `draft` |
 | Detail | `cortex_node(path)` | one node, in full |
 | Record | `cortex_update_node(...)` | becomes a draft for human review |
 | Work queue | `cortex_inbox` | questions, issues and answers waiting on you |
@@ -118,6 +119,7 @@ All endpoints need `Authorization: Bearer <token>` and answer only on localhost.
 GET  /api/brief
 GET  /api/tree/{path}?depth=1&budget=
 GET  /api/node/{path}          PUT /api/node/{path}   (GET includes staleness)
+DELETE /api/node/{path}?reason=  humans only; refuses while children or open items remain
 GET  /api/stale                POST /api/verify/{path}
 GET  /api/code?files=a,b
 GET  /api/search?q=&kind=node,item,activity&type=&path=&limit=&budget=

@@ -15,7 +15,8 @@ export function Search({ q }: { q: string }) {
   const { data, error, loading } = useApi<SearchResponse>(q ? `/api/search${qs({ q, limit: 30 })}` : null);
 
   const open = (h: SearchHit) => {
-    if (h.kind === "node") go(`knowledge/${h.path}`);
+    if (h.draft_id) go("approvals");
+    else if (h.kind === "node") go(`knowledge/${h.path}`);
     else if (h.kind === "item") openItem(h.id!);
     else go(`activity?focus=${h.id}`);
   };
@@ -37,7 +38,7 @@ export function Search({ q }: { q: string }) {
         <div className="card list">
           {data?.results.length === 0 && <div className="empty">{t("search.none")}</div>}
           {data?.results.map((h) => (
-            <div key={`${h.kind}-${h.id ?? h.path}`} className="list-row" onClick={() => open(h)}>
+            <div key={`${h.kind}-${h.draft_id ?? h.id ?? h.path}`} className="list-row" onClick={() => open(h)}>
               <span className={`chip ${h.kind === "activity" ? "ai" : h.kind === "item" ? "accent" : ""}`} style={{ minWidth: 64, justifyContent: "center" }}>
                 {h.kind === "item" ? h.type : h.kind}
               </span>
@@ -45,7 +46,8 @@ export function Search({ q }: { q: string }) {
                 <div className="title">{h.title ?? h.summary}</div>
                 <div className="meta">
                   {h.path !== undefined && <span className="mono">{h.path || "(root)"}</span>}
-                  {h.status && <StatusChip status={h.status} />}
+                  {h.draft_id ? <span className="chip warn">{t("search.draft")}</span> : h.status && <StatusChip status={h.status} />}
+                  {h.proposed_by && <span>{h.proposed_by}</span>}
                   {h.actor && <span>{h.actor}</span>}
                   {h.at && <Ago iso={h.at} />}
                   {h.title && h.summary && <span className="faint">{h.summary}</span>}

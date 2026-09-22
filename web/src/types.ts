@@ -138,6 +138,8 @@ export interface SearchHit {
   at?: string;
   score: number;
   match?: "keyword" | "semantic" | "both";
+  draft_id?: string; // a knowledge draft waiting for approval (status "draft")
+  proposed_by?: string;
 }
 
 export interface StaleInfo {

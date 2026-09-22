@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import YAML from "yaml";
 import { CORTEX_DIR, paths } from "./project.js";
 import { CortexConfig, CortexError, KnowledgeNode } from "./types.js";
-import { TreeStore } from "../store/tree.js";
+import { TreeStore, normalizePath } from "../store/tree.js";
 import { nowIso, ulid } from "../util/text.js";
 import { ACTIVITY_SCHEMA, DEFAULT_SCHEMAS } from "./schema.js";
 import { languageRule } from "./language.js";
@@ -61,7 +61,20 @@ export function systemLanguage(): string {
   return locale.split("-")[0].toLowerCase() || "en";
 }
 
-export function initProject(root: string, name = basename(root), opts: { language?: string } = {}): InitResult {
+// Branch names from --branches: template names keep their description, anything else gets a generic one.
+export function resolveBranches(names?: string[]): [string, string, string][] {
+  if (!names) return DEFAULT_BRANCHES;
+  const out: [string, string, string][] = [];
+  for (const raw of names) {
+    const path = normalizePath(raw.trim().toLowerCase());
+    if (!path || path.includes("/") || out.some(([p]) => p === path)) continue;
+    const known = DEFAULT_BRANCHES.find(([p]) => p === path);
+    out.push(known ?? [path, path.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()), `Knowledge about ${path.replace(/-/g, " ")}.`]);
+  }
+  return out;
+}
+
+export function initProject(root: string, name = basename(root), opts: { language?: string; branches?: string[] } = {}): InitResult {
   const dir = join(root, CORTEX_DIR);
   if (existsSync(join(dir, "cortex.config.yaml"))) {
     throw new CortexError("already_initialized", `Cortex is already initialized in ${dir}.`, 409);
@@ -120,7 +133,7 @@ export function initProject(root: string, name = basename(root), opts: { languag
     updated_at: nowIso(),
   });
   tree.write(make("", name, `${name}: project summary not written yet. Run the bootstrap task to fill this in.`));
-  for (const [path, title, summary] of DEFAULT_BRANCHES) tree.write(make(path, title, `${summary} (not documented yet)`));
+  for (const [path, title, summary] of resolveBranches(opts.branches)) tree.write(make(path, title, `${summary} (not documented yet)`));
 
   return { dir, tokens, markdownCandidates: findMarkdown(root) };
 }
@@ -160,8 +173,9 @@ ${language ? `\n${languageRule(language)}\n` : ""}
 2. Explore the codebase (folders, package files, entry points). Do not guess.
 3. For the root node ("") write a clear project summary (<= 300 chars) and a body describing
    purpose, main components and how they talk to each other.
-4. For each relevant branch (backend, frontend, server, mobile, security, seo, code-structure):
-   - update its summary to describe THIS project, or leave it if the branch does not apply
+4. For each top-level branch in the brief:
+   - update its summary to describe THIS project
+   - if a branch does not apply, say so in its summary ("Does not apply: ...") and suggest in a question that a human deletes it
    - add child nodes for important subsystems (e.g. backend/auth, backend/payments)
    - link the code files each node describes (links.code)
 5. Existing markdown worth importing:

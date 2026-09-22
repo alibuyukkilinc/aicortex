@@ -15,8 +15,9 @@ const HELP = `Cortex: shared project brain for humans and AIs
 
 Usage: cortex <command> [options]
 
-  init [--name <n>] [--lang tr|en] [--agent-files]
-                                     Create .cortex/ here; --lang = language AIs write in (default: this computer's)
+  init [--name <n>] [--lang tr|en] [--branches a,b,c] [--agent-files]
+                                     Create .cortex/ here; --lang = language AIs write in (default: this computer's),
+                                     --branches = top-level knowledge branches (asked when run in a terminal)
   start [--port <n>]                 Start the API and the web board on localhost
   login [--actor <id>]               Print a 10-minute login link for the board (default: first human)
   mcp [--actor <id>]                 Run as an MCP server over stdio (default actor: ai-agent)
@@ -36,6 +37,7 @@ async function main() {
       port: { type: "string" },
       actor: { type: "string" },
       "agent-files": { type: "boolean" },
+      branches: { type: "string" },
       since: { type: "string" },
       until: { type: "string" },
       lang: { type: "string" },
@@ -49,9 +51,11 @@ async function main() {
 
   switch (cmd) {
     case "init": {
-      const { initProject, AGENT_HINT } = await import("./core/init.js");
+      const { initProject, AGENT_HINT, DEFAULT_BRANCHES } = await import("./core/init.js");
       const root = process.cwd();
-      const r = initProject(root, values.name, { language: values.lang });
+      let branches = values.branches?.split(",").map((b) => b.trim()).filter(Boolean);
+      if (!branches && process.stdin.isTTY && process.stdout.isTTY) branches = await askBranches(DEFAULT_BRANCHES);
+      const r = initProject(root, values.name, { language: values.lang, branches });
       console.log(`✔ Cortex initialized in ${r.dir}\n`);
       console.log("Actor tokens (stored in .cortex/.secrets.yaml, git-ignored):");
       for (const [id, t] of Object.entries(r.tokens)) console.log(`  ${id.padEnd(10)} ${t}`);
@@ -184,6 +188,21 @@ Next steps:
     default:
       console.log(HELP);
       if (cmd && cmd !== "help" && cmd !== "--help") process.exitCode = 1;
+  }
+}
+
+// "1,2,5 api-gateway" -> template branches 1, 2, 5 plus a custom one. Enter keeps them all.
+async function askBranches(template: [string, string, string][]): Promise<string[] | undefined> {
+  const { createInterface } = await import("node:readline/promises");
+  console.log("Which top-level knowledge branches does this project need?");
+  template.forEach(([path, title], i) => console.log(`  ${i + 1}. ${path.padEnd(16)} ${title}`));
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question("Numbers and/or new names, separated by commas or spaces [Enter = all]: ")).trim();
+    if (!answer) return undefined;
+    return answer.split(/[\s,]+/).filter(Boolean).map((a) => (/^\d+$/.test(a) ? template[Number(a) - 1]?.[0] : a)).filter((a): a is string => !!a);
+  } finally {
+    rl.close();
   }
 }
 

@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Activity, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
+import { Activity, Draft, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
 import { fold, shortHash } from "../util/text.js";
 import { parentPath } from "../store/tree.js";
 
@@ -32,7 +32,9 @@ export interface IndexedItem {
   last_reply_by: string | null;
 }
 
-export type DocKind = "node" | "item" | "activity";
+// "draft" is internal: pending knowledge drafts, searchable so an AI can find what is waiting for review.
+// The public API only knows node | item | activity; drafts come back as nodes with status "draft".
+export type DocKind = "node" | "item" | "activity" | "draft";
 
 export interface DocText {
   kind: DocKind;
@@ -155,13 +157,35 @@ export class Index {
     nodes: KnowledgeNode[];
     items: { item: Item; replies: Reply[]; terminal: boolean }[];
     activity: Activity[];
+    drafts?: Draft[];
   }): void {
     this.tx(() => {
       this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text; DELETE FROM code_links;");
       for (const n of data.nodes) this.insertNode(n);
       for (const i of data.items) this.insertItem(i.item, i.replies, i.terminal);
       for (const a of data.activity) this.insertActivity(a);
+      for (const d of data.drafts ?? []) this.insertDraft(d);
     });
+  }
+
+  // ---- drafts (search only) -------------------------------------------------
+
+  upsertDraft(d: Draft): void {
+    if (d.kind !== "node") return;
+    this.tx(() => {
+      this.deleteDoc("draft", d.id);
+      this.insertDraft(d);
+    });
+  }
+
+  removeDraft(id: string): void {
+    this.deleteDoc("draft", id);
+  }
+
+  private insertDraft(d: Draft): void {
+    if (d.kind !== "node") return;
+    const n = d.data;
+    this.insertDoc("draft", d.id, d.target, "draft", "", `${n.title} ${d.target.replace(/[/-]/g, " ")}`, n.summary, n.body, (n.tags ?? []).join(" "));
   }
 
   // ---- nodes --------------------------------------------------------------
@@ -183,6 +207,14 @@ export class Index {
       .run(n.path, parentPath(n.path), n.title, n.summary, n.status, JSON.stringify(tags), n.updated_at ?? null, n.updated_by ?? null);
     // Path segments are indexed with the title so "auth" finds "backend/auth/*".
     this.insertDoc("node", n.path, n.path, n.status, "", `${n.title} ${n.path.replace(/[/-]/g, " ")}`, n.summary, n.body, tags.join(" "));
+  }
+
+  deleteNode(path: string): void {
+    this.tx(() => {
+      this.db.prepare("DELETE FROM nodes WHERE path = ?").run(path);
+      this.db.prepare("DELETE FROM code_links WHERE kind = 'node' AND ref = ?").run(path);
+      this.deleteDoc("node", path);
+    });
   }
 
   getNode(path: string): IndexedNode | null {

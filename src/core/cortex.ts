@@ -162,7 +162,7 @@ export class Cortex {
       return [{ item, replies: this.itemStore.replies(id), terminal: schemaOf(item.type)?.terminal.includes(item.status) ?? false }];
     });
     const activity = this.activityStore.all();
-    this.index.reindex({ nodes, items, activity });
+    this.index.reindex({ nodes, items, activity, drafts: this.drafts.list() });
     this.events.emit("change", { type: "reindex" });
     return { nodes: nodes.length, items: items.length, activity: activity.length };
   }
@@ -361,10 +361,12 @@ export class Cortex {
   // Hybrid when the semantic index is available: keyword and meaning rankings fused with Reciprocal Rank Fusion.
   async search(q: string, opts: { kinds?: DocKind[]; under?: string; status?: string; type?: string; limit?: number; budget?: number } = {}) {
     if (!q || !q.trim()) throw new CortexError("empty_query", "Query is empty.", 400, { example: "/api/search?q=jwt refresh" });
-    const badKind = opts.kinds?.find((k) => !["node", "item", "activity"].includes(k));
+    const badKind = opts.kinds?.find((k) => !["node", "item", "activity"].includes(k)); // "draft" is internal
     if (badKind) throw new CortexError("invalid_query", `Unknown kind "${badKind}".`, 400, { kinds: ["node", "item", "activity"] });
     const limit = Math.min(Math.max(opts.limit ?? 10, 1), 50);
-    const filter = { kinds: opts.kinds, under: opts.under ? normalizePath(opts.under) : undefined, status: opts.status, type: opts.type };
+    // Pending knowledge drafts are searched with nodes and come back as nodes with status "draft".
+    const kinds: DocKind[] | undefined = opts.kinds && (opts.kinds.includes("node") ? [...opts.kinds, "draft"] : opts.kinds);
+    const filter = { kinds, under: opts.under ? normalizePath(opts.under) : undefined, status: opts.status, type: opts.type };
     const pool = Math.max(limit * 3, 30);
     const keyword = this.index.search(q, { ...filter, limit: pool });
     const semantic = await this.semantic.search(q, filter, pool).catch(() => null);
@@ -399,6 +401,15 @@ export class Cortex {
   }
 
   private describeHit(kind: DocKind, ref: string, score: number): Record<string, unknown> | null {
+    if (kind === "draft") {
+      const d = this.drafts.get(ref);
+      if (!d || d.kind !== "node") return null;
+      return {
+        kind: "node", path: d.target, title: d.data.title, summary: d.data.summary, status: "draft",
+        draft_id: d.id, proposed_by: d.proposed_by, score,
+        note: "Not approved yet: may be wrong or change.",
+      };
+    }
     if (kind === "node") {
       const n = this.index.getNode(ref);
       return n && { kind, path: n.path, title: n.title, summary: n.summary, status: this.staleness.get(n.path) ? "stale" : n.status, score };
@@ -465,7 +476,7 @@ export class Cortex {
       }
       // Revising your own pending proposal replaces it, so reviewers see one draft per node, not a pile.
       const previous = this.drafts.list().find((d) => d.kind === "node" && d.target === path && d.proposed_by === actor.id);
-      if (previous) this.drafts.remove(previous.id);
+      if (previous) this.removeDraft(previous.id);
       const draftId = this.saveDraft({
         kind: "node",
         target: path,
@@ -487,6 +498,29 @@ export class Cortex {
     return { applied: true, path, message: existing ? "Node updated." : "Node created." };
   }
 
+  // Humans only. For branches that do not apply to the project, or knowledge that is simply gone.
+  // Kept in git history, so it can be brought back; children and open items must be dealt with first.
+  deleteNode(actor: Actor, path: string, reason?: string): WriteResult {
+    if (actor.kind !== "human") {
+      throw new CortexError("forbidden", "Only humans can delete knowledge. If a node is wrong, propose a fix with cortex_update_node or ask @humans.", 403);
+    }
+    const p = normalizePath(path);
+    if (p === "") throw new CortexError("invalid_request", "The project root cannot be deleted.", 400);
+    this.node(p); // 404 with suggestions
+    const children = this.index.children(p).map((c) => c.path);
+    if (children.length) throw new CortexError("has_children", `"${p}" still has ${children.length} child node(s). Delete or move them first.`, 409, { children });
+    const open = this.index.queryItems({ under: p, open: true, limit: 20, offset: 0 }).items;
+    if (open.length) {
+      throw new CortexError("has_open_items", `${open.length} open item(s) are filed under "${p}". Close them or move them to another branch first.`, 409, {
+        items: open.map((i) => ({ id: i.id, type: i.type, title: i.title })),
+      });
+    }
+    this.tree.remove(p);
+    this.index.deleteNode(p);
+    this.activity.system(actor.id, "node.deleted", `Deleted node "${p}"${reason ? `: ${reason}` : ""}`, [p]);
+    return { applied: true, path: p, message: "Node deleted. It stays in git history." };
+  }
+
   private writeNode(node: KnowledgeNode): void {
     this.tree.write(node);
     this.index.upsertNode(node);
@@ -497,8 +531,14 @@ export class Cortex {
   saveDraft(d: Omit<Draft, "id" | "proposed_at">): string {
     const draft = { ...d, id: ulid(), proposed_at: nowIso() } as Draft;
     this.drafts.save(draft);
+    this.index.upsertDraft(draft);
     this.activity.system(d.proposed_by, "draft.proposed", `Proposed a change to ${d.kind} "${d.kind === "node" ? d.target || "(root)" : d.data.title}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
     return draft.id;
+  }
+
+  private removeDraft(id: string): void {
+    this.drafts.remove(id);
+    this.index.removeDraft(id);
   }
 
   approve(actor: Actor, draftId: string, force = false): WriteResult {
@@ -513,7 +553,7 @@ export class Cortex {
       if (!force && current && d.base_rev !== itemRevision(current)) throw this.conflict(current.updated_by, current.updated_at);
       this.items.applyDraft({ ...d.data, updated_at: nowIso() });
     }
-    this.drafts.remove(d.id);
+    this.removeDraft(d.id);
     this.activity.system(actor.id, "draft.approved", `Approved ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
     return { applied: true, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: `Approved draft from ${d.proposed_by}.` };
   }
@@ -521,7 +561,7 @@ export class Cortex {
   reject(actor: Actor, draftId: string, reason?: string): WriteResult {
     this.requireHuman(actor);
     const d = this.draftOr404(draftId);
-    this.drafts.remove(d.id);
+    this.removeDraft(d.id);
     this.activity.system(actor.id, "draft.rejected", `Rejected ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"${reason ? `: ${reason}` : ""}`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
     return { applied: false, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: "Draft rejected." };
   }

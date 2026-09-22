@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter.js";
 import { CortexError, KnowledgeNode, NodeMeta } from "../core/types.js";
@@ -73,6 +73,22 @@ export class TreeStore {
     mkdirSync(dirname(file), { recursive: true });
     const { path: _p, body, ...meta } = node;
     writeFileSync(file, stringifyFrontmatter(meta, body), "utf8");
+  }
+
+  // Removes a node that has no children (the caller checks). A parent left with nothing but its _node.md
+  // goes back to a leaf file, the mirror of promoteToBranch.
+  remove(path: string): void {
+    const f = this.fileFor(path);
+    if (!f || !existsSync(f)) return;
+    unlinkSync(f);
+    if (f.endsWith(BRANCH_FILE) && readdirSync(dirname(f)).length === 0) rmdirSync(dirname(f));
+    const parent = parentPath(path);
+    if (!parent) return; // "" (root) is always the tree folder itself
+    const parentDir = join(this.treeDir, parent);
+    if (existsSync(parentDir) && readdirSync(parentDir).join() === BRANCH_FILE) {
+      renameSync(join(parentDir, BRANCH_FILE), `${parentDir}.md`);
+      rmdirSync(parentDir);
+    }
   }
 
   // Turn "a/b.md" into "a/b/_node.md" so it can hold children.
