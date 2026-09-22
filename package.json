@@ -7,7 +7,8 @@
     "dev": "tsx src/cli.ts",
     "dev:web": "vite",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json",
-    "test": "node --import tsx --test --test-reporter=spec \"test/**/*.test.ts\""
+    "test": "node --import tsx --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "smoke": "node scripts/smoke.mjs"
   },
   "keywords": [
     "ai",
@@ -49,6 +50,6 @@
     "dist"
   ],
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.16"
   }
 }

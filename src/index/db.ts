@@ -1,7 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Activity, Draft, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
+import { Activity, CortexError, Draft, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
+import { NODE_TOO_OLD_MESSAGE } from "../util/runtime-check.js";
 import { fold, shortHash } from "../util/text.js";
 import { parentPath } from "../store/tree.js";
 
@@ -91,6 +92,12 @@ export class Index {
     mkdirSync(indexDir, { recursive: true });
     this.db = new DatabaseSync(join(indexDir, "cortex.db"));
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+    try {
+      this.db.exec("CREATE VIRTUAL TABLE temp.fts5_probe USING fts5(x); DROP TABLE temp.fts5_probe;");
+    } catch {
+      this.db.close();
+      throw new CortexError("node_too_old", NODE_TOO_OLD_MESSAGE(), 500);
+    }
     const v = (this.db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
     if (v !== INDEX_VERSION) {
       this.db.exec(`

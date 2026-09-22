@@ -15,7 +15,7 @@ Humans stay in control: AI writes to knowledge become **drafts** until a human a
 
 ## Quick start
 
-Requires Node.js 22.13 or newer. Nothing else: no database, no Docker, no API key.
+Requires Node.js 22.16 or newer. Nothing else: no database, no Docker, no API key.
 
 ```bash
 npx aicortex init          # creates .cortex/ in your repo; asks which knowledge branches you need
@@ -162,7 +162,7 @@ npm run dev:web        # board with hot reload on :5173, proxied to :4747
 
 **Neden?** AI araçları her oturumda dağınık `.md` dosyalarını baştan okur. Bu dosyalar eskir, birbiriyle çelişir ve token yer. Cortex bunların yerine yukarıdan aşağı gezilen bir bilgi ağacı koyar: AI önce kısa bir özet alır, sonra yalnızca ihtiyaç duyduğu dala iner. **Kontrol sizde kalır:** AI'ın bilgiye yazdığı her şey, bir insan onaylayana kadar *taslak* olarak bekler.
 
-**Kurulum** (yalnızca Node.js 22.13+ gerekir):
+**Kurulum** (yalnızca Node.js 22.16+ gerekir):
 
 ```bash
 npx aicortex init

@@ -10,6 +10,7 @@ import { parseArgs } from "node:util";
 // Safe as static imports: neither module loads node:sqlite (which must come after the warning filter above).
 import { createLoginCode } from "./api/auth.js";
 import { loadTokens } from "./core/project.js";
+import { NODE_TOO_OLD_MESSAGE, nodeTooOld } from "./util/runtime-check.js";
 
 const HELP = `Cortex: shared project brain for humans and AIs
 
@@ -29,6 +30,8 @@ Usage: cortex <command> [options]
 `;
 
 async function main() {
+  // Before anything touches node:sqlite: a clear message instead of "no such module: fts5".
+  if (nodeTooOld()) throw new Error(NODE_TOO_OLD_MESSAGE());
   const [cmd, ...rest] = process.argv.slice(2);
   const { values } = parseArgs({
     args: rest,

@@ -29,7 +29,7 @@ Bugün AI ile yazılım geliştirirken:
 
 | Katman | Seçim | Not |
 |---|---|---|
-| Çalışma ortamı | Node.js ≥ 22.13 (TypeScript) | `npx aicortex` ile dağıtım; komut `cortex` adıyla da gelir |
+| Çalışma ortamı | Node.js ≥ 22.16 (TypeScript; yerleşik SQLite FTS5 ile ilk bu sürümde geliyor) | `npx aicortex` ile dağıtım; komut `cortex` adıyla da gelir |
 | HTTP API | Fastify | Yalnızca 127.0.0.1 |
 | MCP | `@modelcontextprotocol/sdk` | stdio |
 | İndeks | Node'un yerleşik `node:sqlite` modülü + FTS5 | **Yeniden üretilebilir önbellektir**, git'e girmez. Yerel derleme gerektiren paket yok |

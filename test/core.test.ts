@@ -172,3 +172,13 @@ test("unknown paths suggest close matches", () => {
     t.cleanup();
   }
 });
+
+test("Node version check: 22.16 is the minimum (node:sqlite has FTS5 from there)", async () => {
+  const { nodeTooOld, NODE_TOO_OLD_MESSAGE } = await import("../src/util/runtime-check.js");
+  assert.equal(nodeTooOld("22.15.1"), true);
+  assert.equal(nodeTooOld("22.13.0"), true);
+  assert.equal(nodeTooOld("20.18.0"), true);
+  assert.equal(nodeTooOld("22.16.0"), false);
+  assert.equal(nodeTooOld("24.1.0"), false);
+  assert.match(NODE_TOO_OLD_MESSAGE("22.13.0"), /Node\.js 22\.16 or newer \(you have 22\.13\.0\)/);
+});
