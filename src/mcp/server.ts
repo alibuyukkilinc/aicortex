@@ -1,22 +1,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { Cortex } from "../core/cortex.js";
-import { Actor, CortexError } from "../core/types.js";
+import { CortexError } from "../core/types.js";
 import { ActivityInput } from "../core/activity.js";
 import { CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
 import { DocKind } from "../index/db.js";
-import { reportToMarkdown } from "../core/reportMarkdown.js";
+import type { McpApi } from "./client.js";
 
 // Compact JSON: every byte here is a token the AI pays for.
-function result(data: object, meta: object) {
-  return { content: [{ type: "text" as const, text: JSON.stringify({ ...data, _meta: meta }) }] };
+function result(data: object) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
 }
 
-function wrap<A>(cortex: Cortex, fn: (args: A) => object | Promise<object>) {
+function wrap<A>(fn: (args: A) => Promise<unknown>) {
   return async (args: A) => {
     try {
-      return result(await fn(args), cortex.meta());
+      return result((await fn(args)) as object);
     } catch (e) {
       const err = e instanceof CortexError ? { code: e.code, message: e.message, hint: e.hint } : { code: "internal", message: String(e) };
       return { isError: true, content: [{ type: "text" as const, text: JSON.stringify({ error: err }) }] };
@@ -24,15 +23,19 @@ function wrap<A>(cortex: Cortex, fn: (args: A) => object | Promise<object>) {
   };
 }
 
-export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
+const path = (p: string) => (p ? `/${p.split("/").map(encodeURIComponent).join("/")}` : "");
+
+export function buildMcpServer(api: McpApi): McpServer {
+  const get = (p: string, q?: Record<string, unknown>) => api.call("GET", p, { query: q });
   const server = new McpServer(
     { name: "cortex", version: "0.1.0" },
     {
       instructions:
-        "Cortex is this project's shared brain. Call cortex_brief first, then cortex_inbox. Navigate with cortex_tree (summaries only), " +
+        `Cortex is the shared brain of ${api.where}. Call cortex_brief first, then cortex_inbox. Navigate with cortex_tree (summaries only), ` +
         "search with cortex_search, and read full detail with cortex_node only when needed. Never try to load everything. " +
         "Before editing files call cortex_code_context; knowledge marked stale may be wrong. " +
-        "After each meaningful change call cortex_log_activity. When unsure, cortex_ask instead of guessing.",
+        "After each meaningful change call cortex_log_activity. When unsure, cortex_ask instead of guessing. " +
+        "On a team server your role decides what you may write and what you can see; a refusal explains which permission is missing.",
     },
   );
 
@@ -42,7 +45,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
       description: "Session opener (~600 tokens): project summary, top-level branches, your inbox, recent activity, global rules. Call this first.",
       inputSchema: {},
     },
-    wrap(cortex, () => cortex.brief(actor)),
+    wrap(() => get("/brief")),
   );
 
   server.registerTool(
@@ -55,7 +58,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         budget: z.number().int().positive().optional().describe("Approximate max tokens for the response."),
       },
     },
-    wrap(cortex, (a: { path: string; depth: number; budget?: number }) => cortex.treeView(a.path, a.depth, a.budget)),
+    wrap((a: { path: string; depth: number; budget?: number }) => get(`/tree${path(a.path)}`, { depth: a.depth, budget: a.budget })),
   );
 
   server.registerTool(
@@ -66,7 +69,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         "the response includes `staleness` with the changed files and commits: do not trust it blindly.",
       inputSchema: { path: z.string().describe('Node path, e.g. "backend/auth/jwt-refresh".') },
     },
-    wrap(cortex, (a: { path: string }) => cortex.nodeView(a.path)),
+    wrap((a: { path: string }) => get(`/node${path(a.path)}`)),
   );
 
   server.registerTool(
@@ -77,7 +80,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         "relative to the project root. Tells you what to keep consistent and what to update afterwards.",
       inputSchema: { files: z.array(z.string()).min(1).max(50) },
     },
-    wrap(cortex, (a: { files: string[] }) => cortex.codeContext(a.files)),
+    wrap((a: { files: string[] }) => get("/code", { files: a.files })),
   );
 
   server.registerTool(
@@ -88,7 +91,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         "Only after you actually checked the code. May become a draft for human approval.",
       inputSchema: { path: z.string(), note: z.string().optional().describe("What you checked") },
     },
-    wrap(cortex, (a: { path: string; note?: string }) => cortex.verifyNode(actor, a.path, a.note)),
+    wrap((a: { path: string; note?: string }) => api.call("POST", `/verify${path(a.path)}`, { body: { note: a.note } })),
   );
 
   server.registerTool(
@@ -106,8 +109,8 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         budget: z.number().int().positive().optional(),
       },
     },
-    wrap(cortex, (a: { q: string; kind?: DocKind[]; type?: string; path?: string; limit: number; budget?: number }) =>
-      cortex.search(a.q, { kinds: a.kind, type: a.type, under: a.path, limit: a.limit, budget: a.budget }),
+    wrap((a: { q: string; kind?: DocKind[]; type?: string; path?: string; limit: number; budget?: number }) =>
+      get("/search", { q: a.q, kind: a.kind, type: a.type, path: a.path, limit: a.limit, budget: a.budget }),
     ),
   );
 
@@ -127,9 +130,9 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         reason: z.string().describe("Why you are making this change."),
       },
     },
-    wrap(cortex, (a: { path: string; title: string; summary: string; body: string; tags?: string[]; code_files?: { file: string; lines?: string }[]; verified_at_commit?: string; reason: string }) => {
-      const { code_files, ...rest } = a;
-      return cortex.putNode(actor, { ...rest, links: code_files ? { code: code_files } : undefined });
+    wrap((a: { path: string; title: string; summary: string; body: string; tags?: string[]; code_files?: { file: string; lines?: string }[]; verified_at_commit?: string; reason: string }) => {
+      const { code_files, path: p, ...rest } = a;
+      return api.call("PUT", `/node${path(p)}`, { body: { ...rest, ...(code_files ? { links: { code: code_files } } : {}) } });
     }),
   );
 
@@ -139,7 +142,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
       description: "Read the project rules and schemas set by humans. Only needed when _meta.rules_version changed or a write was rejected.",
       inputSchema: { name: z.string().optional().describe('e.g. "node" or "_global". Omit for all.') },
     },
-    wrap(cortex, (a: { name?: string }) => cortex.rules(a.name)),
+    wrap((a: { name?: string }) => get(a.name ? `/rules/${encodeURIComponent(a.name)}` : "/rules")),
   );
 
   // ---- items ----------------------------------------------------------------
@@ -150,7 +153,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
       description: "Everything waiting on you: questions and issues assigned to you or to @ai, answers to your questions, new replies on your items.",
       inputSchema: { limit: z.number().int().min(1).max(100).default(20) },
     },
-    wrap(cortex, (a: { limit: number }) => cortex.items.inbox(actor, a.limit)),
+    wrap((a: { limit: number }) => get("/inbox", { limit: a.limit })),
   );
 
   server.registerTool(
@@ -168,7 +171,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         cursor: z.string().optional(),
       },
     },
-    wrap(cortex, (a: Parameters<Cortex["items"]["list"]>[0]) => cortex.items.list(a)),
+    wrap((a: Record<string, unknown>) => get("/items", a)),
   );
 
   server.registerTool(
@@ -181,7 +184,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         budget: z.number().int().positive().optional(),
       },
     },
-    wrap(cortex, (a: { id: string; replies?: number; budget?: number }) => cortex.items.get(a.id, { replies: a.replies, budget: a.budget })),
+    wrap((a: { id: string; replies?: number; budget?: number }) => get(`/items/${encodeURIComponent(a.id)}`, { replies: a.replies, budget: a.budget })),
   );
 
   server.registerTool(
@@ -209,7 +212,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         reason: z.string().optional(),
       },
     },
-    wrap(cortex, (a: CreateItemInput) => cortex.items.create(actor, a)),
+    wrap((a: CreateItemInput) => api.call("POST", "/items", { body: a })),
   );
 
   server.registerTool(
@@ -228,7 +231,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         reason: z.string().optional(),
       },
     },
-    wrap(cortex, ({ id, ...rest }: { id: string } & UpdateItemInput) => cortex.items.update(actor, id, rest)),
+    wrap(({ id, ...rest }: { id: string } & UpdateItemInput) => api.call("PATCH", `/items/${encodeURIComponent(id)}`, { body: rest })),
   );
 
   server.registerTool(
@@ -242,7 +245,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         status: z.string().optional().describe("Optionally move the item in the same step"),
       },
     },
-    wrap(cortex, ({ id, ...rest }: { id: string } & ReplyInput) => cortex.items.reply(actor, id, rest)),
+    wrap(({ id, ...rest }: { id: string } & ReplyInput) => api.call("POST", `/items/${encodeURIComponent(id)}/replies`, { body: rest })),
   );
 
   server.registerTool(
@@ -259,7 +262,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         blocking: z.boolean().optional(),
       },
     },
-    wrap(cortex, (a: { about: string; title: string; body?: string; assignee?: string; blocking?: boolean }) => cortex.items.ask(actor, a)),
+    wrap((a: { about: string; title: string; body?: string; assignee?: string; blocking?: boolean }) => api.call("POST", "/ask", { body: a })),
   );
 
   server.registerTool(
@@ -275,9 +278,10 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         lang: z.enum(["en", "tr"]).default("en").describe("Language of the markdown output"),
       },
     },
-    wrap(cortex, (a: { since: string; until?: string; format: "json" | "markdown"; lang: "en" | "tr" }) => {
-      const report = cortex.reports.build({ since: a.since, until: a.until });
-      return a.format === "markdown" ? { markdown: reportToMarkdown(report, a.lang) } : { report };
+    wrap(async (a: { since: string; until?: string; format: "json" | "markdown"; lang: "en" | "tr" }) => {
+      if (a.format !== "markdown") return get("/report", { since: a.since, until: a.until });
+      const markdown = await api.call("GET", "/report", { query: { since: a.since, until: a.until, format: "md", lang: a.lang }, text: true });
+      return { markdown };
     }),
   );
 
@@ -297,7 +301,7 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         refs: z.array(z.string()).optional().describe("Related item ids or knowledge node paths"),
       },
     },
-    wrap(cortex, (a: ActivityInput) => cortex.activity.log(actor, a)),
+    wrap((a: ActivityInput) => api.call("POST", "/activity", { body: a })),
   );
 
   server.registerTool(
@@ -312,13 +316,13 @@ export function buildMcpServer(cortex: Cortex, actor: Actor): McpServer {
         limit: z.number().int().min(1).max(200).default(20),
       },
     },
-    wrap(cortex, (a: Parameters<Cortex["activity"]["list"]>[0]) => cortex.activity.list(a)),
+    wrap((a: Record<string, unknown>) => get("/activity", a)),
   );
 
   return server;
 }
 
-export async function runMcpStdio(cortex: Cortex, actor: Actor): Promise<void> {
-  const server = buildMcpServer(cortex, actor);
+export async function runMcpStdio(api: McpApi): Promise<void> {
+  const server = buildMcpServer(api);
   await server.connect(new StdioServerTransport());
 }

@@ -33,13 +33,8 @@ export const page = (title: string, body: string) =>
   `<!doctype html><meta charset="utf-8"><title>Cortex</title><body style="font-family:system-ui;padding:2rem;max-width:40rem">
 <h1>${title}</h1><p>${body}</p>`;
 
-// Errors, the built board and client-side routes: shared by single-project mode and the hub.
-export function baseServer(): FastifyInstance {
-  const app = Fastify({ logger: false });
-  app.decorateRequest("actor", null as unknown as Actor);
-  app.decorateRequest("cortex", null as unknown as Cortex);
-  app.register(cookie);
-
+// Rule violations keep their code, message and hint, so an AI can fix itself; anything else is a plain error.
+export function setErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof CortexError) {
       return reply.code(err.status).send({ error: { code: err.code, message: err.message, hint: err.hint }, ...(req.cortex ? { _meta: req.cortex.meta() } : {}) });
@@ -47,6 +42,16 @@ export function baseServer(): FastifyInstance {
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     return reply.code(status).send({ error: { code: status === 500 ? "internal" : "bad_request", message: (err as Error).message } });
   });
+}
+
+// Errors, the built board and client-side routes: shared by single-project mode and the hub.
+export function baseServer(): FastifyInstance {
+  const app = Fastify({ logger: false });
+  app.decorateRequest("actor", null as unknown as Actor);
+  app.decorateRequest("cortex", null as unknown as Cortex);
+  app.register(cookie);
+
+  setErrorHandler(app);
 
   const webDir = findWebDir();
   // wildcard: files are looked up per request, so a rebuilt board is served without restarting the server.

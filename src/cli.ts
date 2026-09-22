@@ -21,7 +21,9 @@ Usage: cortex <command> [options]
                                      --branches = top-level knowledge branches (asked when run in a terminal)
   start [--port <n>]                 Start the API and the web board on localhost
   login [--actor <id>]               Print a 10-minute login link for the board (default: first human)
-  mcp [--actor <id>]                 Run as an MCP server over stdio (default actor: ai-agent)
+  mcp [--actor <id>]                 Run as an MCP server over stdio for the project in this folder
+  mcp --hub <url> --project <id> --token <t>
+                                     Same tools against a project on a team server (env: CORTEX_HUB_URL, CORTEX_PROJECT, CORTEX_TOKEN)
   bootstrap                          Print the task that lets your AI fill the tree
   reindex                            Rebuild the search index from files
   semantic [on|off|status]           Meaning-based search (one-time ~420 MB download, shared by all projects)
@@ -58,6 +60,9 @@ async function main() {
       dir: { type: "string" },
       id: { type: "string" },
       init: { type: "boolean" },
+      hub: { type: "string" },
+      project: { type: "string" },
+      token: { type: "string" },
     },
     allowPositionals: true,
   });
@@ -117,12 +122,22 @@ Next steps:
     }
 
     case "mcp": {
-      const { Cortex } = await import("./core/cortex.js");
       const { runMcpStdio } = await import("./mcp/server.js");
+      const { localApi, remoteApi } = await import("./mcp/client.js");
       // stdout belongs to the MCP protocol here: never console.log in this branch.
-      const cortex = new Cortex(loadProject());
-      cortex.watch((e) => console.error(`cortex: reindex failed: ${(e as Error).message}`)); // stderr is safe for MCP
-      await runMcpStdio(cortex, cortex.actor(values.actor ?? "ai-agent"));
+      const hub = values.hub ?? process.env.CORTEX_HUB_URL;
+      if (hub) {
+        // A project on a team server: the agent's token decides its role and what it sees.
+        const token = values.token ?? process.env.CORTEX_TOKEN;
+        const project = values.project ?? process.env.CORTEX_PROJECT;
+        if (!project || !token) throw new Error("With --hub, pass --project <id> and --token <agent token> (or CORTEX_PROJECT / CORTEX_TOKEN).");
+        await runMcpStdio(remoteApi(hub, project, token));
+      } else {
+        const { Cortex } = await import("./core/cortex.js");
+        const cortex = new Cortex(loadProject());
+        cortex.watch((e) => console.error(`cortex: reindex failed: ${(e as Error).message}`)); // stderr is safe for MCP
+        await runMcpStdio(await localApi(cortex, cortex.actor(values.actor ?? "ai-agent")));
+      }
       break;
     }
 

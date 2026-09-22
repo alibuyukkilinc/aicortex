@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { buildServer } from "../src/api/server.js";
+import { localApi } from "../src/mcp/client.js";
 import { buildMcpServer } from "../src/mcp/server.js";
 import { tempProject } from "./helpers.js";
 
@@ -56,7 +57,7 @@ test("REST: auth, host check, brief, draft flow", async () => {
 
 test("MCP: tools list and a brief -> search -> update round trip", async () => {
   const t = tempProject();
-  const server = buildMcpServer(t.cortex, t.ai);
+  const server = buildMcpServer(await localApi(t.cortex, t.ai));
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1" });
   try {
@@ -157,7 +158,7 @@ test("REST: items, replies, inbox, ask and activity", async () => {
 
 test("MCP: an AI answers its inbox and logs its work", async () => {
   const t = tempProject();
-  const server = buildMcpServer(t.cortex, t.ai);
+  const server = buildMcpServer(await localApi(t.cortex, t.ai));
   const [a, b] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "1" });
   try {

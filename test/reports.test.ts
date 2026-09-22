@@ -8,6 +8,7 @@ import { buildServer } from "../src/api/server.js";
 import { reportToMarkdown } from "../src/core/reportMarkdown.js";
 import { parsePeriod } from "../src/core/reports.js";
 import { CortexError } from "../src/core/types.js";
+import { localApi } from "../src/mcp/client.js";
 import { buildMcpServer } from "../src/mcp/server.js";
 import { tempProject } from "./helpers.js";
 
@@ -155,7 +156,7 @@ test("markdown in both languages, over REST and MCP", async () => {
     assert.equal(json.json().report.period.days, 14);
     assert.equal((await app.inject({ url: "/api/report?since=soon", headers: h })).statusCode, 400);
 
-    const server = buildMcpServer(t.cortex, t.ai);
+    const server = buildMcpServer(await localApi(t.cortex, t.ai));
     await Promise.all([server.connect(a), client.connect(b)]);
     const res = (await client.callTool({ name: "cortex_report", arguments: { since: "7d", format: "markdown", lang: "en" } })) as { content: { text: string }[] };
     assert.match(JSON.parse(res.content[0].text).markdown, /# Cortex report/);

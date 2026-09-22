@@ -227,3 +227,59 @@ test("hub projects: register a folder, create .cortex on request, unregister wit
     await t.cleanup();
   }
 });
+
+test("MCP over the hub: same tools, and the agent's role still decides", async () => {
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+  const { remoteApi } = await import("../src/mcp/client.js");
+  const { buildMcpServer } = await import("../src/mcp/server.js");
+  const t = await setup();
+  const mcp: { close: () => Promise<void> }[] = [];
+  try {
+    const admin = await t.login("ada@example.com", "correct-horse-1");
+    const token = async (id: string, role: string) =>
+      (await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id, projects: [{ id: "shop", role }] } })).json().token as string;
+    const writer = await token("claude-code", "contributor");
+    const reader = await token("scout", "reader");
+    await t.app.listen({ port: 0, host: "127.0.0.1" });
+    const url = `http://127.0.0.1:${(t.app.server.address() as { port: number }).port}`;
+
+    const connect = async (tok: string) => {
+      const server = buildMcpServer(remoteApi(url, "shop", tok));
+      const [a, b] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: "test", version: "1" });
+      await Promise.all([server.connect(a), client.connect(b)]);
+      mcp.push(client);
+      return client;
+    };
+    const call = async (c: Awaited<ReturnType<typeof connect>>, name: string, args: Record<string, unknown> = {}) => {
+      const r = (await c.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+      return { error: r.isError === true, data: JSON.parse(r.content[0].text) };
+    };
+
+    const agent = await connect(writer);
+    assert.equal((await agent.listTools()).tools.length, 18, "the same tool set as a local project");
+    const brief = await call(agent, "cortex_brief");
+    assert.equal(brief.data.you.id, "claude-code");
+    assert.equal(brief.data.you.role, "contributor");
+
+    const wrote = await call(agent, "cortex_update_node", { path: "backend/queue", title: "Kuyruk", summary: "Redis.", reason: "documenting" });
+    assert.equal(wrote.data.applied, false, "a contributor's knowledge write waits for approval");
+    const item = await call(agent, "cortex_create_item", { type: "task", title: "From MCP over the hub", fields: {} });
+    assert.equal(item.data.applied, true);
+
+    const scout = await connect(reader);
+    const refused = await call(scout, "cortex_create_item", { type: "task", title: "Nope", fields: {} });
+    assert.equal(refused.error, true);
+    assert.equal(refused.data.error.code, "forbidden");
+    assert.equal(refused.data.error.hint.needs, "write_items");
+    assert.equal((await call(scout, "cortex_brief")).data.you.role, "reader");
+
+    // A wrong token is refused, and an unreachable hub says so instead of hanging.
+    const stranger = await connect("ctx_nope");
+    assert.equal((await call(stranger, "cortex_brief")).data.error.code, "unauthorized");
+  } finally {
+    for (const c of mcp) await c.close();
+    await t.cleanup();
+  }
+});
