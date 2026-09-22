@@ -15,7 +15,7 @@ test("hand edits on disk are picked up without a restart", async () => {
     );
     await new Promise((r) => setTimeout(r, 1000));
     assert.deepEqual(errors, []);
-    assert.equal(t.cortex.search("laravel").results[0]?.path, "backend");
+    assert.equal((await t.cortex.search("laravel")).results[0]?.path, "backend");
   } finally {
     t.cleanup();
   }
@@ -34,7 +34,7 @@ test("hand edits inside a folder created after watching started are picked up", 
     );
     await new Promise((r) => setTimeout(r, 1000));
     assert.deepEqual(errors, []);
-    assert.equal(t.cortex.search("önbellek").results[0]?.path, "backend/onbellek");
+    assert.equal((await t.cortex.search("önbellek")).results[0]?.path, "backend/onbellek");
   } finally {
     t.cleanup();
   }

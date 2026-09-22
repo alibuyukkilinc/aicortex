@@ -136,4 +136,5 @@ export interface SearchHit {
   actor?: string;
   at?: string;
   score: number;
+  match?: "keyword" | "semantic" | "both";
 }

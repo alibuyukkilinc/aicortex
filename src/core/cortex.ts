@@ -9,6 +9,9 @@ import { DraftStore } from "../store/drafts.js";
 import { ItemStore } from "../store/items.js";
 import { TreeStore, normalizePath } from "../store/tree.js";
 import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
+import { Embedder, TransformersEmbedder } from "../search/embedder.js";
+import { semanticEnabled } from "../search/runtime.js";
+import { SemanticIndex } from "../search/semantic.js";
 import { ActivityService } from "./activity.js";
 import { ItemService, itemRevision } from "./items.js";
 import { Project, loadTokens, paths, rulesVersion } from "./project.js";
@@ -43,6 +46,7 @@ const NODE_EXAMPLE = {
 };
 
 const NON_ITEM_RULES = new Set(["node", "activity"]);
+const RRF_K = 60; // standard Reciprocal Rank Fusion constant
 
 // Content hash of a node, so conflict detection does not depend on clock resolution.
 function revision(n: KnowledgeNode): string {
@@ -70,7 +74,14 @@ export class Cortex {
   private p: ReturnType<typeof paths>;
   private watcher?: FSWatcher;
 
-  constructor(readonly project: Project) {
+  readonly semantic: SemanticIndex;
+  private syncTimer?: NodeJS.Timeout;
+
+  // `embedder` overrides the semantic backend (tests pass a fake; null turns semantic search off).
+  constructor(
+    readonly project: Project,
+    opts: { embedder?: (() => Embedder) | null } = {},
+  ) {
     this.p = paths(project.dir);
     this.tree = new TreeStore(this.p.tree);
     this.drafts = new DraftStore(this.p.drafts);
@@ -79,22 +90,37 @@ export class Cortex {
     this.index = new Index(this.p.index);
     this.items = new ItemService(this);
     this.activity = new ActivityService(this);
+    const wantSemantic = project.config.search?.semantic !== false && semanticEnabled();
+    const factory = opts.embedder !== undefined ? opts.embedder : wantSemantic ? () => new TransformersEmbedder() : null;
+    this.semantic = new SemanticIndex(this.index, factory);
+    // Every write and reindex emits "change"; batch them into one embedding pass.
+    this.events.on("change", () => {
+      clearTimeout(this.syncTimer);
+      if (!this.closed) this.syncTimer = setTimeout(() => this.semantic.sync(), 200);
+    });
     this.reindex();
+    this.semantic.sync();
   }
 
   close(): void {
+    this.closed = true;
+    clearTimeout(this.syncTimer);
+    clearTimeout(this.watchTimer);
+    this.semantic.close();
     this.watcher?.close();
     this.index.close();
   }
 
+  private closed = false;
+  private watchTimer?: NodeJS.Timeout;
+
   // Picks up hand edits, git pulls and writes from other Cortex processes (e.g. MCP next to the API).
   watch(onError: (e: unknown) => void = () => {}): void {
-    let timer: NodeJS.Timeout | undefined;
     this.watcher = watch(this.project.dir, { recursive: true }, (_event, file) => {
       const f = String(file ?? "");
-      if (f.startsWith(".index") || f === ".secrets.yaml") return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
+      if (this.closed || f.startsWith(".index") || f === ".secrets.yaml") return;
+      clearTimeout(this.watchTimer);
+      this.watchTimer = setTimeout(() => {
         try {
           this.reindex();
         } catch (e) {
@@ -199,6 +225,7 @@ export class Cortex {
         ...(counts.stale ? { stale_nodes: counts.stale } : {}),
       },
       recent_activity: recent,
+      search: ["ready", "indexing"].includes(this.semantic.status().state) ? "hybrid" : "keyword",
       rules: { version: rulesVersion(this.project.dir), global: this.globalRules(), item_types: this.itemTypes() },
       next: [
         "cortex_inbox for everything waiting on you",
@@ -246,24 +273,36 @@ export class Cortex {
   }
 
   // One search over knowledge, items (decisions, issues, questions...) and activity: "why did we do X?" lands here.
-  search(q: string, opts: { kinds?: DocKind[]; under?: string; status?: string; type?: string; limit?: number; budget?: number } = {}) {
+  // Hybrid when the semantic index is available: keyword and meaning rankings fused with Reciprocal Rank Fusion.
+  async search(q: string, opts: { kinds?: DocKind[]; under?: string; status?: string; type?: string; limit?: number; budget?: number } = {}) {
     if (!q || !q.trim()) throw new CortexError("empty_query", "Query is empty.", 400, { example: "/api/search?q=jwt refresh" });
     const badKind = opts.kinds?.find((k) => !["node", "item", "activity"].includes(k));
     if (badKind) throw new CortexError("invalid_query", `Unknown kind "${badKind}".`, 400, { kinds: ["node", "item", "activity"] });
     const limit = Math.min(Math.max(opts.limit ?? 10, 1), 50);
-    const hits = this.index.search(q, {
-      kinds: opts.kinds,
-      under: opts.under ? normalizePath(opts.under) : undefined,
-      status: opts.status,
-      type: opts.type,
-      limit,
-    });
+    const filter = { kinds: opts.kinds, under: opts.under ? normalizePath(opts.under) : undefined, status: opts.status, type: opts.type };
+    const pool = Math.max(limit * 3, 30);
+    const keyword = this.index.search(q, { ...filter, limit: pool });
+    const semantic = await this.semantic.search(q, filter, pool).catch(() => null);
+
+    const fused = new Map<string, { kind: DocKind; ref: string; score: number; keyword: boolean; semantic: boolean }>();
+    const add = (kind: DocKind, ref: string, rank: number, via: "keyword" | "semantic") => {
+      const k = `${kind}:${ref}`;
+      const cur = fused.get(k) ?? { kind, ref, score: 0, keyword: false, semantic: false };
+      cur.score += 1 / (RRF_K + rank + 1);
+      cur[via] = true;
+      fused.set(k, cur);
+    };
+    keyword.forEach((h, i) => add(h.kind, h.ref, i, "keyword"));
+    semantic?.forEach((h, i) => add(h.kind, h.ref, i, "semantic"));
+    const ranked = [...fused.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+
     const results: Record<string, unknown>[] = [];
     let used = 0;
     let truncated = false;
-    for (const h of hits) {
-      const r = this.describeHit(h.kind, h.ref, h.score);
-      if (!r) continue;
+    for (const h of ranked) {
+      const described = this.describeHit(h.kind, h.ref, Math.round(h.score * 10000) / 10000);
+      if (!described) continue;
+      const r = { ...described, match: h.keyword && h.semantic ? "both" : h.keyword ? "keyword" : "semantic" };
       used += estimateTokens(r);
       if (opts.budget && used > opts.budget && results.length > 0) {
         truncated = true;
@@ -271,7 +310,7 @@ export class Cortex {
       }
       results.push(r);
     }
-    return { query: q, mode: "keyword", results, truncated };
+    return { query: q, mode: semantic ? "hybrid" : "keyword", semantic: this.semantic.status(), results, truncated };
   }
 
   private describeHit(kind: DocKind, ref: string, score: number): Record<string, unknown> | null {

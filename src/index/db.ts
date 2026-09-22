@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { Activity, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
-import { fold } from "../util/text.js";
+import { fold, shortHash } from "../util/text.js";
 import { parentPath } from "../store/tree.js";
 
 export interface IndexedNode {
@@ -34,6 +34,16 @@ export interface IndexedItem {
 
 export type DocKind = "node" | "item" | "activity";
 
+export interface DocText {
+  kind: DocKind;
+  ref: string;
+  scope: string;
+  status: string;
+  type: string;
+  text: string;
+  hash: string;
+}
+
 export interface SearchRow {
   kind: DocKind;
   ref: string;
@@ -59,8 +69,17 @@ export interface ItemQuery {
   offset: number;
 }
 
+// Folded (lowercase, no diacritics) Turkish and English filler words, skipped only in the any-term fallback.
+const STOPWORDS = new Set(
+  (
+    "mi mu mı mü ve veya ile de da ki bu su o bir icin gibi ne neden nasil nerede hangi var yok mi daha en cok " +
+    "olan olarak ama fakat ya ise diye kadar sonra once icinde uzerinde " +
+    "the a an and or of to in on for with is are was were be do does did we you it this that what why how where which"
+  ).split(" "),
+);
+
 // Bump when the table layout changes; an old cache is simply dropped and rebuilt from files.
-const INDEX_VERSION = 2;
+const INDEX_VERSION = 3;
 
 // The index is a disposable cache: everything here can be rebuilt from the files with reindex().
 export class Index {
@@ -74,7 +93,7 @@ export class Index {
     if (v !== INDEX_VERSION) {
       this.db.exec(`
         DROP TABLE IF EXISTS nodes; DROP TABLE IF EXISTS nodes_fts;
-        DROP TABLE IF EXISTS items; DROP TABLE IF EXISTS activity; DROP TABLE IF EXISTS docs_fts;
+        DROP TABLE IF EXISTS items; DROP TABLE IF EXISTS activity; DROP TABLE IF EXISTS docs_fts; DROP TABLE IF EXISTS doc_text;
         PRAGMA user_version = ${INDEX_VERSION};`);
     }
     this.db.exec(`
@@ -101,6 +120,16 @@ export class Index {
         title, summary, body, tags,
         tokenize = 'unicode61 remove_diacritics 2'
       );
+      -- Raw text of every searchable document, the input for semantic embeddings.
+      CREATE TABLE IF NOT EXISTS doc_text (
+        kind TEXT NOT NULL, ref TEXT NOT NULL, scope TEXT NOT NULL, status TEXT NOT NULL, type TEXT NOT NULL,
+        text TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY (kind, ref)
+      );
+      -- Embeddings survive reindexes and index upgrades: recomputing them is the expensive part.
+      CREATE TABLE IF NOT EXISTS embeddings (
+        kind TEXT NOT NULL, ref TEXT NOT NULL, model TEXT NOT NULL, hash TEXT NOT NULL, vec BLOB NOT NULL,
+        PRIMARY KEY (kind, ref)
+      );
     `);
   }
 
@@ -125,7 +154,7 @@ export class Index {
     activity: Activity[];
   }): void {
     this.tx(() => {
-      this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts;");
+      this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text;");
       for (const n of data.nodes) this.insertNode(n);
       for (const i of data.items) this.insertItem(i.item, i.replies, i.terminal);
       for (const a of data.activity) this.insertActivity(a);
@@ -266,22 +295,60 @@ export class Index {
     this.db
       .prepare("INSERT INTO docs_fts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(kind, ref, scope, status, type, fold(title), fold(summary), fold(body), fold(tags));
+    // Title and summary first: the model only reads the first few hundred tokens.
+    const text = [title, summary, body].map((x) => x.trim()).filter(Boolean).join("\n").slice(0, 2000);
+    this.db
+      .prepare("INSERT OR REPLACE INTO doc_text VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(kind, ref, scope, status, type, text, shortHash(text));
   }
 
   private deleteDoc(kind: DocKind, ref: string) {
     this.db.prepare("DELETE FROM docs_fts WHERE kind = ? AND ref = ?").run(kind, ref);
+    this.db.prepare("DELETE FROM doc_text WHERE kind = ? AND ref = ?").run(kind, ref);
+  }
+
+  // ---- semantic -----------------------------------------------------------
+
+  docTexts(): DocText[] {
+    return this.db.prepare("SELECT * FROM doc_text").all() as unknown as DocText[];
+  }
+
+  embeddings(): { kind: DocKind; ref: string; model: string; hash: string; vec: Float32Array }[] {
+    return this.db
+      .prepare("SELECT * FROM embeddings")
+      .all()
+      .map((r) => {
+        const b = r.vec as Uint8Array;
+        return { kind: r.kind as DocKind, ref: r.ref as string, model: r.model as string, hash: r.hash as string, vec: new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)) };
+      });
+  }
+
+  putEmbeddings(rows: { kind: DocKind; ref: string; model: string; hash: string; vec: Float32Array }[]): void {
+    this.tx(() => {
+      const stmt = this.db.prepare("INSERT OR REPLACE INTO embeddings VALUES (?, ?, ?, ?, ?)");
+      for (const r of rows) stmt.run(r.kind, r.ref, r.model, r.hash, new Uint8Array(r.vec.buffer, r.vec.byteOffset, r.vec.byteLength));
+    });
+  }
+
+  deleteEmbeddings(keys: { kind: DocKind; ref: string }[]): void {
+    if (!keys.length) return;
+    this.tx(() => {
+      const stmt = this.db.prepare("DELETE FROM embeddings WHERE kind = ? AND ref = ?");
+      for (const k of keys) stmt.run(k.kind, k.ref);
+    });
   }
 
   search(query: string, opts: SearchOptions): SearchRow[] {
     const terms = fold(query).match(/[\p{L}\p{N}]+/gu) ?? [];
     if (terms.length === 0) return [];
-    const quoted = terms.map((t) => `"${t}"*`);
-    // Prefer documents matching every term; fall back to any term so the AI never gets an empty answer too early.
-    for (const op of [" AND ", " OR "]) {
-      const hits = this.runSearch(quoted.join(op), opts);
-      if (hits.length > 0 || terms.length === 1) return hits;
-    }
-    return [];
+    const quote = (list: string[]) => list.map((t) => `"${t}"*`);
+    // Prefer documents matching every term.
+    const all = this.runSearch(quote(terms).join(" AND "), opts);
+    if (all.length > 0 || terms.length === 1) return all;
+    // Then any term, but not filler words: "mı", "ve", "the" would match half the project.
+    const meaningful = terms.filter((t) => !STOPWORDS.has(t));
+    if (meaningful.length === 0) return [];
+    return this.runSearch(quote(meaningful).join(" OR "), opts);
   }
 
   private runSearch(match: string, opts: SearchOptions): SearchRow[] {

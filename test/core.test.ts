@@ -124,34 +124,34 @@ test("invalid writes explain the rule and show an example", () => {
   }
 });
 
-test("search folds Turkish characters and ranks titles first", () => {
+test("search folds Turkish characters and ranks titles first", async () => {
   const t = tempProject();
   try {
     t.cortex.putNode(t.human, { path: "backend/auth", title: "Kullanıcı girişi", summary: "Şifre ve oturum yönetimi.", tags: ["güvenlik"] });
     t.cortex.putNode(t.human, { path: "frontend/login-page", title: "Login page", summary: "Form that calls the auth API." });
 
-    assert.equal(t.cortex.search("kullanici girisi").results[0]?.path, "backend/auth");
-    assert.equal(t.cortex.search("KULLANICI").results[0]?.path, "backend/auth");
-    assert.equal(t.cortex.search("sifre").results[0]?.path, "backend/auth");
-    assert.equal(t.cortex.search("guvenlik").results[0]?.path, "backend/auth");
-    assert.equal(t.cortex.search("login").results[0]?.path, "frontend/login-page");
-    assert.deepEqual(t.cortex.search("auth", { under: "frontend" }).results.map((r) => r.path), ["frontend/login-page"]);
+    assert.equal((await t.cortex.search("kullanici girisi")).results[0]?.path, "backend/auth");
+    assert.equal((await t.cortex.search("KULLANICI")).results[0]?.path, "backend/auth");
+    assert.equal((await t.cortex.search("sifre")).results[0]?.path, "backend/auth");
+    assert.equal((await t.cortex.search("guvenlik")).results[0]?.path, "backend/auth");
+    assert.equal((await t.cortex.search("login")).results[0]?.path, "frontend/login-page");
+    assert.deepEqual((await t.cortex.search("auth", { under: "frontend" })).results.map((r) => r.path), ["frontend/login-page"]);
     // Falls back to OR when no node has every term.
-    assert.ok(t.cortex.search("kullanici xyzzy").results.length > 0);
-    assert.equal("body" in t.cortex.search("login").results[0], false);
+    assert.ok((await t.cortex.search("kullanici xyzzy")).results.length > 0);
+    assert.equal("body" in (await t.cortex.search("login")).results[0], false);
   } finally {
     t.cleanup();
   }
 });
 
-test("the index is disposable: delete it, reopen, nothing is lost", () => {
+test("the index is disposable: delete it, reopen, nothing is lost", async () => {
   const t = tempProject();
   try {
     t.cortex.putNode(t.human, { path: "security/secrets", title: "Secrets", summary: "Stored in vault, never in git." });
     t.cortex.close();
     rmSync(join(t.root, ".cortex/.index"), { recursive: true, force: true });
-    const fresh = new Cortex(loadProject(t.root));
-    assert.equal(fresh.search("vault").results[0]?.path, "security/secrets");
+    const fresh = new Cortex(loadProject(t.root), { embedder: null });
+    assert.equal((await fresh.search("vault")).results[0]?.path, "security/secrets");
     fresh.close();
   } finally {
     rmSync(t.root, { recursive: true, force: true });

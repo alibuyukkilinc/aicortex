@@ -94,6 +94,7 @@ export interface CortexConfig {
   port: number;
   actors: Actor[];
   approval: Record<string, ApprovalPolicy>;
+  search?: { semantic?: boolean }; // false turns semantic search off for this project
 }
 
 export type Draft =

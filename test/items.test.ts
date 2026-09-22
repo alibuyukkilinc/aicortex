@@ -69,7 +69,7 @@ test("status transitions follow the schema; humans may force", () => {
   }
 });
 
-test("AI can propose a decision but only a human can accept it", () => {
+test("AI can propose a decision but only a human can accept it", async () => {
   const t = tempProject();
   try {
     const d = t.cortex.items.create(t.ai, {
@@ -88,9 +88,9 @@ test("AI can propose a decision but only a human can accept it", () => {
     assert.equal(t.cortex.items.inbox(t.human).count, 0);
 
     // "Why did we pick iyzico?" is answered by search, not by re-reading docs.
-    const hits = t.cortex.search("neden iyzico taksit", { kinds: ["item"] }).results;
+    const hits = (await t.cortex.search("neden iyzico taksit", { kinds: ["item"] })).results;
     assert.equal(hits[0]?.id, d.id);
-    assert.equal(t.cortex.search("installments", { type: "decision" }).results[0]?.id, d.id);
+    assert.equal((await t.cortex.search("installments", { type: "decision" })).results[0]?.id, d.id);
   } finally {
     t.cleanup();
   }
@@ -150,7 +150,7 @@ test("a 'fixed' reply must carry commits and files", () => {
   }
 });
 
-test("activity: why is required for changes, refs must exist, humans can ask about any entry", () => {
+test("activity: why is required for changes, refs must exist, humans can ask about any entry", async () => {
   const t = tempProject();
   try {
     const bad = err(() => t.cortex.activity.log(t.ai, { action: "fix", summary: "Patched login", refs: ["backend/nope"] }));
@@ -170,7 +170,7 @@ test("activity: why is required for changes, refs must exist, humans can ask abo
     });
     assert.equal(t.cortex.activity.list({}).entries[0].id, a.id);
     assert.equal(t.cortex.activity.list({ ref: "backend" }).entries.length, 1);
-    assert.equal(t.cortex.search("brute force").results[0]?.id, a.id, "the reason is searchable");
+    assert.equal((await t.cortex.search("brute force")).results[0]?.id, a.id, "the reason is searchable");
 
     const q = t.cortex.items.ask(t.human, { about: a.id, title: "Why 5 attempts and not 10?" });
     const item = t.cortex.items.get(q.id).item;
@@ -272,7 +272,7 @@ test("brief surfaces the inbox and open items, and stays small", () => {
   }
 });
 
-test("items, replies and activity survive an index rebuild", () => {
+test("items, replies and activity survive an index rebuild", async () => {
   const t = tempProject();
   try {
     const q = t.cortex.items.create(t.ai, { type: "question", title: "Staging URL?", assignee: "owner" });
@@ -281,12 +281,12 @@ test("items, replies and activity survive an index rebuild", () => {
     t.cortex.close();
     rmSync(join(t.root, ".cortex/.index"), { recursive: true, force: true });
 
-    const fresh = new Cortex(loadProject(t.root));
+    const fresh = new Cortex(loadProject(t.root), { embedder: null });
     try {
       assert.equal(fresh.items.get(q.id).replies[0].body, "staging.example.com");
       assert.equal(fresh.items.inbox(fresh.actor("ai-agent")).items[0].reason, "your_question_answered");
       assert.equal(fresh.activity.list({}).entries[0].summary, "Documented staging");
-      assert.equal(fresh.search("staging example").results[0]?.id, q.id, "reply text is searchable");
+      assert.equal((await fresh.search("staging example")).results[0]?.id, q.id, "reply text is searchable");
     } finally {
       fresh.close();
     }

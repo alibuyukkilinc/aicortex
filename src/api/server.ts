@@ -161,7 +161,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
   app.get("/api/search", async (req) => {
     const q = req.query as Q;
     return ok(
-      cortex.search(q.q ?? "", {
+      await cortex.search(q.q ?? "", {
         kinds: list(q.kind) as DocKind[] | undefined,
         under: q.path,
         status: q.status,

@@ -21,6 +21,7 @@ Usage: cortex <command> [options]
   mcp [--actor <id>]                 Run as an MCP server over stdio (default actor: ai-agent)
   bootstrap                          Print the task that lets your AI fill the tree
   reindex                            Rebuild the search index from files
+  semantic [on|off|status]           Meaning-based search (one-time ~420 MB download, shared by all projects)
 `;
 
 async function main() {
@@ -102,6 +103,46 @@ Next steps:
       const { bootstrapPrompt, findMarkdown } = await import("./core/init.js");
       const project = loadProject();
       console.log(bootstrapPrompt(project.config.project.name, findMarkdown(project.root)));
+      break;
+    }
+
+    case "semantic": {
+      const rt = await import("./search/runtime.js");
+      const sub = process.argv[3] ?? "status";
+      if (sub === "status") {
+        console.log(`enabled:          ${rt.readSettings().semantic === true ? "yes" : "no"}`);
+        console.log(`runtime:          ${rt.runtimeInstalled() ? "installed" : "not installed"}`);
+        console.log(`model:            ${rt.MODEL} (${rt.modelDownloaded() ? "downloaded" : "not downloaded"})`);
+        console.log(`location:         ${rt.cortexHome()}`);
+        if (!rt.semanticEnabled()) console.log("\nSearch is keyword-only. Turn on meaning-based search with: npx projcortex semantic on");
+        break;
+      }
+      if (sub === "off") {
+        rt.writeSettings({ semantic: false });
+        console.log("✔ Semantic search off. Files stay in place; `semantic on` re-enables it instantly.");
+        break;
+      }
+      if (sub !== "on") throw new Error(`Unknown option "${sub}". Use on, off or status.`);
+
+      if (!rt.runtimeInstalled()) {
+        console.log(`Installing the search runtime into ${rt.cortexHome()} (one time, ~290 MB)…`);
+        await rt.installRuntime((line) => console.log(`  ${line}`));
+      }
+      console.log(`Loading ${rt.MODEL} (one-time download, ~120 MB)…`);
+      const { TransformersEmbedder } = await import("./search/embedder.js");
+      let lastPct = -10;
+      const embedder = new TransformersEmbedder((p) => {
+        if (p.status === "progress" && p.file?.endsWith(".onnx") && p.progress !== undefined && p.progress - lastPct >= 10) {
+          lastPct = Math.floor(p.progress / 10) * 10;
+          console.log(`  ${lastPct}%`);
+        }
+      });
+      // Prove it works end to end before turning it on.
+      const [a, b, c] = await embedder.embed(["Ödeme sistemi iyzico", "payment provider", "karpuz fiyatları"]);
+      const sim = (x: Float32Array, y: Float32Array) => x.reduce((s, v, i) => s + v * y[i], 0);
+      if (!(sim(a, b) > sim(a, c))) throw new Error("The model loaded but produced unexpected results.");
+      rt.writeSettings({ semantic: true });
+      console.log("✔ Semantic search on. Restart `cortex start` / your MCP server; existing content is indexed in the background.");
       break;
     }
 

@@ -32,6 +32,16 @@ claude mcp add cortex -- npx projcortex mcp --actor ai-agent
 
 Then fill the tree: `npx projcortex bootstrap` prints a task you hand to your AI.
 
+### Search by meaning (optional)
+
+Keyword search (Turkish-aware) works out of the box. To also search by **meaning** — so "why were orders confirmed twice?" finds the webhook fix even without shared words, across Turkish and English — run once per machine:
+
+```bash
+npx projcortex semantic on
+```
+
+It installs a local model runtime and a multilingual model (~420 MB, one time, under `~/.cortex`, shared by all projects). Nothing leaves your machine and no tokens are spent. Results are ranked by keyword and meaning together (Reciprocal Rank Fusion); each result says whether it matched by `keyword`, `semantic` or `both`. If the model is missing or fails, search quietly falls back to keywords. `semantic status` shows the state, `semantic off` turns it off; a project can opt out with `search: { semantic: false }` in `cortex.config.yaml`.
+
 ## The board (for humans)
 
 - **Inbox**: everything waiting on you; blocking questions first
@@ -115,7 +125,7 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 - [x] **Slice 1:** init, knowledge tree, keyword search (Turkish-aware), brief, drafts & approval, REST, MCP
 - [x] **Slice 2:** items (task, issue, question, note, decision), inbox, ask-about-anything, activity log, per-type schemas, custom types
 - [x] **Slice 3:** web board (inbox, kanban, knowledge explorer, live activity feed, approvals, rules editor) in TR/EN
-- [ ] **Slice 4:** semantic search with a local multilingual embedding model (hybrid ranking)
+- [x] **Slice 4:** opt-in semantic search with a local multilingual model, hybrid ranking, incremental background indexing
 - [ ] **Slice 5:** code links → stale detection from git history
 - [ ] Later: reports, team server, multi-project
 
@@ -144,7 +154,7 @@ npx projcortex init
 npx projcortex start
 ```
 
-`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx projcortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
 
 ## License
 

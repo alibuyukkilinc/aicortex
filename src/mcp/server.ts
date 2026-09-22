@@ -12,10 +12,10 @@ function result(data: object, meta: object) {
   return { content: [{ type: "text" as const, text: JSON.stringify({ ...data, _meta: meta }) }] };
 }
 
-function wrap<A>(cortex: Cortex, fn: (args: A) => object) {
+function wrap<A>(cortex: Cortex, fn: (args: A) => object | Promise<object>) {
   return async (args: A) => {
     try {
-      return result(fn(args), cortex.meta());
+      return result(await fn(args), cortex.meta());
     } catch (e) {
       const err = e instanceof CortexError ? { code: e.code, message: e.message, hint: e.hint } : { code: "internal", message: String(e) };
       return { isError: true, content: [{ type: "text" as const, text: JSON.stringify({ error: err }) }] };
