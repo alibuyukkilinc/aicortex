@@ -274,19 +274,33 @@ npx aicortex start     # API + pano + dosya izleyici
 - İçerik: AI ve insan aktivitesi (günlük), AI'ın gerekçeli/gerekçesiz değişiklikleri, açılan/kapanan kayıtlar, soruların cevaplanma süresi, kararlar, AI taslak onay oranı (güven göstergesi), issue yaşı, bekleyen onaylar, eskimiş ve belgelenmemiş bilgi, aktör bazında tablo.
 - Hepsi sayılarak hesaplanır, LLM yok. Erişim: pano (grafikler + tablo görünümü), REST (JSON veya TR/EN markdown), MCP `cortex_report`, CLI `aicortex report`.
 
-## 16. Kapsam
+## 16. Ekip sunucusu (hub)
+
+Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (tek proje, yalnızca localhost) olduğu gibi kalır.
+
+- **Veri:** Her projenin bilgisi kendi reposundaki `.cortex/` klasöründe kalır (git dostu ilke korunur). Merkez (`~/.cortex/hub`, hiçbir repoya girmez) SQLite'ta yalnızca kişileri, şifre özetlerini (scrypt), oturumları, tek kullanımlık davetleri, AI ajanlarını (token özetleri), kayıtlı proje klasörlerini ve proje üyeliklerini tutar.
+- **Giriş:** Kişiler e-posta + şifre (en az 10 karakter). Yönetici kişiyi ekler, sistem 7 gün geçerli tek kullanımlık bir davet bağlantısı üretir; kişi şifresini kendisi belirler. Aynı bağlantı şifre sıfırlama için de kullanılır ve diğer oturumları kapatır. Oturum çerezi httpOnly, SameSite=Lax, public_url https ise Secure; yazımlar CSRF başlığı ister. Aynı adres ve e-postadan 15 dakikada 10 hatalı denemeden sonra giriş durur.
+- **AI ajanları:** Organizasyon yöneticisi ekler; token bir kez gösterilir, yalnızca özeti saklanır, yenilenebilir. Ajanlar `/api/p/<proje>/` altındaki REST uçlarını `Authorization: Bearer <token>` ile kullanır.
+- **Roller (proje başına):** İnsanlar için Sahip, Yönetici (her şey), Üye (kayıt ve bilgi yazar, taslak onaylar), İzleyici (okur, soru sorar ve cevaplar). AI için Okuyucu (okur), Katkıcı (kayıt yazar, bilgi yazımları taslağa düşer), Güvenilir (bilgiye doğrudan yazar). AI hiçbir rolde onaylayamaz, kural değiştiremez, üye yönetemez. Organizasyon yöneticileri her projede Sahip sayılır; projenin son sahibi çıkarılamaz, sahipliği yalnızca sahipler değiştirir.
+- **Görünürlük:** Her üyelik "her şeyi" ya da "yalnızca kendi kayıtlarını" (yazdığı, kendisine veya grubuna atanan) görür; isteğe bağlı dal kısıtı (ör. yalnızca `frontend`) bilgi ağacını, düğümleri, kayıtları, aramayı, aktiviteyi, gelen kutusunu, brief'i ve canlı olayları süzer. Gizli olan 404 döner; kısmi görünüm proje raporu alamaz.
+- **Web:** `/` projelerim, `/admin` organizasyon (kişiler, AI ajanları, projeler), `/p/<proje>/` proje panosu (proje değiştirici, Üyeler sayfası), `/invite/<token>` şifre belirleme.
+- **Komutlar:** `aicortex hub init | start | add-project <klasör> | invite <e-posta>`. İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılır ve `public_url` https adrese ayarlanır.
+
+## 17. Kapsam
 
 **v1 (tamam):** Bölüm 4–15, tek proje, yerel çalışma, basit aktör kimliği.
 
+**Tamamlanan (v1 sonrası):** CI (Windows, macOS, Linux), ekip sunucusu, çoklu proje, e-posta + şifre ile giriş, rol ve görünürlük (Bölüm 16).
+
 **Sonra:**
-- npm yayını ve CI (Windows, macOS, Linux)
-- Merkezi/ekip sunucusu, tam login ve rol yönetimi
-- Çoklu proje
+- npm yayını
+- Merkezdeki AI ajanları için MCP (şimdilik REST)
+- SSO (GitHub/Google), e-postayla davet gönderimi
 - İsteğe bağlı anlık AI cevabı (kullanıcının kendi API anahtarıyla)
 - Webhook'lar, GitHub Issues/PR senkronizasyonu
 - VS Code eklentisi
 
-## 17. Kabul kriterleri (v1 "bitti" sayılır, eğer)
+## 18. Kabul kriterleri (v1 "bitti" sayılır, eğer)
 
 - [ ] Temiz bir Windows, macOS ve Linux makinede, yalnızca Node kuruluyken `npx aicortex init && npx aicortex start` 2 dakikadan kısa sürede çalışıyorsa — *CI ile doğrulanacak*
 - [x] `brief` cevabı örnek bir projede 800 tokenin altında kalıyorsa — *testle korunuyor, 30 taslakla bile*
@@ -298,7 +312,7 @@ npx aicortex start     # API + pano + dosya izleyici
 - [ ] Claude Code MCP üzerinden, Bölüm 14'teki protokolü baştan sona uygulayabiliyorsa — *Cortex kendi reposunda bu protokolle geliştiriliyor; otomatik test yok*
 - [ ] İki geliştirici `.cortex/` üzerinde paralel çalışıp git merge yaptığında veri bozulmuyorsa — *dosya düzeni buna göre tasarlandı (kayıt başına dosya, aktör başına günlük); otomatik test yok*
 
-## 18. Açık sorular
+## 19. Açık sorular
 
 - Komut adı: paket `aicortex`, komut hem `aicortex` hem `cortex`. Global kurulumda `cortex` başka bir araçla çakışabilir; kısa adı tutmaya devam edelim mi?
 - Sürümleme ve yayın süreci (değişiklik günlüğü, npm yayın yetkisi) henüz belirlenmedi.

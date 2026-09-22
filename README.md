@@ -111,6 +111,31 @@ Assign items to an actor, to `@humans` or to `@ai`.
 
 Everything is plain markdown with YAML frontmatter: readable, diffable, mergeable.
 
+## Teams: one server, many projects
+
+`cortex start` is one project on your own machine. For a team, run the **hub**: one server, many projects, people who sign in with email and password, AI agents with tokens, and roles per project.
+
+```bash
+npx aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "You" --public-url https://cortex.acme.com
+npx aicortex hub start --host 0.0.0.0     # put it behind HTTPS (reverse proxy)
+npx aicortex hub add-project /srv/repos/shop
+```
+
+`init` prints a link to set your password. Then, on the board (**Organization**): add people (they get a one-time invite link), add AI agents (their token is shown once), register project folders. Each project keeps its knowledge in its own repository's `.cortex/`; the hub (default `~/.cortex/hub`, never committed) holds only people, password hashes, sessions, agents and memberships.
+
+| Role | For | Can |
+|---|---|---|
+| Owner, Admin | people | everything, including members and rules |
+| Member | people | work on items and knowledge, approve drafts |
+| Viewer | people | read, ask and answer questions |
+| Reader | AI | read |
+| Contributor | AI | work on items; knowledge writes wait for approval |
+| Trusted | AI | like Contributor, knowledge writes apply directly |
+
+Every membership also says what the member **sees**: everything, or only their own items (written by or assigned to them), optionally limited to some branches (e.g. only `frontend`). Hidden things answer 404, and partial views get no project-wide report. An AI can never approve, edit rules or manage members.
+
+AI agents on a hub use the REST API under `/api/p/<project>/` with `Authorization: Bearer <token>`.
+
 ## REST API
 
 All endpoints need `Authorization: Bearer <token>` and answer only on localhost.
@@ -142,7 +167,8 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 - [x] **Slice 4:** opt-in semantic search with a local multilingual model, hybrid ranking, incremental background indexing
 - [x] **Slice 5:** code links, stale detection from git history (line-range aware, renames and deletions), verify, code context, live updates on new commits
 - [x] **Slice 6:** reports (period summary, AI trust, knowledge health) on the board, REST, MCP and CLI; days are counted in the project's `timezone` (set by `init` from your computer, default UTC)
-- [ ] Later: team server, multi-project
+- [x] **Hub:** team server with many projects, people (email + password), AI agents (tokens), roles and visibility per project
+- [ ] Later: MCP for hub agents, SSO, webhooks
 
 ## Development
 
@@ -170,6 +196,8 @@ npx aicortex start
 ```
 
 `start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx aicortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx aicortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+
+**Ekip için:** `npx aicortex hub init` ile tek sunucuda birden çok proje yönetilir. Kişiler e-posta ve şifreyle, AI ajanları token ile girer; her projede rol (Sahip, Yönetici, Üye, İzleyici; AI için Okuyucu, Katkıcı, Güvenilir) ve görünürlük (her şey / yalnızca kendi kayıtları, isteğe bağlı dal kısıtı) ayrı ayrı verilir. Proje bilgisi yine kendi reposundaki `.cortex/` klasöründe kalır.
 
 **Eskiyen bilgi:** Bilgi düğümleri koda bağlanır. Bağlı kod (satır aralığı verildiyse yalnızca o satırlar) sonradan bir commit ile değişirse düğüm "eskimiş olabilir" diye işaretlenir; hangi dosyanın, hangi commit ile, kim tarafından değiştiği gösterilir. Bu bilgi git geçmişinden hesaplanır, dosyalarınıza hiçbir şey yazılmaz.
 
