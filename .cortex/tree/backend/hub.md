@@ -15,11 +15,11 @@ links:
     - file: src/hub/roles.ts
     - file: src/hub/access.ts
     - file: src/hub/crypto.ts
-verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
+verified_at_commit: be22b1b2f35a515bc8d75a0587acf061c5da8034
 id: 01M34ZBMQDA04RDK228RSTYEHP
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T19:28:28.294Z
+updated_at: 2026-09-22T20:08:37.526Z
 ---
 
 ## Parçalar (`src/hub`)
@@ -37,6 +37,20 @@ updated_at: 2026-09-22T19:28:28.294Z
 
 ## AI ajanları nasıl bağlanır
 `aicortex mcp --hub <url> --project <id> --token <t>`: MCP araçları merkezdeki proje API'sini kullanır (`remoteApi`), ajanın rolü ve görünürlüğü aynen geçerlidir. MCP konuşamayan araçlar aynı uçları düz HTTP ile kullanabilir.
+Bu bilgisayarda çalışmayan AI'lar (ör. ChatGPT) için merkezde MCP'nin HTTP ucu vardır: `POST <url>/mcp/p/<proje>`, `Authorization: Bearer <ajan tokenı>`, akış destekli HTTP, durumsuz (GET ve DELETE 405 döner). İstek, aynı proje rotalarına yeniden yollanır; token, rol ve görünürlük REST ile birebir aynıdır. Bilinmeyen token ya da üye olunmayan proje bağlantı anında reddedilir. stdio köprüsü (`aicortex mcp --hub …`) da desteklenmeye devam eder.
+
+## Ekranlar (kim neyi nereden yapar)
+- **Kişi ekleme:** Organizasyon → Kişiler → "Kişi ekle" (e-posta, ad, isteğe bağlı ilk proje + rol). Sistem tek kullanımlık davet bağlantısı verir; kişi şifresini kendisi belirler. "Yeni bağlantı" aynı zamanda şifre sıfırlamadır.
+- **AI ajanı ekleme:** Organizasyon → AI ajanları → "AI ajanı ekle" (kimlik, ad, ilk proje + rol). Token bir kez gösterilir; "Yeni token" eskisini geçersiz kılar.
+- **Proje ekleme:** Organizasyon → Projeler → "Proje ekle" (sunucudaki klasör; .cortex yoksa oluşturulabilir) ya da `aicortex hub add-project <klasör>`.
+- **Üyelik ve görünürlük:** Proje panosunda Üyeler sayfası: rol, "her şeyi / yalnızca kendi kayıtlarını", dal kısıtı.
+
+## Rollerin yetkileri (`src/hub/roles.ts`)
+- Sahip ve Yönetici: hepsi (read, ask, write_items, write_knowledge, delete_knowledge, approve, edit_rules, manage_members, reports, log_activity).
+- Üye: read, ask, write_items, write_knowledge, approve, reports, log_activity. Kural düzenleme, düğüm silme ve üye yönetimi yok.
+- İzleyici: read, ask, reports.
+- AI Okuyucu: read. AI Katkıcı: read, ask, write_items, write_knowledge (taslak olur), log_activity. AI Güvenilir: aynısı, bilgi yazımı doğrudan geçer.
+- Hiçbir AI rolünde approve, edit_rules, manage_members yoktur.
 
 ## Komutlar
 `aicortex hub init | start | add-project | invite` (`src/cli.ts` → `hubCommand`).
