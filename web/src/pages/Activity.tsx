@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { qs, useApi } from "../api";
-import { useT } from "../i18n";
+import { useLabels, useT } from "../i18n";
 import type { Activity as Entry } from "../types";
 import { Ago, Avatar, ErrorBox, Icon, Loading, routeQuery, useSession } from "../ui";
 
 export function Activity() {
   const t = useT();
+  const label = useLabels();
   const { actors, ask, openItem } = useSession();
   const [actor, setActor] = useState("");
   const [system, setSystem] = useState(false);
@@ -58,7 +59,11 @@ export function Activity() {
               <Avatar id={a.actor} actors={actors} />
               <div style={{ minWidth: 0 }}>
                 <div>
-                  <strong>{a.actor}</strong> <span className="chip mono">{a.action}</span> {a.summary}
+                  <strong>{a.actor}</strong>{" "}
+                  <span className="chip" title={a.action}>
+                    {label.action(a.action)}
+                  </span>{" "}
+                  {a.summary}
                 </div>
                 {a.why && (
                   <div className="tl-why">

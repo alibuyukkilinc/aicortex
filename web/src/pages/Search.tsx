@@ -1,5 +1,5 @@
 import { qs, useApi } from "../api";
-import { Key, useT } from "../i18n";
+import { Key, useLabels, useT } from "../i18n";
 import type { SearchHit } from "../types";
 import { Ago, ErrorBox, Loading, StatusChip, go, useSession } from "../ui";
 
@@ -11,6 +11,7 @@ interface SearchResponse {
 
 export function Search({ q }: { q: string }) {
   const t = useT();
+  const label = useLabels();
   const { openItem } = useSession();
   const { data, error, loading } = useApi<SearchResponse>(q ? `/api/search${qs({ q, limit: 30 })}` : null);
 
@@ -40,7 +41,7 @@ export function Search({ q }: { q: string }) {
           {data?.results.map((h) => (
             <div key={`${h.kind}-${h.draft_id ?? h.id ?? h.path}`} className="list-row" onClick={() => open(h)}>
               <span className={`chip ${h.kind === "activity" ? "ai" : h.kind === "item" ? "accent" : ""}`} style={{ minWidth: 64, justifyContent: "center" }}>
-                {h.kind === "item" ? h.type : h.kind}
+                {label.type(h.kind === "item" ? (h.type ?? "item") : h.kind)}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="title">{h.title ?? h.summary}</div>

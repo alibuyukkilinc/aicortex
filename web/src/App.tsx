@@ -7,6 +7,7 @@ import { Activity } from "./pages/Activity";
 import { Approvals } from "./pages/Approvals";
 import { Board } from "./pages/Board";
 import { Inbox } from "./pages/Inbox";
+import { Guide } from "./pages/Guide";
 import { Knowledge } from "./pages/Knowledge";
 import { Reports } from "./pages/Reports";
 import { Rules } from "./pages/Rules";
@@ -154,6 +155,7 @@ const NAV: { key: Key; route: string; icon: string }[] = [
   { key: "nav.approvals", route: "approvals", icon: "check" },
   { key: "nav.reports", route: "reports", icon: "report" },
   { key: "nav.rules", route: "rules", icon: "rules" },
+  { key: "nav.guide", route: "guide", icon: "ask" },
 ];
 
 function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
@@ -205,6 +207,9 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
       break;
     case "reports":
       content = <Reports />;
+      break;
+    case "guide":
+      content = <Guide />;
       break;
     case "members":
       content = hubMe ? <MembersPage canManage={session.can("manage_members")} /> : <Inbox />;

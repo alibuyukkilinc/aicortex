@@ -566,3 +566,35 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .hub-main { padding: 24px 16px 48px; }
   .table td.actions { white-space: normal; }
 }
+
+/* ---- notifications ------------------------------------------------------------------- */
+
+.notif-groups { display: flex; flex-direction: column; gap: 28px; }
+.notif-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.notif-head h2 { display: flex; align-items: baseline; gap: 8px; }
+.notif-head .count { font-size: 13px; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+.notif-head .count.warn { color: var(--warn); }
+.notif-head .count.danger { color: var(--danger); }
+.notif-head p { margin: 0; color: var(--faint); font-size: 13px; flex: 1; }
+.notif-head .btn { margin-left: auto; }
+.row-go { color: var(--faint); display: flex; align-items: center; align-self: center; }
+
+/* ---- guide ---------------------------------------------------------------------------- */
+
+.guide { max-width: 78ch; }
+.guide-section { margin-bottom: 36px; }
+.guide-section > h2 { margin-bottom: 12px; }
+.guide-section p { color: var(--muted); }
+.guide-section ul, .guide-section ol { color: var(--muted); padding-left: 20px; }
+.guide-section li { margin-bottom: 8px; }
+.guide-section li b { color: var(--text); }
+.guide-section .table { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); overflow: hidden; }
+.guide-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.guide-card { padding: 16px 18px; }
+.guide-card h3 { color: var(--text); text-transform: none; letter-spacing: normal; font-size: 14px; margin-bottom: 6px; }
+.guide-card p { margin: 0; font-size: 13.5px; }
+.glossary { margin-top: 12px; grid-template-columns: 110px 1fr; row-gap: 10px; }
+.glossary dt { color: var(--text); font-weight: 600; }
+.term { text-decoration: none; border-bottom: 1px dashed var(--border-strong); cursor: help; }
+.term:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 860px) { .guide-cards { grid-template-columns: 1fr; } }

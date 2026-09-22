@@ -2,7 +2,7 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api";
-import { timeAgo, useLabels, useT } from "./i18n";
+import { GLOSSARY, LangContext, timeAgo, useLabels, useT } from "./i18n";
 import type { Actor } from "./types";
 
 // ---- routing (hash based: works from any static file server) --------------------
@@ -118,6 +118,18 @@ export function TypeChip({ type }: { type: string }) {
     <span className="chip type" title={type}>
       {label.type(type)}
     </span>
+  );
+}
+
+// An English term we keep as-is because that is its name in the tools; hovering (or focusing) explains it.
+export function Term({ w, children }: { w: keyof typeof GLOSSARY | string; children?: ReactNode }) {
+  const { lang } = useContext(LangContext);
+  const entry = GLOSSARY[w];
+  if (!entry) return <>{children ?? w}</>;
+  return (
+    <abbr className="term" title={entry[lang]} tabIndex={0}>
+      {children ?? w}
+    </abbr>
   );
 }
 
