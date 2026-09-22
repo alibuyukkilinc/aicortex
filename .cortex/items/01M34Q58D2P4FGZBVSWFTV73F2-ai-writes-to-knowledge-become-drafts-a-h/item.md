@@ -2,7 +2,7 @@
 id: 01M34Q58D2P4FGZBVSWFTV73F2
 type: decision
 title: AI'ın bilgiye yazdıkları insan onaylayana kadar taslak kalır
-status: proposed
+status: accepted
 category_path: backend
 author: ai-agent
 fields:
@@ -13,8 +13,8 @@ fields:
   consequences: İnsanın takip etmesi gereken bir onay listesi olur (artık toplu
     onay var); raporlar AI onay oranını güven göstergesi olarak izler.
 created_at: 2026-09-22T14:08:48.034Z
-updated_at: 2026-09-22T14:23:21.998Z
-updated_by: ai-agent
+updated_at: 2026-09-22T14:57:26.555Z
+updated_by: owner
 ---
 
 Varsayılan onay politikası: bilgi düğümü = review (taslak), diğer türler = auto. Kararlar auto, çünkü kabul/ret zaten yalnızca insanın.

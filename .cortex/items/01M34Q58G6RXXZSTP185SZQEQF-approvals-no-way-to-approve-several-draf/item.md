@@ -2,7 +2,7 @@
 id: 01M34Q58G6RXXZSTP185SZQEQF
 type: issue
 title: "Onaylar: birden fazla taslağı aynı anda onaylamanın yolu yok"
-status: review
+status: closed
 category_path: frontend
 author: ai-agent
 fields:
@@ -11,8 +11,8 @@ fields:
   expected: İncelenmiş bir grubu tek adımda onaylamak.
   actual: Her taslak için ayrı onay.
 created_at: 2026-09-22T14:08:48.134Z
-updated_at: 2026-09-22T14:24:41.252Z
-updated_by: ai-agent
+updated_at: 2026-09-22T14:59:59.949Z
+updated_by: owner
 ---
 
 Bu repoyu kurarken 23 düğüm taslağı oluştu; her biri ayrı tıklama istiyor. Kurulumdan sonra 'tümünü seç / seçilenleri onayla' gerekli (farkı görmek yine tek tıkla mümkün olmalı).

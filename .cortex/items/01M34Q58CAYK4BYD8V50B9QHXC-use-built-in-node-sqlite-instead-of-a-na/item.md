@@ -2,7 +2,7 @@
 id: 01M34Q58CAYK4BYD8V50B9QHXC
 type: decision
 title: Harici SQLite paketi yerine Node'un yerleşik node:sqlite modülü
-status: proposed
+status: accepted
 category_path: backend
 author: ai-agent
 fields:
@@ -14,8 +14,8 @@ fields:
   consequences: En düşük Node sürümü 22.13. Açılışta çıkan deneysel uyarıyı
     gizliyoruz. Bazı SQL özellikleri (numaralı parametreler) yok.
 created_at: 2026-09-22T14:08:48.010Z
-updated_at: 2026-09-22T14:23:21.979Z
-updated_by: ai-agent
+updated_at: 2026-09-22T14:57:29.221Z
+updated_by: owner
 ---
 
 İndeks node:sqlite kullanır (Node 22.13+), böylece `npx` sırasında derleme gerekmez.
