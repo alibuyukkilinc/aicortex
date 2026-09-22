@@ -68,6 +68,7 @@ function revision(n: KnowledgeNode): string {
 
 export interface WriteResult {
   applied: boolean;
+  warning?: string;
   path?: string;
   id?: string;
   draft_id?: string;
@@ -523,8 +524,15 @@ export class Cortex {
     }
 
     this.writeNode(node);
+    const untracked = this.staleness.enabled() ? this.staleness.git.untracked((data.links?.code ?? []).map((l) => l.file)) : [];
     this.activity.system(actor.id, "node.updated", `${existing ? "Updated" : "Created"} node "${path || "(root)"}"${reason ? `: ${reason}` : ""}`, [path]);
-    return { applied: true, path, message: existing ? "Node updated." : "Node created." };
+    return {
+      applied: true,
+      path,
+      message: existing ? "Node updated." : "Node created.",
+      // Linking code that is not committed yet is allowed, but nothing can tell when it changes.
+      ...(untracked.length ? { warning: `Not in git yet, so staleness cannot follow them until they are committed: ${untracked.join(", ")}` } : {}),
+    };
   }
 
   // Humans only. For branches that do not apply to the project, or knowledge that is simply gone.

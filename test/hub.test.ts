@@ -395,7 +395,8 @@ test("usage meter: counts each call once, per person and per agent, and stays ou
     assert.equal(person.calls, 2, "people are metered too");
     assert.ok(usage.by_route.some((r: { route: string }) => r.route.startsWith("MCP GET /brief")), "the route says which tool it was");
     assert.equal(usage.totals.calls, 4);
-    assert.equal(usage.daily.length, 1);
+    assert.equal(usage.daily.at(-1).ai + usage.daily.at(-1).human, 4, "today's row carries the calls");
+    assert.ok(usage.daily.length >= 7, "quiet days are on the chart too, not skipped");
 
     // Per project, for whoever may read that project's reports; and never mixed with another project.
     const mine = (await t.call({ url: "/api/p/shop/usage?since=7d", cookie: admin })).json();

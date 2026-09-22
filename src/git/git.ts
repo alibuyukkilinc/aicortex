@@ -47,6 +47,18 @@ export class Git {
     return /^[0-9a-f]{7,40}$/i.test(hash) && this.run(["cat-file", "-e", `${hash}^{commit}`]) !== null;
   }
 
+  // Which of these paths git does not know about yet. Knowledge can link them, but staleness cannot
+  // follow a file that was never committed, so the writer is told.
+  untracked(paths: string[]): string[] {
+    if (!paths.length || !this.available()) return [];
+    const out = this.run(["ls-files", "--error-unmatch", "--", ...paths]);
+    if (out === null) {
+      // At least one path is unknown; ask one by one to say exactly which.
+      return paths.filter((p) => this.run(["ls-files", "--error-unmatch", "--", p]) === null);
+    }
+    return [];
+  }
+
   // Files among `paths` (files or directories) that differ between `from` and HEAD, in one git call.
   changedFiles(from: string, paths: string[]): FileChange[] | null {
     if (!paths.length) return [];

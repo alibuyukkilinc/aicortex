@@ -272,7 +272,8 @@ export function buildHubServer(hub: Hub): FastifyInstance {
   app.get("/api/admin/usage", async (req) => {
     orgAdmin(req);
     const q = req.query as Q;
-    return { ...store.usage(sinceIso(q.since), q.project), projects: store.projects().map((p) => ({ id: p.id, name: p.name })) };
+    const kind = q.kind === "human" || q.kind === "ai" ? q.kind : undefined;
+    return { ...store.usage(sinceIso(q.since), { project: q.project, kind }), projects: store.projects().map((p) => ({ id: p.id, name: p.name })) };
   });
 
   app.get("/api/admin/projects", async (req) => {
@@ -323,7 +324,9 @@ export function buildHubServer(hub: Hub): FastifyInstance {
         if (!req.access!.can("reports")) throw new CortexError("forbidden", "Your role cannot read reports.", 403);
         // Same rule as the project report: someone who sees only part of the project gets no project-wide numbers.
         if (req.access!.restricted) throw new CortexError("forbidden", "These numbers cover the whole project; your membership sees only part of it.", 403);
-        return store.usage(sinceIso((req.query as Q).since), (req.params as Q).project!);
+        const q = req.query as Q;
+        const kind = q.kind === "human" || q.kind === "ai" ? q.kind : undefined;
+        return store.usage(sinceIso(q.since), { project: (req.params as Q).project!, kind });
       });
 
       scope.get("/members", async (req) => {

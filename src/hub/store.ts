@@ -281,24 +281,41 @@ export class HubStore {
     this.db.prepare("DELETE FROM usage WHERE at < ?").run(iso);
   }
 
-  usage(since: string, projectId?: string) {
-    const where = projectId ? "at >= ? AND project_id = ?" : "at >= ?";
-    const args = projectId ? [since, projectId] : [since];
+  usage(since: string, filter: { project?: string; kind?: "human" | "ai" } = {}) {
+    const clauses = ["at >= ?"];
+    const args: string[] = [since];
+    if (filter.project) (clauses.push("project_id = ?"), args.push(filter.project));
+    if (filter.kind) (clauses.push("kind = ?"), args.push(filter.kind));
+    const where = clauses.join(" AND ");
     const rows = this.db
       .prepare(`SELECT principal, kind, project_id, COUNT(*) AS calls, SUM(bytes) AS bytes, MAX(at) AS last_at FROM usage WHERE ${where} GROUP BY principal, project_id ORDER BY bytes DESC`)
       .all(...args) as { principal: string; kind: string; project_id: string; calls: number; bytes: number; last_at: string }[];
     const routes = this.db
       .prepare(`SELECT principal, route, COUNT(*) AS calls, SUM(bytes) AS bytes FROM usage WHERE ${where} GROUP BY principal, route ORDER BY calls DESC`)
       .all(...args) as { principal: string; route: string; calls: number; bytes: number }[];
+    // Split by kind, so a chart can show at a glance whether the people or the agents are doing the reading.
     const days = this.db
-      .prepare(`SELECT substr(at, 1, 10) AS day, COUNT(*) AS calls, SUM(bytes) AS bytes FROM usage WHERE ${where} GROUP BY day ORDER BY day`)
-      .all(...args) as { day: string; calls: number; bytes: number }[];
+      .prepare(
+        `SELECT substr(at, 1, 10) AS day,
+                SUM(CASE WHEN kind = 'ai' THEN 1 ELSE 0 END) AS ai_calls,
+                SUM(CASE WHEN kind = 'human' THEN 1 ELSE 0 END) AS human_calls,
+                SUM(CASE WHEN kind = 'ai' THEN bytes ELSE 0 END) AS ai_bytes,
+                SUM(CASE WHEN kind = 'human' THEN bytes ELSE 0 END) AS human_bytes
+         FROM usage WHERE ${where} GROUP BY day ORDER BY day`,
+      )
+      .all(...args) as { day: string; ai_calls: number; human_calls: number; ai_bytes: number; human_bytes: number }[];
     return {
       since,
       // Roughly 4 characters per token, the same estimate the API uses for its budgets.
       by_principal: rows.map((r) => ({ ...r, name: this.user(r.principal)?.name ?? this.agent(r.principal)?.name ?? r.principal, tokens: Math.round(r.bytes / 4) })),
       by_route: routes.map((r) => ({ ...r, tokens: Math.round(r.bytes / 4) })),
-      daily: days.map((d) => ({ ...d, tokens: Math.round(d.bytes / 4) })),
+      daily: fillDays(since, days).map((d) => ({
+        date: d.day,
+        ai: d.ai_calls,
+        human: d.human_calls,
+        ai_tokens: Math.round(d.ai_bytes / 4),
+        human_tokens: Math.round(d.human_bytes / 4),
+      })),
       totals: {
         calls: rows.reduce((n, r) => n + r.calls, 0),
         bytes: rows.reduce((n, r) => n + r.bytes, 0),
@@ -364,6 +381,18 @@ export class HubStore {
   removeMember(projectId: string, principal: string): void {
     this.db.prepare("DELETE FROM members WHERE project_id = ? AND principal = ?").run(projectId, principal);
   }
+}
+
+// Days with no calls still belong on the chart, otherwise a quiet week looks like a busy one.
+function fillDays(since: string, rows: { day: string; ai_calls: number; human_calls: number; ai_bytes: number; human_bytes: number }[]) {
+  const byDay = new Map(rows.map((r) => [r.day, r]));
+  const out: typeof rows = [];
+  const start = new Date(since.slice(0, 10) + "T00:00:00Z").getTime();
+  for (let t = start; t <= Date.now(); t += DAY) {
+    const day = new Date(t).toISOString().slice(0, 10);
+    out.push(byDay.get(day) ?? { day, ai_calls: 0, human_calls: 0, ai_bytes: 0, human_bytes: 0 });
+  }
+  return out;
 }
 
 function toMember(r: Record<string, unknown>): Member {

@@ -264,3 +264,30 @@ test("outside a git repository everything still works, staleness is just off", (
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("linking code that is not committed yet is allowed, but the writer is told", () => {
+  const t = gitProject();
+  try {
+    writeFileSync(join(t.root, "src/fresh.ts"), "export const fresh = 1;\n");
+    const r = t.cortex.putNode(t.human, {
+      path: "backend/fresh",
+      title: "Fresh",
+      summary: "Brand new code, not committed yet.",
+      links: { code: [{ file: "src/fresh.ts" }, { file: "src/auth/login.ts" }] },
+    });
+    assert.equal(r.applied, true, "the node is still written");
+    assert.match(r.warning ?? "", /src\/fresh\.ts/);
+    assert.doesNotMatch(r.warning ?? "", /login\.ts/, "committed files are not mentioned");
+
+    t.commit("fresh file added");
+    const again = t.cortex.putNode(t.human, {
+      path: "backend/fresh",
+      title: "Fresh",
+      summary: "Brand new code, now committed.",
+      links: { code: [{ file: "src/fresh.ts" }] },
+    });
+    assert.equal(again.warning, undefined);
+  } finally {
+    t.cleanup();
+  }
+});

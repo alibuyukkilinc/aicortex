@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useContext, useState } from "react";
 import { ApiError, api, currentProject, qs, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
 import type { HubMe } from "./types";
+import { HBars, StackedColumns } from "./charts";
 import { Ago, ErrorBox, Icon, Loading, Modal, useRoute, useToast } from "./ui";
 
 // Screens of the team server (hub): sign-in, invites, the project list, organization admin and project members.
@@ -924,20 +925,30 @@ function AddToProject({ kind, onClose, onDone }: { kind: "human" | "ai"; onClose
 type Usage = {
   by_principal: { principal: string; name: string; kind: string; project_id: string; calls: number; bytes: number; tokens: number; last_at: string }[];
   by_route: { principal: string; route: string; calls: number; bytes: number; tokens: number }[];
-  daily: { day: string; calls: number; tokens: number }[];
+  daily: { date: string; ai: number; human: number; ai_tokens: number; human_tokens: number }[];
   totals: { calls: number; bytes: number; tokens: number };
   projects?: { id: string; name: string }[];
 };
 
 const PERIODS = ["7d", "30d", "90d"];
 const kb = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+const num = (n: number) => n.toLocaleString();
 
 // Tucked behind Organization on purpose: nobody needs this to do their work, only to explain a bill.
 function UsageTab() {
   const t = useT();
+  const { lang } = useContext(LangContext);
   const [since, setSince] = useState("7d");
   const [project, setProject] = useState("");
-  const { data, loading } = useApi<Usage>(`/api/admin/usage${qs({ since, project })}`);
+  const [kind, setKind] = useState("");
+  const [show, setShow] = useState<"calls" | "tokens">("tokens");
+  const { data, loading } = useApi<Usage>(`/api/admin/usage${qs({ since, project, kind })}`);
+
+  const dayLabel = (row: Record<string, number | string>) =>
+    new Date(`${row.date}T00:00:00Z`).toLocaleDateString(lang, { day: "numeric", month: "short", timeZone: "UTC" });
+  const totals = data?.totals ?? { calls: 0, bytes: 0, tokens: 0 };
+  const aiTokens = (data?.by_principal ?? []).filter((r) => r.kind === "ai").reduce((n, r) => n + r.tokens, 0);
+  const busiest = (data?.by_principal ?? [])[0];
 
   return (
     <>
@@ -950,7 +961,14 @@ function UsageTab() {
             </button>
           ))}
         </div>
-        <select className="select" style={{ width: "auto", minWidth: 180 }} value={project} onChange={(e) => setProject(e.target.value)}>
+        <div className="segmented" role="group">
+          {[["", "usage.everyone"], ["human", "usage.people"], ["ai", "usage.agents"]].map(([value, key]) => (
+            <button key={value} className={kind === value ? "on" : ""} aria-pressed={kind === value} onClick={() => setKind(value)}>
+              {t(key as "usage.people")}
+            </button>
+          ))}
+        </div>
+        <select className="select" style={{ width: "auto", minWidth: 170 }} value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">{t("usage.allProjects")}</option>
           {(data?.projects ?? []).map((p) => (
             <option key={p.id} value={p.id}>
@@ -958,19 +976,81 @@ function UsageTab() {
             </option>
           ))}
         </select>
-        <span className="spacer" />
-        {data && (
-          <span className="faint">
-            {data.totals.calls} {t("usage.calls")} · {data.totals.tokens.toLocaleString()} {t("usage.tokens")} · {kb(data.totals.bytes)}
-          </span>
-        )}
       </div>
       {loading && !data ? (
         <Loading />
-      ) : !data || data.totals.calls === 0 ? (
+      ) : totals.calls === 0 ? (
         <div className="card empty">{t("usage.empty")}</div>
       ) : (
         <>
+          <div className="kpis">
+            <Tile label={t("usage.calls")} value={num(totals.calls)} />
+            <Tile label={t("usage.tokens")} value={num(totals.tokens)} sub={kb(totals.bytes)} />
+            <Tile label={t("usage.avg")} value={num(Math.round(totals.tokens / Math.max(1, totals.calls)))} sub={t("usage.tokens")} />
+            <Tile label={t("usage.share")} value={`${Math.round((aiTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(aiTokens)} ${t("usage.tokens")}`} />
+            <Tile label={t("usage.busiest")} value={busiest?.name ?? t("usage.noneYet")} sub={busiest ? `${num(busiest.tokens)} ${t("usage.tokens")}` : undefined} small />
+          </div>
+
+          <div className="charts">
+            <section className="card chart-card">
+              <div className="chart-head">
+                <h2>{t("usage.byDay")}</h2>
+                <div className="legend" aria-hidden>
+                  <span>
+                    <i style={{ background: "var(--viz-ai)" }} />
+                    {t("usage.agents")}
+                  </span>
+                  <span>
+                    <i style={{ background: "var(--viz-human)" }} />
+                    {t("usage.people")}
+                  </span>
+                </div>
+                <span className="spacer" />
+                <div className="segmented" role="group">
+                  {(["tokens", "calls"] as const).map((k) => (
+                    <button key={k} className={show === k ? "on" : ""} aria-pressed={show === k} onClick={() => setShow(k)}>
+                      {t(k === "tokens" ? "usage.showTokens" : "usage.showCalls")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <StackedColumns
+                data={(data?.daily ?? []).map((d) => ({ date: d.date, ai: show === "tokens" ? d.ai_tokens : d.ai, human: show === "tokens" ? d.human_tokens : d.human }))}
+                series={[
+                  { key: "ai", label: t("usage.agents"), color: "var(--viz-ai)" },
+                  { key: "human", label: t("usage.people"), color: "var(--viz-human)" },
+                ]}
+                xLabel={dayLabel}
+                ariaLabel={t("usage.byDay")}
+              />
+            </section>
+            <section className="card chart-card">
+              <div className="chart-head">
+                <h2>{t("usage.topRoutes")}</h2>
+              </div>
+              <HBars
+                data={(data?.by_route ?? []).slice(0, 8).map((r) => ({ label: r.route.replace(/^(MCP )?(GET|POST|PUT|PATCH|DELETE) /, ""), value: r.tokens }))}
+                color="var(--viz-bar)"
+                ariaLabel={t("usage.topRoutes")}
+                detail={(i) => {
+                  const r = (data?.by_route ?? [])[i];
+                  return (
+                    <>
+                      <div className="faint" style={{ marginBottom: 4 }}>{r.route}</div>
+                      <div className="tip-row">
+                        <b>{num(r.tokens)}</b> <span className="muted">{t("usage.tokens")}</span>
+                      </div>
+                      <div className="tip-row">
+                        <b>{r.calls}</b> <span className="muted">{t("usage.calls")}</span>
+                      </div>
+                      <div className="faint">{r.principal}</div>
+                    </>
+                  );
+                }}
+              />
+            </section>
+          </div>
+
           <div className="card" style={{ marginBottom: 16 }}>
             <table className="table">
               <thead>
@@ -985,7 +1065,7 @@ function UsageTab() {
                 </tr>
               </thead>
               <tbody>
-                {data.by_principal.map((r) => (
+                {(data?.by_principal ?? []).map((r) => (
                   <tr key={`${r.principal}-${r.project_id}`}>
                     <td>
                       <div className="cell-title">
@@ -995,8 +1075,8 @@ function UsageTab() {
                     </td>
                     <td className="muted mono">{r.project_id}</td>
                     <td className="num">{r.calls}</td>
-                    <td className="num">{r.tokens.toLocaleString()}</td>
-                    <td className="num">{Math.round(r.tokens / r.calls).toLocaleString()}</td>
+                    <td className="num">{num(r.tokens)}</td>
+                    <td className="num">{num(Math.round(r.tokens / r.calls))}</td>
                     <td className="num">{kb(r.bytes)}</td>
                     <td className="muted">
                       <Ago iso={r.last_at} />
@@ -1006,33 +1086,19 @@ function UsageTab() {
               </tbody>
             </table>
           </div>
-          <div className="card">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{t("usage.routes")}</th>
-                  <th>{t("usage.who")}</th>
-                  <th className="num">{t("usage.calls")}</th>
-                  <th className="num">{t("usage.tokens")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.by_route.slice(0, 15).map((r) => (
-                  <tr key={`${r.principal}-${r.route}`}>
-                    <td className="mono">{r.route}</td>
-                    <td className="muted">{r.principal}</td>
-                    <td className="num">{r.calls}</td>
-                    <td className="num">{r.tokens.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="faint" style={{ fontSize: 12.5, marginTop: 12, maxWidth: "80ch" }}>
-            {t("usage.estimate")}
-          </p>
+          <p className="faint" style={{ fontSize: 12.5, maxWidth: "80ch" }}>{t("usage.estimate")}</p>
         </>
       )}
     </>
+  );
+}
+
+function Tile({ label, value, sub, small }: { label: string; value: string; sub?: string; small?: boolean }) {
+  return (
+    <div className="card kpi">
+      <div className="label">{label}</div>
+      <div className="value" style={small ? { fontSize: 17, fontWeight: 600 } : undefined}>{value}</div>
+      {sub && <div className="sub">{sub}</div>}
+    </div>
   );
 }

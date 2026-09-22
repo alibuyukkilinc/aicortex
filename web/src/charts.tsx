@@ -18,6 +18,10 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w];
 }
 
+// Axis labels stay narrow: 12.400 becomes 12,4 B (or 12.4K), so the numbers never run into the chart.
+const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+const tickLabel = (v: number) => (v >= 10000 ? compact.format(v) : v.toLocaleString());
+
 // "Nice" axis maximum and ticks: 0 / 5 / 10 rather than 0 / 3.7 / 7.4.
 function niceTicks(max: number, count = 4): number[] {
   if (max <= 0) return [0, 1];
@@ -76,7 +80,7 @@ export function StackedColumns({
   const [ref, width] = useWidth<HTMLDivElement>();
   const [tip, setTip] = useState<Tip | null>(null);
   const [active, setActive] = useState<number | null>(null);
-  const pad = { top: 8, right: 8, bottom: 22, left: 30 };
+  const pad = { top: 8, right: 8, bottom: 22, left: 38 };
   const innerW = Math.max(0, width - pad.left - pad.right);
   const innerH = height - pad.top - pad.bottom;
   const totals = data.map((d) => series.reduce((s, x) => s + Number(d[x.key] ?? 0), 0));
@@ -120,7 +124,7 @@ export function StackedColumns({
             <g key={t}>
               <line x1={pad.left} x2={width - pad.right} y1={y(t)} y2={y(t)} stroke={t === 0 ? "var(--viz-axis)" : "var(--viz-grid)"} strokeWidth={1} />
               <text x={pad.left - 6} y={y(t) + 4} textAnchor="end">
-                {t.toLocaleString()}
+                {tickLabel(t)}
               </text>
             </g>
           ))}
