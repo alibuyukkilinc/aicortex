@@ -598,3 +598,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .term { text-decoration: none; border-bottom: 1px dashed var(--border-strong); cursor: help; }
 .term:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 860px) { .guide-cards { grid-template-columns: 1fr; } }
+
+/* ---- approvals: what changes ----------------------------------------------------------- */
+
+.changes { margin-bottom: 16px; }
+.changes h3 { margin-bottom: 8px; }
+.changes p { margin: 0; color: var(--muted); }
+.body-diff { font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.body-diff .line { padding: 0 4px; border-radius: 3px; }
+.line.changed { background: rgba(255, 214, 10, 0.28); box-shadow: inset 2px 0 0 var(--warn); }
+.diff .old .line.changed { background: rgba(255, 69, 58, 0.16); box-shadow: inset 2px 0 0 var(--danger); }
+.diff .new .line.changed { background: rgba(48, 209, 88, 0.18); box-shadow: inset 2px 0 0 var(--ok); }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ApiError, api, useApi } from "../api";
+import { diffLines } from "../diff";
 import { useT } from "../i18n";
 import type { Draft } from "../types";
 import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, useSession, useToast } from "../ui";
@@ -122,7 +123,31 @@ export function Approvals() {
   );
 }
 
-type Doc = { title: string; summary?: string; body: string; status?: string; fields?: Record<string, unknown> };
+type Doc = {
+  title: string;
+  summary?: string;
+  body: string;
+  status?: string;
+  fields?: Record<string, unknown>;
+  tags?: string[];
+  links?: { code?: { file: string; lines?: string }[] };
+  verified_at_commit?: string;
+};
+
+// What this draft actually changes, in the reviewer's words. A draft can also change nothing but the
+// verification point: the AI says "I checked the code, this is still true", which clears the stale mark.
+function whatChanges(current: Doc | null, proposed: Doc) {
+  const list = (x?: { file: string; lines?: string }[]) => (x ?? []).map((c) => `${c.file}${c.lines ? `:${c.lines}` : ""}`).join(", ");
+  const changed = {
+    title: current?.title !== proposed.title,
+    summary: (current?.summary ?? "") !== (proposed.summary ?? ""),
+    body: (current?.body ?? "") !== proposed.body,
+    tags: (current?.tags ?? []).join(",") !== (proposed.tags ?? []).join(","),
+    code: list(current?.links?.code) !== list(proposed.links?.code),
+  };
+  const verify = (current?.verified_at_commit ?? "") !== (proposed.verified_at_commit ?? "");
+  return { changed, verify, onlyVerify: verify && !Object.values(changed).some(Boolean), nothing: !verify && !Object.values(changed).some(Boolean) };
+}
 
 function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const t = useT();
@@ -150,6 +175,15 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   if (!data) return <Drawer onClose={onClose} head={<span />}>{error ? <ErrorBox error={error} /> : <Loading />}</Drawer>;
   const { draft, current } = data;
   const proposed = draft.data;
+  const what = whatChanges(current, proposed);
+  const labels: [boolean, string][] = [
+    [what.changed.title, t("approvals.cTitle")],
+    [what.changed.summary, t("approvals.cSummary")],
+    [what.changed.body, t("approvals.cBody")],
+    [what.changed.tags, t("approvals.cTags")],
+    [what.changed.code, t("approvals.cCode")],
+    [what.verify, t("approvals.cVerify")],
+  ];
 
   return (
     <Drawer
@@ -179,28 +213,73 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
         </button>
       </div>
       <ErrorBox error={err} />
+      <div className="changes">
+        <h3>{t("approvals.whatChanges")}</h3>
+        {!current ? (
+          <p>{t("approvals.newNode")}</p>
+        ) : what.onlyVerify ? (
+          <p>
+            {t("approvals.onlyVerify")}{" "}
+            <span className="mono">
+              {(current.verified_at_commit ?? "—").slice(0, 7)} → {(proposed.verified_at_commit ?? "—").slice(0, 7)}
+            </span>
+          </p>
+        ) : what.nothing ? (
+          <p>{t("approvals.noChange")}</p>
+        ) : (
+          <div className="row" style={{ gap: 6 }}>
+            {labels.filter(([on]) => on).map(([, name]) => (
+              <span key={name} className="chip accent">
+                {name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="diff">
         <div className="old">
           <h3 style={{ marginBottom: 8 }}>{t("approvals.current")}</h3>
-          {current ? <DocView doc={current} /> : <p className="muted">{t("approvals.new")}</p>}
+          {current ? <DocView doc={current} other={proposed} side="old" /> : <p className="muted">{t("approvals.new")}</p>}
         </div>
         <div className="new">
           <h3 style={{ marginBottom: 8 }}>{t("approvals.proposed")}</h3>
-          <DocView doc={proposed} />
+          <DocView doc={proposed} other={current ?? undefined} side="new" />
         </div>
       </div>
     </Drawer>
   );
 }
 
-function DocView({ doc }: { doc: Doc }) {
+// Each side shows its own text with the lines that differ from the other side marked.
+function DocView({ doc, other, side }: { doc: Doc; other?: Doc; side: "old" | "new" }) {
+  const t = useT();
+  const mineKind = side === "old" ? "del" : "add";
+  const lines = other ? diffLines(side === "old" ? doc.body : other.body, side === "old" ? other.body : doc.body) : [];
+  const changedSummary = other && (other.summary ?? "") !== (doc.summary ?? "");
   return (
     <>
-      <strong>{doc.title}</strong>
-      {doc.summary && <p className="muted">{doc.summary}</p>}
+      <strong className={other && other.title !== doc.title ? "line changed" : undefined}>{doc.title}</strong>
+      {doc.summary && <p className={`muted ${changedSummary ? "line changed" : ""}`}>{doc.summary}</p>}
+      {doc.verified_at_commit && (
+        <p className="mono faint">
+          {t("stale.verifiedAt")}: {doc.verified_at_commit.slice(0, 7)}
+        </p>
+      )}
       {doc.status && <p className="mono faint">status: {doc.status}</p>}
       {doc.fields && Object.keys(doc.fields).length > 0 && <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(doc.fields, null, 2)}</pre>}
-      <Markdown text={doc.body} />
+      {other ? (
+        <div className="body-diff">
+          {lines
+            .filter((l) => l.kind === "same" || l.kind === mineKind)
+            .map((l, i) => (
+              <div key={i} className={`line ${l.kind === "same" ? "" : "changed"}`}>
+                {l.text || "\u00a0"}
+              </div>
+            ))}
+        </div>
+      ) : (
+        <Markdown text={doc.body} />
+      )}
     </>
   );
 }
