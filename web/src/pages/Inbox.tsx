@@ -1,7 +1,7 @@
 import { useApi } from "../api";
 import { Key, useT } from "../i18n";
 import type { ItemSummary } from "../types";
-import { ActorChip, Ago, ErrorBox, Loading, StatusChip, useSession } from "../ui";
+import { ActorChip, Ago, ErrorBox, Loading, StatusChip, TypeChip, useSession } from "../ui";
 
 export function Inbox() {
   const t = useT();
@@ -28,7 +28,7 @@ export function Inbox() {
                 <div className="meta">
                   <span className="chip accent">{t(`reason.${i.reason}` as Key)}</span>
                   {i.blocking && <span className="chip danger">{t("item.blocking")}</span>}
-                  <span className="chip mono">{i.type}</span>
+                  <TypeChip type={i.type} />
                   <StatusChip status={i.status} />
                   <ActorChip id={i.author} actors={actors} />
                   {i.category_path && <span className="faint">{i.category_path}</span>}

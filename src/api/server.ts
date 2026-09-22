@@ -84,10 +84,14 @@ export function buildServer(cortex: Cortex): FastifyInstance {
   // ---- web board --------------------------------------------------------------
 
   const webDir = findWebDir();
-  if (webDir) app.register(fastifyStatic, { root: webDir, wildcard: false, index: ["index.html"] });
+  // wildcard: files are looked up per request, so a rebuilt board is served without restarting the server.
+  if (webDir) app.register(fastifyStatic, { root: webDir, wildcard: true, index: ["index.html"] });
 
   app.setNotFoundHandler((req, reply) => {
-    if (req.method === "GET" && !req.url.startsWith("/api/")) {
+    // Client routes (no file extension) get the board page; a missing file like /assets/x.js stays a 404,
+    // otherwise the browser would try to run the HTML as a script and report a confusing MIME error.
+    const isFile = /\.[a-z0-9]+$/i.test(req.url.split("?")[0]);
+    if (req.method === "GET" && !req.url.startsWith("/api/") && !isFile) {
       return webDir
         ? reply.sendFile("index.html")
         : reply.type("text/html").send(page("Cortex API is running", "The board UI is not built. Run <code>npm run build</code> in the Cortex repository."));

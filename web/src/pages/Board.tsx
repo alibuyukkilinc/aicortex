@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { ApiError, api, qs, useApi } from "../api";
-import { useT } from "../i18n";
+import { useLabels, useT } from "../i18n";
 import { NewItemDialog, nextStatuses, useBranches, useSchema } from "../items";
 import type { ItemSummary } from "../types";
 import { ActorChip, ErrorBox, Icon, Loading, go, useSession, useToast } from "../ui";
 
 export function Board({ type }: { type: string }) {
   const t = useT();
+  const label = useLabels();
   const toast = useToast();
   const { actors, itemTypes, openItem, me } = useSession();
   const schema = useSchema(type);
@@ -24,7 +25,7 @@ export function Board({ type }: { type: string }) {
     if (item.status === status) return;
     try {
       await api(`/api/items/${item.id}`, { method: "PATCH", body: { status, ...(force ? { force } : {}) } });
-      toast({ text: `${item.title}: ${t("board.moved")} ${status}` });
+      toast({ text: `${item.title}: ${t("board.moved")} ${label.status(status)}` });
       reload();
     } catch (e) {
       const ae = e as ApiError;
@@ -45,7 +46,9 @@ export function Board({ type }: { type: string }) {
         <h1>{t("nav.board")}</h1>
         <select className="select" style={{ width: "auto" }} value={type} onChange={(e) => go(`board/${e.target.value}`)} aria-label={t("board.type")}>
           {itemTypes.map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {label.type(x)}
+            </option>
           ))}
         </select>
         <select className="select" style={{ width: "auto" }} value={branch} onChange={(e) => setBranch(e.target.value)} aria-label={t("board.branch")}>
@@ -73,7 +76,7 @@ export function Board({ type }: { type: string }) {
       </div>
       {schema?.description && (
         <p className="muted" style={{ margin: "-6px 0 14px" }}>
-          {schema.description} <span className="faint">· {t("board.dropHint")}</span>
+          {label.description(type, schema.description)} <span className="faint">· {t("board.dropHint")}</span>
         </p>
       )}
       {error && <ErrorBox error={error} />}
@@ -103,10 +106,10 @@ export function Board({ type }: { type: string }) {
                 }}
               >
                 <div className="column-head">
-                  <span>{status.replace(/_/g, " ")}</span>
+                  <span>{label.status(status)}</span>
                   <span className="count">{items.length}</span>
                   {humanOnly && (
-                    <span className="lock" title="human only">
+                    <span className="lock" title={t("board.humanOnly")}>
                       <Icon name="lock" size={13} />
                     </span>
                   )}
@@ -127,7 +130,11 @@ export function Board({ type }: { type: string }) {
                         {i.blocking && <span className="chip danger">{t("item.blocking")}</span>}
                         <ActorChip id={i.assignee} actors={actors} />
                         {i.category_path && <span className="chip">{i.category_path}</span>}
-                        {i.replies ? <span className="chip">💬 {i.replies}</span> : null}
+                        {i.replies ? (
+                          <span className="chip" title={t("board.replies")}>
+                            <Icon name="chat" size={12} /> {i.replies}
+                          </span>
+                        ) : null}
                       </div>
                     </article>
                   ))}

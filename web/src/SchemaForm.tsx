@@ -1,8 +1,7 @@
+import { useLabels, useT } from "./i18n";
 import type { Actor, FieldSpec } from "./types";
 
 // Renders inputs straight from a type's schema, so custom types defined in rules/*.schema.yaml work on the board with no UI code.
-
-const label = (name: string) => name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 function toLocalInput(iso: unknown): string {
   if (typeof iso !== "string" || !iso) return "";
@@ -23,6 +22,9 @@ export function SchemaForm({
   onChange: (v: Record<string, unknown>) => void;
   actors: Actor[];
 }) {
+  const t = useT();
+  const labels = useLabels();
+  const label = labels.field;
   const set = (k: string, v: unknown) => {
     const next = { ...value };
     if (v === "" || v === undefined || (Array.isArray(v) && v.length === 0)) delete next[k];
@@ -46,7 +48,7 @@ export function SchemaForm({
                 <option value="">—</option>
                 {spec.values?.map((o) => (
                   <option key={o} value={o}>
-                    {o}
+                    {labels.value(o)}
                   </option>
                 ))}
               </select>
@@ -56,7 +58,7 @@ export function SchemaForm({
             input = (
               <label className="check">
                 <input id={id} type="checkbox" checked={v === true} onChange={(e) => set(name, e.target.checked ? true : undefined)} />
-                {spec.description ?? label(name)}
+                {spec.description ? labels.hint(spec.description) : label(name)}
               </label>
             );
             break;
@@ -95,7 +97,7 @@ export function SchemaForm({
                 id={id}
                 className="textarea"
                 style={{ minHeight: 60 }}
-                placeholder="one per line"
+                placeholder={t("form.onePerLine")}
                 value={Array.isArray(v) ? v.join("\n") : ""}
                 onChange={(e) =>
                   set(
@@ -120,7 +122,7 @@ export function SchemaForm({
               </label>
             )}
             {input}
-            {spec.description && spec.type !== "boolean" && <span className="hint">{spec.description}</span>}
+            {spec.description && spec.type !== "boolean" && <span className="hint">{labels.hint(spec.description)}</span>}
           </div>
         );
       })}

@@ -55,6 +55,8 @@ test("board login sets an HttpOnly cookie; cookie writes need the CSRF header", 
     assert.equal(page.statusCode, 200);
     assert.match(String(page.headers["content-type"]), /html/);
     assert.equal((await app.inject({ url: "/api/nope", headers: { ...host, authorization: `Bearer ${t.init.tokens.owner}` } })).statusCode, 404);
+    // A missing asset is a 404, not the HTML page (which a browser would try to run as a script).
+    assert.equal((await app.inject({ url: "/assets/missing-abc123.js", headers: host })).statusCode, 404);
   } finally {
     await app.close();
     t.cleanup();

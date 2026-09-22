@@ -2,7 +2,7 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ApiError } from "./api";
-import { timeAgo, useT } from "./i18n";
+import { timeAgo, useLabels, useT } from "./i18n";
 import type { Actor } from "./types";
 
 // ---- routing (hash based: works from any static file server) --------------------
@@ -48,6 +48,8 @@ const paths: Record<string, string> = {
   logout: "M15 4h4v16h-4M10 17l-5-5 5-5M5 12h11",
   alert: "M12 9v4M12 17v.5M10.3 4.3L2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z",
   edit: "M4 20h4L19 9l-4-4L4 16zM13 7l4 4",
+  chat: "M5 5h14v10H9l-4 4z",
+  globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z",
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; size?: number }) {
@@ -101,7 +103,22 @@ const STATUS_TONE: Record<string, string> = {
   draft: "warn", stale: "danger", deprecated: "",
 };
 export function StatusChip({ status }: { status: string }) {
-  return <span className={`chip ${STATUS_TONE[status] ?? ""}`}>{status.replace(/_/g, " ")}</span>;
+  const label = useLabels();
+  return (
+    <span className={`chip status ${STATUS_TONE[status] ?? ""}`} title={status}>
+      <i className="dot" aria-hidden />
+      {label.status(status)}
+    </span>
+  );
+}
+
+export function TypeChip({ type }: { type: string }) {
+  const label = useLabels();
+  return (
+    <span className="chip type" title={type}>
+      {label.type(type)}
+    </span>
+  );
 }
 
 export function Loading() {
@@ -159,13 +176,19 @@ export function Drawer({ onClose, head, children }: { onClose: () => void; head:
 }
 
 export function Modal({ onClose, title, children }: { onClose: () => void; title: string; children: ReactNode }) {
+  const t = useT();
   useEscape(onClose);
   return (
     <>
       <div className="overlay" onClick={onClose} />
       <div className="modal" role="dialog" aria-modal aria-label={title}>
-        <h2 style={{ marginBottom: 14 }}>{title}</h2>
-        {children}
+        <div className="modal-head">
+          <h2>{title}</h2>
+          <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
+            <Icon name="x" />
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
       </div>
     </>
   );
@@ -195,6 +218,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.error ? "error" : ""}`}>
+            <Icon name={t.error ? "alert" : "check"} size={16} />
             <span style={{ flex: 1 }}>{t.text}</span>
             {t.action && (
               <button

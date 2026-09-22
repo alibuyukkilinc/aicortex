@@ -85,7 +85,7 @@ export function Reports() {
           <h1>{t("rep.title")}</h1>
           <p>{t("rep.intro")}</p>
         </div>
-        <span className="spacer" />
+        <div className="page-actions">
         <div className="segmented" role="group" aria-label={t("rep.title")}>
           {PRESETS.map((p) => (
             <button key={p} className={since === p ? "on" : ""} aria-pressed={since === p} onClick={() => setSince(p)}>
@@ -99,6 +99,7 @@ export function Reports() {
         <button className="btn primary" onClick={() => void download()}>
           {t("rep.download")}
         </button>
+        </div>
       </div>
       {error && <ErrorBox error={error} />}
       {!r ? (

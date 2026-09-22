@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { ApiError, api, useApi } from "./api";
-import { useT } from "./i18n";
+import { LangContext, useLabels, useT } from "./i18n";
 import { SchemaForm } from "./SchemaForm";
 import type { Item, NodeSummary, Reply, Schema } from "./types";
-import { ActorChip, Ago, Drawer, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, go, useSession, useToast } from "./ui";
+import { ActorChip, Ago, Drawer, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, TypeChip, go, useSession, useToast } from "./ui";
 
 export function useSchema(type: string | null) {
   const { data } = useApi<{ rules: Record<string, Schema> }>(type ? `/api/rules/${type}` : null);
@@ -31,6 +31,7 @@ export function nextStatuses(schema: Schema, from: string): string[] {
 
 export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const t = useT();
+  const label = useLabels();
   const toast = useToast();
   const { actors, me, ask } = useSession();
   const { data, error, loading, reload } = useApi<{ item: Item; replies: Reply[] }>(`/api/items/${id}`);
@@ -54,7 +55,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
   const move = async (status: string, force = false) => {
     try {
       await api(`/api/items/${id}`, { method: "PATCH", body: { status, ...(force ? { force } : {}) } });
-      toast({ text: `${t("board.moved")} ${status}` });
+      toast({ text: `${t("board.moved")} ${label.status(status)}` });
       reload();
     } catch (e) {
       const ae = e as ApiError;
@@ -98,7 +99,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       head={
         <>
           <div className="row" style={{ gap: 6, marginBottom: 6 }}>
-            <span className="chip mono">{item.type}</span>
+            <TypeChip type={item.type} />
             <StatusChip status={item.status} />
             {item.fields?.blocking === true && <span className="chip danger">{t("item.blocking")}</span>}
           </div>
@@ -112,11 +113,11 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       <div className="row" style={{ marginBottom: 16 }}>
         <label className="muted" style={{ fontSize: 12.5 }}>{t("item.status")}</label>
         <select className="select" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && void move(e.target.value)}>
-          <option value="">{item.status} →</option>
+          <option value="">{label.status(item.status)} →</option>
           {next.map((s) => (
             <option key={s} value={s}>
-              {s}
-              {schema?.human_only_statuses.includes(s) ? " 🔒" : ""}
+              {label.status(s)}
+              {schema?.human_only_statuses.includes(s) ? ` (${t("board.humanOnly")})` : ""}
             </option>
           ))}
         </select>
@@ -243,10 +244,10 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
           <ErrorBox error={err} />
           <div className="row" style={{ marginTop: 10 }}>
             <select className="select" style={{ width: "auto" }} value={replyStatus} onChange={(e) => setReplyStatus(e.target.value)}>
-              <option value="">{item.status}</option>
+              <option value="">{label.status(item.status)}</option>
               {next.map((s) => (
                 <option key={s} value={s}>
-                  → {s}
+                  → {label.status(s)}
                 </option>
               ))}
             </select>
@@ -272,10 +273,21 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
 }
 
 function FieldRow({ name, value }: { name: string; value: unknown }) {
-  const text = Array.isArray(value) ? value.join(", ") : typeof value === "boolean" ? (value ? "✓" : "✗") : String(value ?? "");
+  const t = useT();
+  const { lang } = useContext(LangContext);
+  const label = useLabels();
+  const text = Array.isArray(value)
+    ? value.join(", ")
+    : typeof value === "boolean"
+      ? t(value ? "common.yes" : "common.no")
+      : typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? new Date(`${value}T00:00:00`).toLocaleDateString(lang, { day: "numeric", month: "long", year: "numeric" })
+        : typeof value === "string"
+          ? label.value(value)
+        : String(value ?? "");
   return (
     <>
-      <dt>{name.replace(/_/g, " ")}</dt>
+      <dt>{label.field(name)}</dt>
       <dd style={{ whiteSpace: "pre-wrap" }}>{text}</dd>
     </>
   );
@@ -285,6 +297,7 @@ function FieldRow({ name, value }: { name: string; value: unknown }) {
 
 export function NewItemDialog({ type, onClose, defaultPath }: { type: string; onClose: () => void; defaultPath?: string }) {
   const t = useT();
+  const label = useLabels();
   const { actors, itemTypes } = useSession();
   const [kind, setKind] = useState(type);
   const schema = useSchema(kind);
@@ -321,7 +334,9 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
           <label>{t("board.type")}</label>
           <select className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}))}>
             {itemTypes.map((x) => (
-              <option key={x}>{x}</option>
+              <option key={x} value={x}>
+                {label.type(x)}
+              </option>
             ))}
           </select>
         </div>
@@ -339,7 +354,7 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
           </select>
         </div>
       </div>
-      {schema?.description && <p className="muted" style={{ marginTop: 0 }}>{schema.description}</p>}
+      {schema?.description && <p className="muted" style={{ marginTop: 0 }}>{label.description(kind, schema.description)}</p>}
       <div className="field">
         <label>
           {t("item.title")} <span className="req">*</span>

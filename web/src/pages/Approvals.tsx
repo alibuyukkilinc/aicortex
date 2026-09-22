@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ApiError, api, useApi } from "../api";
 import { useT } from "../i18n";
 import type { Draft } from "../types";
-import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, useSession, useToast } from "../ui";
+import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, useSession, useToast } from "../ui";
 
 type BulkResult = { done: string[]; failed: { id: string; code: string; message: string }[] };
 
@@ -104,7 +104,7 @@ export function Approvals() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="title">{d.title}</div>
                 <div className="meta">
-                  <span className="chip mono">{d.kind}</span>
+                  <TypeChip type={d.kind} />
                   <span className="mono faint">{d.kind === "node" ? d.target || "(root)" : d.target.slice(-8)}</span>
                   <ActorChip id={d.proposed_by} actors={actors} />
                   {d.reason && <span>“{d.reason}”</span>}
@@ -157,7 +157,7 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
       head={
         <>
           <div className="row" style={{ gap: 6, marginBottom: 6 }}>
-            <span className="chip mono">{draft.kind}</span>
+            <TypeChip type={draft.kind} />
             <ActorChip id={draft.proposed_by} actors={actors} />
             <Ago iso={draft.proposed_at} />
           </div>

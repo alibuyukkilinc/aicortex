@@ -214,10 +214,15 @@ function TopBar({ me, live }: { me: Me; live: ReturnType<typeof useLive> }) {
 
 function ThemeToggle() {
   const t = useT();
+  const isDark = () => {
+    const root = document.documentElement;
+    return root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  };
+  const [dark, setDark] = useState(isDark);
   const toggle = () => {
     const root = document.documentElement;
-    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    root.dataset.theme = dark ? "light" : "dark";
+    root.dataset.theme = isDark() ? "light" : "dark";
+    setDark(root.dataset.theme === "dark");
     try {
       localStorage.setItem("cortex.theme", root.dataset.theme);
     } catch {
@@ -226,7 +231,7 @@ function ThemeToggle() {
   };
   return (
     <button className="icon-btn" onClick={toggle} title={t("theme.toggle")} aria-label={t("theme.toggle")}>
-      <Icon name="moon" />
+      <Icon name={dark ? "sun" : "moon"} />
     </button>
   );
 }
@@ -258,7 +263,7 @@ function SideBar({ page }: { page: string }) {
       ))}
       <div className="sidebar-foot">
         <button className="btn ghost sm" onClick={() => setLang(lang === "tr" ? "en" : "tr")}>
-          🌐 {t("lang.toggle")}
+          <Icon name="globe" size={14} /> {t("lang.toggle")}
         </button>
         <button className="btn ghost sm" onClick={() => void logout()}>
           <Icon name="logout" size={14} /> {t("logout")}

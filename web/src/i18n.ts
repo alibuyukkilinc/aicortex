@@ -91,6 +91,11 @@ const en = {
   "board.all": "All",
   "board.new": "New",
   "board.empty": "No items",
+  "board.humanOnly": "humans only",
+  "form.onePerLine": "one per line",
+  "common.yes": "Yes",
+  "common.no": "No",
+  "board.replies": "replies",
   "board.dropHint": "Drag cards between columns to change their status.",
   "board.moved": "Moved to",
   "board.force": "Move anyway",
@@ -270,6 +275,11 @@ const tr: Dict = {
   "board.all": "Tümü",
   "board.new": "Yeni",
   "board.empty": "Kayıt yok",
+  "board.humanOnly": "yalnızca insan",
+  "form.onePerLine": "her satıra bir tane",
+  "common.yes": "Evet",
+  "common.no": "Hayır",
+  "board.replies": "yanıt",
   "board.dropHint": "Durumu değiştirmek için kartları sütunlar arasında sürükleyin.",
   "board.moved": "Taşındı:",
   "board.force": "Yine de taşı",
@@ -383,4 +393,86 @@ export function timeAgo(iso: string, t: (k: Key) => string): string {
   if (s < 3600) return `${Math.round(s / 60)} ${t("time.m")}`;
   if (s < 86400) return `${Math.round(s / 3600)} ${t("time.h")}`;
   return `${Math.round(s / 86400)} ${t("time.d")}`;
+}
+
+// Labels for built-in statuses and item types. Custom ones (from a project's own rules) fall back to their name.
+const LABELS: Record<Lang, { status: Record<string, string>; type: Record<string, string> }> = {
+  en: {
+    status: {
+      backlog: "Backlog", todo: "To do", doing: "Doing", review: "In review", done: "Done",
+      open: "Open", in_progress: "In progress", closed: "Closed", answered: "Answered",
+      active: "Active", archived: "Archived", proposed: "Proposed", accepted: "Accepted", rejected: "Rejected",
+      superseded: "Superseded", draft: "Draft", stale: "Stale", deprecated: "Deprecated",
+    },
+    type: { task: "Task", issue: "Issue", question: "Question", note: "Note", decision: "Decision", node: "Knowledge", item: "Item" },
+  },
+  tr: {
+    status: {
+      backlog: "Bekleyen", todo: "Yapılacak", doing: "Yapılıyor", review: "İncelemede", done: "Bitti",
+      open: "Açık", in_progress: "Üzerinde çalışılıyor", closed: "Kapalı", answered: "Cevaplandı",
+      active: "Aktif", archived: "Arşivlendi", proposed: "Önerildi", accepted: "Kabul edildi", rejected: "Reddedildi",
+      superseded: "Geçersiz kılındı", draft: "Taslak", stale: "Eskimiş", deprecated: "Kullanımdan kalktı",
+    },
+    type: { task: "Görev", issue: "Sorun", question: "Soru", note: "Not", decision: "Karar", node: "Bilgi", item: "Kayıt" },
+  },
+};
+
+// Built-in schema descriptions, translated only while a project has not rewritten them.
+const DEFAULT_DESCRIPTIONS: Record<string, { en: string; tr: string }> = {
+  task: { en: "A unit of work on the board.", tr: "Panoda ilerleyen bir iş." },
+  issue: { en: "A bug or problem that needs fixing.", tr: "Düzeltilmesi gereken bir hata veya sorun." },
+  question: {
+    en: "A question between humans and AIs. Assign it to an actor, '@humans' or '@ai'.",
+    tr: "İnsanlar ve AI'lar arasında bir soru. Bir aktöre, '@humans' ya da '@ai' grubuna atayın.",
+  },
+  note: { en: "A free-form note attached to a part of the project.", tr: "Projenin bir bölümüne iliştirilmiş serbest not." },
+  decision: { en: "What we decided, why, and what we rejected (ADR).", tr: "Ne karar verdik, neden, neyi reddettik (ADR)." },
+};
+
+// Built-in field names and their default hints. Custom fields show their own name and description.
+const FIELDS: Record<Lang, Record<string, string>> = {
+  en: {
+    priority: "Priority", due: "Due date", estimate: "Estimate", severity: "Severity", steps: "Steps to reproduce",
+    expected: "Expected", actual: "Actual", environment: "Environment", blocking: "Blocking", context: "Context",
+    alternatives: "Alternatives", consequences: "Consequences", supersedes: "Supersedes", resolution: "Resolution",
+    commits: "Commits", files: "Files",
+  },
+  tr: {
+    priority: "Öncelik", due: "Son tarih", estimate: "Tahmini süre", severity: "Önem", steps: "Nasıl tekrarlanır",
+    expected: "Beklenen", actual: "Gerçekleşen", environment: "Ortam", blocking: "Engelleyici", context: "Bağlam",
+    alternatives: "Alternatifler", consequences: "Sonuçlar", supersedes: "Yerine geçtiği karar", resolution: "Sonuç",
+    commits: "Commit'ler", files: "Dosyalar",
+  },
+};
+const FIELD_HINTS: Record<string, { en: string; tr: string }> = {
+  "Free text, e.g. \"2h\" or \"3 points\"": { en: "Free text, e.g. \"2h\" or \"3 points\"", tr: "Serbest metin, ör. \"2 saat\" veya \"3 puan\"" },
+  "How to reproduce": { en: "How to reproduce", tr: "Hatayı nasıl tekrarlarız" },
+  "true if the asker cannot continue until this is answered": {
+    en: "The asker cannot continue until this is answered",
+    tr: "Cevap gelmeden soran kişi devam edemiyor",
+  },
+  "The problem and constraints": { en: "The problem and constraints", tr: "Sorun ve kısıtlar" },
+  "Options considered and why they lost": { en: "Options considered and why they lost", tr: "Düşünülen seçenekler ve neden seçilmedikleri" },
+  "What becomes easier or harder": { en: "What becomes easier or harder", tr: "Neler kolaylaşıyor, neler zorlaşıyor" },
+};
+// Enum values of built-in fields (priority, severity, resolution).
+const VALUES: Record<Lang, Record<string, string>> = {
+  en: {},
+  tr: {
+    low: "Düşük", medium: "Orta", high: "Yüksek", critical: "Kritik",
+    fixed: "Düzeltildi", wontfix: "Düzeltilmeyecek", needs_info: "Bilgi gerekiyor", duplicate: "Tekrar", cannot_reproduce: "Tekrarlanamadı",
+  },
+};
+
+export function useLabels() {
+  const { lang } = useContext(LangContext);
+  const human = (s: string) => s.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  return {
+    status: (s: string) => LABELS[lang].status[s] ?? human(s),
+    type: (s: string) => LABELS[lang].type[s] ?? human(s),
+    description: (type: string, text: string) => (DEFAULT_DESCRIPTIONS[type]?.en === text ? DEFAULT_DESCRIPTIONS[type][lang] : text),
+    field: (name: string) => FIELDS[lang][name] ?? human(name),
+    hint: (text: string) => FIELD_HINTS[text]?.[lang] ?? text,
+    value: (v: string) => VALUES[lang][v] ?? v, // unknown text stays exactly as written
+  };
 }

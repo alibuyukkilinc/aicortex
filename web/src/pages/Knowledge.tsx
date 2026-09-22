@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, qs, useApi } from "../api";
 import { useT } from "../i18n";
 import type { ItemSummary, KnowledgeNode, NodeSummary, StaleInfo } from "../types";
-import { ActorChip, Ago, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, go, useSession, useToast } from "../ui";
+import { ActorChip, Ago, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, TypeChip, go, useSession, useToast } from "../ui";
 
 export function Knowledge({ path }: { path: string }) {
   const t = useT();
@@ -91,31 +91,34 @@ function NodeView({ path }: { path: string }) {
 
   return (
     <article className="doc">
-      <div className="breadcrumbs">
-        <a href="#/knowledge/">root</a>
-        {crumbs.map((c, i) => (
-          <span key={i}>
-            / <a href={`#/knowledge/${crumbs.slice(0, i + 1).join("/")}`}>{c}</a>
-          </span>
-        ))}
-      </div>
-      <div className="row" style={{ alignItems: "flex-start" }}>
-        <h1 style={{ flex: 1 }}>{n.title}</h1>
-        <button className="btn sm" onClick={() => ask(n.path, n.title)}>
-          <Icon name="ask" /> {t("tree.ask")}
-        </button>
-        <button className="btn sm" onClick={() => setEditing("edit")}>
-          <Icon name="edit" /> {t("common.edit")}
-        </button>
-        <button className="btn sm" onClick={() => setEditing("child")}>
-          <Icon name="plus" /> {t("tree.newChild")}
-        </button>
-        {n.path !== "" && (
-          <button className="btn sm danger" onClick={() => void remove(n)}>
-            <Icon name="x" /> {t("tree.delete")}
+      {/* Path on the left, actions on the right; the title below gets the full width. */}
+      <div className="doc-bar">
+        <div className="breadcrumbs">
+          <a href="#/knowledge/">root</a>
+          {crumbs.map((c, i) => (
+            <span key={i}>
+              / <a href={`#/knowledge/${crumbs.slice(0, i + 1).join("/")}`}>{c}</a>
+            </span>
+          ))}
+        </div>
+        <div className="doc-actions">
+          <button className="btn sm" onClick={() => ask(n.path, n.title)}>
+            <Icon name="ask" size={14} /> {t("tree.ask")}
           </button>
-        )}
+          <button className="btn sm" onClick={() => setEditing("edit")}>
+            <Icon name="edit" size={14} /> {t("common.edit")}
+          </button>
+          <button className="btn sm" onClick={() => setEditing("child")}>
+            <Icon name="plus" size={14} /> {t("tree.newChild")}
+          </button>
+          {n.path !== "" && (
+            <button className="btn sm ghost danger" onClick={() => void remove(n)} title={t("tree.delete")}>
+              <Icon name="x" size={14} /> {t("tree.delete")}
+            </button>
+          )}
+        </div>
       </div>
+      <h1>{n.title}</h1>
       <p className="summary">{n.summary}</p>
       {data.staleness && <StaleBanner info={data.staleness} path={n.path} onEdit={() => setEditing("edit")} onVerified={reload} />}
       <div className="row muted" style={{ fontSize: 12.5, gap: 6, marginBottom: 16 }}>
@@ -149,7 +152,7 @@ function NodeView({ path }: { path: string }) {
           <div className="card list">
             {items.data.items.map((i) => (
               <div key={i.id} className="list-row" onClick={() => openItem(i.id)}>
-                <span className="chip mono">{i.type}</span>
+                <TypeChip type={i.type} />
                 <span className="title" style={{ flex: 1 }}>
                   {i.title}
                 </span>
