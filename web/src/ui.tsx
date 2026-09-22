@@ -106,7 +106,6 @@ export function StatusChip({ status }: { status: string }) {
   const label = useLabels();
   return (
     <span className={`chip status ${STATUS_TONE[status] ?? ""}`} title={status}>
-      <i className="dot" aria-hidden />
       {label.status(status)}
     </span>
   );
