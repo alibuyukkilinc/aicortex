@@ -1,4 +1,5 @@
-import { FSWatcher, existsSync, readFileSync, readdirSync, watch } from "node:fs";
+import { EventEmitter } from "node:events";
+import { FSWatcher, existsSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
@@ -64,6 +65,8 @@ export class Cortex {
   readonly index: Index;
   readonly items: ItemService;
   readonly activity: ActivityService;
+  // "change" fires after every write and every reindex; the web board streams it to browsers.
+  readonly events = new EventEmitter();
   private p: ReturnType<typeof paths>;
   private watcher?: FSWatcher;
 
@@ -113,6 +116,7 @@ export class Cortex {
     });
     const activity = this.activityStore.all();
     this.index.reindex({ nodes, items, activity });
+    this.events.emit("change", { type: "reindex" });
     return { nodes: nodes.length, items: items.length, activity: activity.length };
   }
 
@@ -421,6 +425,37 @@ export class Cortex {
     return { version, rules: Object.fromEntries(names.map((n) => [n, one(n)]).filter(([, r]) => r)) };
   }
 
+  // Raw YAML so humans edit exactly what is on disk (comments included).
+  rulesSource(name: string): { name: string; file: string; source: string; exists: boolean } {
+    const file = this.rulesFile(name);
+    const full = join(this.p.rules, file);
+    if (existsSync(full)) return { name, file, source: readFileSync(full, "utf8"), exists: true };
+    const s = this.schema(name);
+    return { name, file, source: s ? YAML.stringify(s) : "", exists: false };
+  }
+
+  saveRules(actor: Actor, name: string, source: string): { name: string; version: string; message: string } {
+    if (actor.kind !== "human") throw new CortexError("forbidden", "Rules belong to humans. Propose a change by opening a question for @humans.", 403);
+    const file = this.rulesFile(name);
+    let parsed: unknown;
+    try {
+      parsed = YAML.parse(source);
+    } catch (e) {
+      throw new CortexError("invalid_rules", `YAML error: ${(e as Error).message}`, 400);
+    }
+    const issues = validateRulesDoc(name, parsed);
+    if (issues.length) throw new CortexError("invalid_rules", `The ${name} rules are not valid.`, 400, { issues });
+    writeFileSync(join(this.p.rules, file), source.endsWith("\n") ? source : `${source}\n`, "utf8");
+    this.activity.system(actor.id, "rules.updated", `Updated rules "${name}"`);
+    return { name, version: rulesVersion(this.project.dir), message: "Rules saved. AIs will see the new rules_version on their next call." };
+  }
+
+  private rulesFile(name: string): string {
+    if (name === "_global") return "_global.yaml";
+    if (!/^[a-z][a-z0-9-]{0,39}$/.test(name)) throw new CortexError("invalid_rules", `Invalid rules name "${name}". Use lowercase letters, digits and dashes.`, 400);
+    return `${name}.schema.yaml`;
+  }
+
   // ---- helpers ------------------------------------------------------------
 
   private conflict(by: string, at: string) {
@@ -444,6 +479,67 @@ export class Cortex {
     const suggestions = path ? this.index.search(path.replace(/[/-]/g, " "), { kinds: ["node"], limit: 3 }).map((h) => h.ref) : [];
     return new CortexError("not_found", `No node at "${path}".`, 404, suggestions.length ? { did_you_mean: suggestions } : undefined);
   }
+}
+
+const FIELD_TYPES = ["string", "text", "enum", "number", "boolean", "date", "datetime", "tree_path", "actor", "item_ref", "commit", "url", "list"];
+const isStrList = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+
+function validateFieldSpecs(prefix: string, fields: unknown, issues: string[]) {
+  if (fields === undefined || fields === null) return;
+  if (typeof fields !== "object" || Array.isArray(fields)) return void issues.push(`${prefix}: must be a map of field name -> spec`);
+  for (const [k, spec] of Object.entries(fields as Record<string, Record<string, unknown>>)) {
+    if (!spec || typeof spec !== "object") {
+      issues.push(`${prefix}.${k}: must be an object like { type: string }`);
+      continue;
+    }
+    if (!FIELD_TYPES.includes(spec.type as string)) issues.push(`${prefix}.${k}.type: must be one of ${FIELD_TYPES.join(", ")}`);
+    if (spec.type === "enum" && !(isStrList(spec.values) && spec.values.length)) issues.push(`${prefix}.${k}.values: an enum needs a non-empty list of values`);
+    if (spec.type === "list" && spec.of !== undefined && (!FIELD_TYPES.includes(spec.of as string) || spec.of === "list")) issues.push(`${prefix}.${k}.of: invalid element type`);
+  }
+}
+
+// Structural check before a human's rules edit is written, so a typo cannot break every write.
+export function validateRulesDoc(name: string, doc: unknown): string[] {
+  const issues: string[] = [];
+  if (!doc || typeof doc !== "object" || Array.isArray(doc)) return ["the document must be a YAML map"];
+  const d = doc as Record<string, unknown>;
+  if (name === "_global") {
+    if (!isStrList(d.rules)) issues.push("rules: must be a list of strings");
+    return issues;
+  }
+  if (name === "activity") {
+    if (!isStrList(d.actions) || !d.actions.length) issues.push("actions: must be a non-empty list of strings");
+    if (d.why_required_for !== undefined && !isStrList(d.why_required_for)) issues.push("why_required_for: must be a list of actions");
+    return issues;
+  }
+  if (name === "node") return issues;
+
+  if (d.type !== name) issues.push(`type: must be "${name}" (the file name)`);
+  const statuses = isStrList(d.statuses) ? d.statuses : [];
+  if (!statuses.length) issues.push("statuses: must be a non-empty list of strings");
+  const inStatuses = (s: unknown) => typeof s === "string" && statuses.includes(s);
+  if (!inStatuses(d.initial)) issues.push("initial: must be one of statuses");
+  for (const key of ["terminal", "human_only_statuses"]) {
+    if (d[key] !== undefined && !(isStrList(d[key]) && (d[key] as string[]).every(inStatuses))) issues.push(`${key}: must list statuses`);
+  }
+  if (d.transitions !== undefined && d.transitions !== "any") {
+    if (typeof d.transitions !== "object" || Array.isArray(d.transitions)) issues.push('transitions: must be "any" or a map of status -> [next statuses]');
+    else
+      for (const [from, to] of Object.entries(d.transitions as Record<string, unknown>)) {
+        if (!inStatuses(from)) issues.push(`transitions.${from}: unknown status`);
+        if (!isStrList(to) || !to.every(inStatuses)) issues.push(`transitions.${from}: must list statuses`);
+      }
+  }
+  validateFieldSpecs("fields", d.fields, issues);
+  const reply = d.reply as Record<string, unknown> | undefined;
+  if (reply) {
+    validateFieldSpecs("reply.fields", reply.fields, issues);
+    for (const [i, r] of ((reply.on_reply as Record<string, unknown>[] | undefined) ?? []).entries()) {
+      if (!inStatuses(r.from) || !inStatuses(r.to)) issues.push(`reply.on_reply[${i}]: from and to must be statuses`);
+      if (!["assignee", "not_author", "author", "anyone"].includes(r.by as string)) issues.push(`reply.on_reply[${i}].by: assignee | not_author | author | anyone`);
+    }
+  }
+  return issues;
 }
 
 function snippet(text: string, max = 160): string {

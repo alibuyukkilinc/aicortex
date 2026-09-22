@@ -7,13 +7,17 @@ process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
 }) as typeof process.emitWarning;
 
 import { parseArgs } from "node:util";
+// Safe as static imports: neither module loads node:sqlite (which must come after the warning filter above).
+import { createLoginCode } from "./api/auth.js";
+import { loadTokens } from "./core/project.js";
 
 const HELP = `Cortex: shared project brain for humans and AIs
 
 Usage: cortex <command> [options]
 
   init [--name <n>] [--agent-files]  Create .cortex/ in the current folder
-  start [--port <n>]                 Start the API (and later the board) on localhost
+  start [--port <n>]                 Start the API and the web board on localhost
+  login [--actor <id>]               Print a 10-minute login link for the board (default: first human)
   mcp [--actor <id>]                 Run as an MCP server over stdio (default actor: ai-agent)
   bootstrap                          Print the task that lets your AI fill the tree
   reindex                            Rebuild the search index from files
@@ -69,6 +73,18 @@ Next steps:
       const app = buildServer(cortex);
       await app.listen({ port, host: "127.0.0.1" });
       console.log(`Cortex "${project.config.project.name}" running at http://localhost:${port}`);
+      const human = project.config.actors.find((a) => a.kind === "human");
+      if (human) console.log(`Open the board as ${human.id}: ${loginLink(project, human.id, port)}`);
+      break;
+    }
+
+    case "login": {
+      const project = loadProject();
+      const actor = values.actor ?? project.config.actors.find((a) => a.kind === "human")?.id;
+      const found = project.config.actors.find((a) => a.id === actor);
+      if (!found || found.kind !== "human") throw new Error(`"${actor ?? ""}" is not a human actor in cortex.config.yaml.`);
+      const port = values.port ? Number(values.port) : project.config.port;
+      console.log(loginLink(project, found.id, port));
       break;
     }
 
@@ -101,6 +117,12 @@ Next steps:
       console.log(HELP);
       if (cmd && cmd !== "help" && cmd !== "--help") process.exitCode = 1;
   }
+}
+
+function loginLink(project: { dir: string }, actorId: string, port: number): string {
+  const token = loadTokens(project.dir)[actorId];
+  if (!token) throw new Error(`No token for "${actorId}" in .cortex/.secrets.yaml.`);
+  return `http://localhost:${port}/login?code=${encodeURIComponent(createLoginCode(actorId, token))}`;
 }
 
 main().catch((e) => {

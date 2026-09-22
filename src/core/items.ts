@@ -136,7 +136,7 @@ export class ItemService {
     }
     if (!canTransition(schema, from, to) && !(actor.kind === "human" && force)) {
       const allowed = schema.transitions === "any" ? schema.statuses : (schema.transitions[from] ?? []);
-      throw new CortexError("invalid_transition", `A ${schema.type} cannot go from "${from}" to "${to}".`, 400, {
+      throw new CortexError("invalid_transition", `Cannot move this ${schema.type} from "${from}" to "${to}".`, 400, {
         allowed_from_here: allowed,
         ...(actor.kind === "human" ? { note: "Humans may override with force: true." } : {}),
       });
@@ -395,7 +395,7 @@ export class ItemService {
     limit?: number;
     cursor?: string;
   }) {
-    const limit = Math.min(Math.max(q.limit ?? 20, 1), 100);
+    const limit = Math.min(Math.max(q.limit ?? 20, 1), 500);
     const offset = q.cursor ? Math.max(0, Number(q.cursor) || 0) : 0;
     const { items, total } = this.c.index.queryItems({
       type: q.type,

@@ -1,0 +1,129 @@
+import type { Actor, FieldSpec } from "./types";
+
+// Renders inputs straight from a type's schema, so custom types defined in rules/*.schema.yaml work on the board with no UI code.
+
+const label = (name: string) => name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+function toLocalInput(iso: unknown): string {
+  if (typeof iso !== "string" || !iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function SchemaForm({
+  fields,
+  value,
+  onChange,
+  actors,
+}: {
+  fields: Record<string, FieldSpec>;
+  value: Record<string, unknown>;
+  onChange: (v: Record<string, unknown>) => void;
+  actors: Actor[];
+}) {
+  const set = (k: string, v: unknown) => {
+    const next = { ...value };
+    if (v === "" || v === undefined || (Array.isArray(v) && v.length === 0)) delete next[k];
+    else next[k] = v;
+    onChange(next);
+  };
+
+  return (
+    <>
+      {Object.entries(fields).map(([name, spec]) => {
+        const v = value[name];
+        const id = `f-${name}`;
+        let input;
+        switch (spec.type) {
+          case "text":
+            input = <textarea id={id} className="textarea" value={(v as string) ?? ""} onChange={(e) => set(name, e.target.value)} />;
+            break;
+          case "enum":
+            input = (
+              <select id={id} className="select" value={(v as string) ?? ""} onChange={(e) => set(name, e.target.value)}>
+                <option value="">—</option>
+                {spec.values?.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            );
+            break;
+          case "boolean":
+            input = (
+              <label className="check">
+                <input id={id} type="checkbox" checked={v === true} onChange={(e) => set(name, e.target.checked ? true : undefined)} />
+                {spec.description ?? label(name)}
+              </label>
+            );
+            break;
+          case "number":
+            input = <input id={id} type="number" className="input" value={(v as number) ?? ""} onChange={(e) => set(name, e.target.value === "" ? "" : Number(e.target.value))} />;
+            break;
+          case "date":
+            input = <input id={id} type="date" className="input" value={(v as string) ?? ""} onChange={(e) => set(name, e.target.value)} />;
+            break;
+          case "datetime":
+            input = (
+              <input
+                id={id}
+                type="datetime-local"
+                className="input"
+                value={toLocalInput(v)}
+                onChange={(e) => set(name, e.target.value ? new Date(e.target.value).toISOString() : "")}
+              />
+            );
+            break;
+          case "actor":
+            input = (
+              <select id={id} className="select" value={(v as string) ?? ""} onChange={(e) => set(name, e.target.value)}>
+                <option value="">—</option>
+                {actors.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.id} ({a.kind})
+                  </option>
+                ))}
+              </select>
+            );
+            break;
+          case "list":
+            input = (
+              <textarea
+                id={id}
+                className="textarea"
+                style={{ minHeight: 60 }}
+                placeholder="one per line"
+                value={Array.isArray(v) ? v.join("\n") : ""}
+                onChange={(e) =>
+                  set(
+                    name,
+                    e.target.value
+                      .split("\n")
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  )
+                }
+              />
+            );
+            break;
+          default:
+            input = <input id={id} className="input" value={(v as string) ?? ""} onChange={(e) => set(name, e.target.value)} />;
+        }
+        return (
+          <div className="field" key={name}>
+            {spec.type !== "boolean" && (
+              <label htmlFor={id}>
+                {label(name)} {spec.required && <span className="req">*</span>}
+              </label>
+            )}
+            {input}
+            {spec.description && spec.type !== "boolean" && <span className="hint">{spec.description}</span>}
+          </div>
+        );
+      })}
+    </>
+  );
+}

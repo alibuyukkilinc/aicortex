@@ -1,7 +1,13 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import cookie from "@fastify/cookie";
+import fastifyStatic from "@fastify/static";
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Cortex } from "../core/cortex.js";
+import { loadTokens } from "../core/project.js";
 import { Actor, CortexError } from "../core/types.js";
 import { DocKind } from "../index/db.js";
+import { CSRF_HEADER, SESSION_COOKIE, verifyLoginCode } from "./auth.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -10,15 +16,30 @@ declare module "fastify" {
 }
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 type Q = Record<string, string | undefined>;
 const num = (v: string | undefined) => (v === undefined || v === "" ? undefined : Number(v));
 const bool = (v: string | undefined) => (v === "true" ? true : v === "false" ? false : undefined);
 const list = (v: string | undefined) => (v ? v.split(",").map((x) => x.trim()).filter(Boolean) : undefined);
 
+// dist/api/server.js -> dist/web; when running from src/ with tsx, fall back to the last build.
+function findWebDir(): string | null {
+  for (const rel of ["../web", "../../dist/web"]) {
+    const dir = fileURLToPath(new URL(rel, import.meta.url));
+    if (existsSync(`${dir}/index.html`)) return dir;
+  }
+  return null;
+}
+
+const page = (title: string, body: string) =>
+  `<!doctype html><meta charset="utf-8"><title>Cortex</title><body style="font-family:system-ui;padding:2rem;max-width:40rem">
+<h1>${title}</h1><p>${body}</p>`;
+
 export function buildServer(cortex: Cortex): FastifyInstance {
   const app = Fastify({ logger: false });
   app.decorateRequest("actor", null as unknown as Actor);
+  app.register(cookie);
 
   // Every response carries _meta so AIs notice rule changes without re-reading the rules.
   const ok = (data: object) => ({ ...data, _meta: cortex.meta() });
@@ -29,15 +50,22 @@ export function buildServer(cortex: Cortex): FastifyInstance {
     if (!LOCAL_HOSTS.has(host)) {
       return reply.code(403).send({ error: { code: "forbidden_host", message: "Cortex only answers on localhost." } });
     }
-    if (req.url === "/" || req.url.startsWith("/api/health")) return;
+    const path = req.url.split("?")[0];
+    if (!path.startsWith("/api/") || path === "/api/health") return; // the board's static files and /login are public
+
     const auth = req.headers.authorization ?? "";
-    const token = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
-    const actor = cortex.actorByToken(token);
+    const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
+    const fromCookie = bearer ? undefined : req.cookies[SESSION_COOKIE];
+    // Cookies ride along with cross-site requests; a custom header cannot be sent cross-site without CORS, which we never allow.
+    if (fromCookie && !SAFE_METHODS.has(req.method) && req.headers[CSRF_HEADER] !== "1") {
+      return reply.code(403).send({ error: { code: "csrf", message: `Missing ${CSRF_HEADER} header.` } });
+    }
+    const actor = cortex.actorByToken(bearer ?? fromCookie);
     if (!actor) {
       return reply.code(401).send({
         error: {
           code: "unauthorized",
-          message: "Send 'Authorization: Bearer <token>'. Tokens are in .cortex/.secrets.yaml.",
+          message: "Send 'Authorization: Bearer <token>' (tokens are in .cortex/.secrets.yaml), or open the board with a link from `cortex login`.",
         },
       });
     }
@@ -52,12 +80,59 @@ export function buildServer(cortex: Cortex): FastifyInstance {
     return reply.code(status).send({ error: { code: status === 500 ? "internal" : "bad_request", message: (err as Error).message } });
   });
 
-  app.get("/", async (_req, reply) =>
-    reply
-      .type("text/html")
-      .send(`<!doctype html><meta charset="utf-8"><title>Cortex</title><body style="font-family:system-ui;padding:2rem">
-<h1>Cortex is running</h1><p>The board UI arrives in a later slice. Start with <code>GET /api/brief</code> (needs a Bearer token from .cortex/.secrets.yaml).</p>`),
+  // ---- web board --------------------------------------------------------------
+
+  const webDir = findWebDir();
+  if (webDir) app.register(fastifyStatic, { root: webDir, wildcard: false, index: ["index.html"] });
+
+  app.setNotFoundHandler((req, reply) => {
+    if (req.method === "GET" && !req.url.startsWith("/api/")) {
+      return webDir
+        ? reply.sendFile("index.html")
+        : reply.type("text/html").send(page("Cortex API is running", "The board UI is not built. Run <code>npm run build</code> in the Cortex repository."));
+    }
+    return reply.code(404).send({ error: { code: "not_found", message: `No route ${req.method} ${req.url}` } });
+  });
+
+  app.get("/login", async (req, reply) => {
+    const tokens = loadTokens(cortex.project.dir);
+    const actorId = verifyLoginCode((req.query as Q).code ?? "", tokens);
+    const actor = actorId ? cortex.project.config.actors.find((a) => a.id === actorId) : undefined;
+    if (!actor || actor.kind !== "human") {
+      return reply
+        .code(401)
+        .type("text/html")
+        .send(page("Login link expired or invalid", "Run <code>npx projcortex login</code> in your project for a fresh link."));
+    }
+    reply.setCookie(SESSION_COOKIE, tokens[actor.id], { httpOnly: true, sameSite: "strict", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    return reply.redirect("/");
+  });
+
+  app.post("/api/logout", async (_req, reply) => reply.clearCookie(SESSION_COOKIE, { path: "/" }).send({ ok: true }));
+  app.get("/api/me", async (req) =>
+    ok({ actor: req.actor, project: cortex.project.config.project, actors: cortex.project.config.actors, item_types: cortex.itemTypes() }),
   );
+
+  // Live updates for the board: every write or reindex (including other processes, via the file watcher).
+  app.get("/api/events", (req, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+    reply.raw.write(": connected\n\n");
+    const onChange = (e: { type: string; entry?: unknown }) => reply.raw.write(`data: ${JSON.stringify(e)}\n\n`);
+    const ping = setInterval(() => reply.raw.write(": ping\n\n"), 25000);
+    cortex.events.on("change", onChange);
+    req.raw.on("close", () => {
+      clearInterval(ping);
+      cortex.events.off("change", onChange);
+    });
+  });
+
+  app.get("/api/rules/:name/source", async (req) => ok(cortex.rulesSource((req.params as Q).name!)));
+  app.put("/api/rules/:name/source", async (req) => {
+    const source = ((req.body ?? {}) as { source?: unknown }).source;
+    if (typeof source !== "string") throw new CortexError("invalid_request", "Send { source: <yaml string> }.", 400);
+    return ok(cortex.saveRules(req.actor, (req.params as Q).name!, source));
+  });
 
   app.get("/api/health", async () => ({ ok: true, project: cortex.project.config.project.name, ...cortex.meta() }));
 

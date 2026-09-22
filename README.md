@@ -19,8 +19,10 @@ Requires Node.js 22.13 or newer. Nothing else: no database, no Docker, no API ke
 
 ```bash
 npx projcortex init          # creates .cortex/ in your repo
-npx projcortex start         # local API on http://localhost:4747
+npx projcortex start         # API + web board on http://localhost:4747
 ```
+
+`start` prints a one-time login link for the board (run `npx projcortex login` for a fresh one). No passwords: the link is signed with your actor token and expires in 10 minutes.
 
 Connect your AI tool over MCP (Claude Code example):
 
@@ -29,6 +31,17 @@ claude mcp add cortex -- npx projcortex mcp --actor ai-agent
 ```
 
 Then fill the tree: `npx projcortex bootstrap` prints a task you hand to your AI.
+
+## The board (for humans)
+
+- **Inbox**: everything waiting on you; blocking questions first
+- **Board**: kanban per item type, columns = statuses from the rules; forbidden moves are dimmed and explained
+- **Knowledge**: the tree with open-item counts, markdown, code links; edit nodes or add children
+- **Activity**: what each AI did and **why**, live; one click to ask about any entry
+- **Approvals**: current vs proposed side by side; approve or reject AI drafts
+- **Rules**: edit the YAML rules; invalid rules are refused before they are saved
+
+Everything updates live (server-sent events), including changes made by an AI in another process. Turkish and English, light and dark.
 
 ## How an AI uses it
 
@@ -101,7 +114,7 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 
 - [x] **Slice 1:** init, knowledge tree, keyword search (Turkish-aware), brief, drafts & approval, REST, MCP
 - [x] **Slice 2:** items (task, issue, question, note, decision), inbox, ask-about-anything, activity log, per-type schemas, custom types
-- [ ] **Slice 3:** web board (kanban, tree explorer, activity feed, approvals) in TR/EN
+- [x] **Slice 3:** web board (inbox, kanban, knowledge explorer, live activity feed, approvals, rules editor) in TR/EN
 - [ ] **Slice 4:** semantic search with a local multilingual embedding model (hybrid ranking)
 - [ ] **Slice 5:** code links → stale detection from git history
 - [ ] Later: reports, team server, multi-project
@@ -111,7 +124,9 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 ```bash
 npm install
 npm test
-npm run dev -- start
+npm run build          # server + board
+npm run dev -- start   # API from source (serves the last board build)
+npm run dev:web        # board with hot reload on :5173, proxied to :4747
 ```
 
 ---
@@ -129,7 +144,7 @@ npx projcortex init
 npx projcortex start
 ```
 
-Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
 
 ## License
 

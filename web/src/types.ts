@@ -1,0 +1,139 @@
+export type ActorKind = "human" | "ai";
+export interface Actor {
+  id: string;
+  kind: ActorKind;
+}
+
+export interface Me {
+  actor: Actor;
+  project: { name: string };
+  actors: Actor[];
+  item_types: string[];
+}
+
+export interface FieldSpec {
+  type: string;
+  required?: boolean;
+  values?: string[];
+  of?: string;
+  max?: number;
+  description?: string;
+}
+
+export interface Schema {
+  type: string;
+  description?: string;
+  statuses: string[];
+  initial: string;
+  transitions: Record<string, string[]> | "any";
+  human_only_statuses: string[];
+  category_required: boolean;
+  fields: Record<string, FieldSpec>;
+  reply: { fields?: Record<string, FieldSpec> };
+  ai_instructions?: string;
+}
+
+export interface ItemSummary {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  category_path?: string;
+  author: string;
+  assignee?: string;
+  blocking?: boolean;
+  replies?: number;
+  updated_at: string;
+  reason?: string;
+}
+
+export interface CodeLink {
+  file: string;
+  lines?: string;
+}
+
+export interface Item {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  category_path?: string;
+  author: string;
+  assignee?: string;
+  tags?: string[];
+  links?: { nodes?: string[]; items?: string[]; activity?: string[]; code?: CodeLink[] };
+  fields: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  updated_by: string;
+  body: string;
+}
+
+export interface Reply {
+  id: string;
+  author: string;
+  created_at: string;
+  status_change?: { from: string; to: string };
+  fields?: Record<string, unknown>;
+  body: string;
+}
+
+export interface NodeSummary {
+  path: string;
+  title: string;
+  summary: string;
+  status: string;
+  open_items?: number;
+  children?: NodeSummary[];
+  child_count?: number;
+}
+
+export interface KnowledgeNode {
+  id: string;
+  path: string;
+  title: string;
+  summary: string;
+  body: string;
+  tags?: string[];
+  links?: { code?: CodeLink[]; items?: string[] };
+  status: string;
+  updated_by: string;
+  updated_at: string;
+}
+
+export interface Activity {
+  id: string;
+  at: string;
+  actor: string;
+  action: string;
+  summary: string;
+  why?: string;
+  files?: string[];
+  commit?: string;
+  refs?: string[];
+  system?: boolean;
+}
+
+export interface Draft {
+  id: string;
+  kind: "node" | "item";
+  target: string;
+  proposed_by: string;
+  proposed_at: string;
+  reason?: string;
+  title: string;
+  summary: string;
+}
+
+export interface SearchHit {
+  kind: "node" | "item" | "activity";
+  path?: string;
+  id?: string;
+  type?: string;
+  title?: string;
+  summary: string;
+  status?: string;
+  actor?: string;
+  at?: string;
+  score: number;
+}

@@ -50,6 +50,7 @@ export class ActivityService {
     const entry: Activity = { id: ulid(), at: nowIso(), actor: actor.id, ...d };
     this.c.activityStore.append(entry);
     this.c.index.addActivity(entry);
+    this.c.events.emit("change", { type: "activity", entry });
     return { id: entry.id, message: "Activity logged." };
   }
 
@@ -58,6 +59,7 @@ export class ActivityService {
     const entry: Activity = { id: ulid(), at: nowIso(), actor: actorId, action, summary, refs, system: true };
     this.c.activityStore.append(entry);
     this.c.index.addActivity(entry);
+    this.c.events.emit("change", { type: "activity", entry });
   }
 
   list(q: { since?: string; actor?: string; ref?: string; include_system?: boolean; limit?: number }) {
