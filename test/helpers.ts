@@ -9,7 +9,7 @@ import { Embedder } from "../src/search/embedder.js";
 // Semantic search is off unless a test passes an embedder, so results never depend on this machine's setup.
 export function tempProject(name = "demo", opts: { embedder?: (() => Embedder) | null } = {}) {
   const root = mkdtempSync(join(tmpdir(), "cortex-test-"));
-  const init = initProject(root, name);
+  const init = initProject(root, name, { language: "en" }); // fixed, so tests do not depend on this machine's locale
   const cortex = new Cortex(loadProject(root), { embedder: opts.embedder ?? null });
   const human = cortex.actor("owner");
   const ai = cortex.actor("ai-agent");

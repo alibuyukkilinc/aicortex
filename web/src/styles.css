@@ -339,3 +339,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .table th { color: var(--muted); font-weight: 600; font-size: 12px; }
 .table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 860px) { .charts, .cols2 { grid-template-columns: 1fr; } }
+
+/* Approvals: bulk selection */
+.bulk-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 2; font-size: 13.5px; }
+.row-check { margin-top: 3px; width: 16px; height: 16px; flex: none; cursor: pointer; accent-color: var(--accent); }
+.list-row.picked { background: var(--accent-soft); }

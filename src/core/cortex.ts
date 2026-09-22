@@ -19,6 +19,7 @@ import { ItemService, itemRevision } from "./items.js";
 import { Project, loadTokens, paths, rulesVersion } from "./project.js";
 import { DEFAULT_SCHEMAS, ItemSchema, describeSchema, loadActivitySchema, loadSchema } from "./schema.js";
 import { Actor, CortexError, Draft, KnowledgeNode, NodeSummary } from "./types.js";
+import { LANG_CODE, languageRule } from "./language.js";
 
 export const NodeInput = z.object({
   path: z.string(),
@@ -241,7 +242,8 @@ export class Cortex {
       branches,
       attention: {
         inbox: { count: inbox.count, top: inbox.items.map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })) },
-        pending_approvals: mine.map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })),
+        // Count + a few: after a bootstrap there can be dozens, and the brief must stay small.
+        pending_approvals: { count: mine.length, top: mine.slice(0, 5).map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })) },
         // Knowledge whose code changed since it was verified: fix it or verify it when you touch that area.
         ...(stale.length
           ? { stale_nodes: { count: stale.length, top: stale.slice(0, 5).map((s) => ({ path: s.path, files: s.changes.map((c) => c.file) })) } }
@@ -249,6 +251,7 @@ export class Cortex {
       },
       recent_activity: recent,
       search: ["ready", "indexing"].includes(this.semantic.status().state) ? "hybrid" : "keyword",
+      // The language rule is the first global rule; no separate field, every token counts here.
       rules: { version: rulesVersion(this.project.dir), global: this.globalRules(), item_types: this.itemTypes() },
       next: [
         "cortex_inbox for everything waiting on you",
@@ -460,6 +463,9 @@ export class Cortex {
           create_first: parent,
         });
       }
+      // Revising your own pending proposal replaces it, so reviewers see one draft per node, not a pile.
+      const previous = this.drafts.list().find((d) => d.kind === "node" && d.target === path && d.proposed_by === actor.id);
+      if (previous) this.drafts.remove(previous.id);
       const draftId = this.saveDraft({
         kind: "node",
         target: path,
@@ -468,7 +474,12 @@ export class Cortex {
         base_rev: existing ? revision(existing) : undefined,
         data: node,
       });
-      return { applied: false, path, draft_id: draftId, message: "Saved as draft. A human must approve it before it becomes active." };
+      return {
+        applied: false,
+        path,
+        draft_id: draftId,
+        message: `${previous ? "Replaced your earlier draft." : "Saved as draft."} A human must approve it before it becomes active.`,
+      };
     }
 
     this.writeNode(node);
@@ -515,6 +526,38 @@ export class Cortex {
     return { applied: false, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: "Draft rejected." };
   }
 
+  // Bulk review after a bootstrap. Parents go before children so a new branch and its leaves can be approved together.
+  // One failure (e.g. a conflict) does not stop the rest; each is reported.
+  approveMany(actor: Actor, ids: string[], force = false) {
+    return this.many(actor, ids, (id) => this.approve(actor, id, force));
+  }
+
+  rejectMany(actor: Actor, ids: string[], reason?: string) {
+    return this.many(actor, ids, (id) => this.reject(actor, id, reason));
+  }
+
+  private many(actor: Actor, ids: string[], fn: (id: string) => WriteResult) {
+    this.requireHuman(actor);
+    if (!Array.isArray(ids) || !ids.length) throw new CortexError("invalid_request", "Pass the draft ids to act on.", 400, { example: { ids: ["01J9Z..."] } });
+    const depth = (id: string) => {
+      const d = this.drafts.get(id);
+      return d?.kind === "node" ? (d.target === "" ? 0 : d.target.split("/").length) : 99;
+    };
+    const ordered = [...new Set(ids)].map((id) => ({ id, depth: depth(id) })).sort((a, b) => a.depth - b.depth);
+    const done: string[] = [];
+    const failed: { id: string; code: string; message: string }[] = [];
+    for (const { id } of ordered) {
+      try {
+        fn(id);
+        done.push(id);
+      } catch (e) {
+        const err = e instanceof CortexError ? e : new CortexError("internal", String(e), 500);
+        failed.push({ id, code: err.code, message: err.message });
+      }
+    }
+    return { done, failed, message: `${done.length} done${failed.length ? `, ${failed.length} failed` : ""}.` };
+  }
+
   listDrafts() {
     return this.drafts.list().map(({ data, ...d }) => ({
       ...d,
@@ -530,16 +573,28 @@ export class Cortex {
 
   // ---- rules --------------------------------------------------------------
 
-  globalRules(): string[] {
+  private globalDoc(): { rules?: string[]; language?: string } {
     const file = join(this.p.rules, "_global.yaml");
-    if (!existsSync(file)) return [];
-    return (YAML.parse(readFileSync(file, "utf8"))?.rules ?? []) as string[];
+    if (!existsSync(file)) return {};
+    return (YAML.parse(readFileSync(file, "utf8")) ?? {}) as { rules?: string[]; language?: string };
+  }
+
+  // The language humans chose for everything written into Cortex (knowledge, items, replies, activity).
+  language(): string | null {
+    return this.globalDoc().language ?? null;
+  }
+
+  // The language rule goes first: it applies to every write, and AIs read the top of a list most reliably.
+  globalRules(): string[] {
+    const rules = this.globalDoc().rules ?? [];
+    const lang = this.language();
+    return lang ? [languageRule(lang), ...rules] : rules;
   }
 
   rules(name?: string) {
     const version = rulesVersion(this.project.dir);
     const one = (n: string): unknown => {
-      if (n === "_global") return { rules: this.globalRules() };
+      if (n === "_global") return { ...(this.language() ? { language: this.language() } : {}), rules: this.globalRules() };
       if (n === "activity") return this.activitySchema();
       const s = this.schema(n);
       if (s) return describeSchema(s);
@@ -636,6 +691,9 @@ export function validateRulesDoc(name: string, doc: unknown): string[] {
   const d = doc as Record<string, unknown>;
   if (name === "_global") {
     if (!isStrList(d.rules)) issues.push("rules: must be a list of strings");
+    if (d.language !== undefined && !(typeof d.language === "string" && LANG_CODE.test(d.language))) {
+      issues.push('language: a language code such as "tr" or "en"');
+    }
     return issues;
   }
   if (name === "activity") {

@@ -4,11 +4,51 @@ import { useT } from "../i18n";
 import type { Draft } from "../types";
 import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, useSession, useToast } from "../ui";
 
+type BulkResult = { done: string[]; failed: { id: string; code: string; message: string }[] };
+
 export function Approvals() {
   const t = useT();
+  const toast = useToast();
   const { actors } = useSession();
   const { data, error, loading } = useApi<{ drafts: Draft[] }>("/api/approvals");
   const [open, setOpen] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<BulkResult["failed"]>([]);
+
+  const drafts = data?.drafts ?? [];
+  // Drafts approved elsewhere (or by another tab) drop out of the selection by themselves.
+  const selected = drafts.filter((d) => picked.has(d.id)).map((d) => d.id);
+  const all = drafts.length > 0 && selected.length === drafts.length;
+  const toggle = (id: string) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const bulk = async (what: "approve" | "reject") => {
+    let reason: string | undefined;
+    if (what === "approve" && !confirm(t("approvals.confirmBulk").replace("{n}", String(selected.length)))) return;
+    if (what === "reject") {
+      const r = prompt(t("approvals.rejectReason"));
+      if (r === null) return;
+      reason = r || undefined;
+    }
+    setBusy(true);
+    try {
+      const r = await api<BulkResult>(`/api/approvals/${what}`, { method: "POST", body: { ids: selected, ...(reason ? { reason } : {}) } });
+      // Keep only the failures selected, so the reviewer can open them one by one.
+      setPicked(new Set(r.failed.map((f) => f.id)));
+      setFailed(r.failed);
+      toast({ text: t(what === "approve" ? "approvals.bulkDone" : "approvals.bulkRejected").replace("{done}", String(r.done.length)), error: r.failed.length > 0 });
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
@@ -16,13 +56,51 @@ export function Approvals() {
         <h1>{t("approvals.title")}</h1>
       </div>
       {error && <ErrorBox error={error} />}
+      {failed.length > 0 && (
+        <div className="card" style={{ padding: "12px 16px", marginBottom: 12, borderColor: "var(--danger)" }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("approvals.bulkFailed").replace("{n}", String(failed.length))}</div>
+          {failed.map((f) => (
+            <div key={f.id} className="muted" style={{ fontSize: 13 }}>
+              {drafts.find((d) => d.id === f.id)?.title ?? f.id}: {f.message}
+            </div>
+          ))}
+        </div>
+      )}
       {loading ? (
         <Loading />
       ) : (
         <div className="card list">
-          {data?.drafts.length === 0 && <div className="empty">{t("approvals.empty")}</div>}
-          {data?.drafts.map((d) => (
-            <div key={d.id} className="list-row" onClick={() => setOpen(d.id)}>
+          {drafts.length === 0 && <div className="empty">{t("approvals.empty")}</div>}
+          {drafts.length > 0 && (
+            <div className="bulk-bar">
+              <label className="check">
+                <input type="checkbox" checked={all} onChange={() => setPicked(all ? new Set() : new Set(drafts.map((d) => d.id)))} />
+                {t("approvals.selectAll")}
+              </label>
+              {selected.length > 0 && (
+                <span className="faint">
+                  {selected.length} {t("approvals.selected")}
+                </span>
+              )}
+              <span className="spacer" />
+              <button className="btn danger" disabled={!selected.length || busy} onClick={() => void bulk("reject")}>
+                {t("approvals.rejectSelected")}
+              </button>
+              <button className="btn primary" disabled={!selected.length || busy} onClick={() => void bulk("approve")}>
+                {t("approvals.approveSelected")} {selected.length > 0 && `(${selected.length})`}
+              </button>
+            </div>
+          )}
+          {drafts.map((d) => (
+            <div key={d.id} className={`list-row ${picked.has(d.id) ? "picked" : ""}`} onClick={() => setOpen(d.id)}>
+              <input
+                type="checkbox"
+                className="row-check"
+                aria-label={d.title}
+                checked={picked.has(d.id)}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => toggle(d.id)}
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="title">{d.title}</div>
                 <div className="meta">

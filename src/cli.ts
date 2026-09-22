@@ -15,7 +15,8 @@ const HELP = `Cortex: shared project brain for humans and AIs
 
 Usage: cortex <command> [options]
 
-  init [--name <n>] [--agent-files]  Create .cortex/ in the current folder
+  init [--name <n>] [--lang tr|en] [--agent-files]
+                                     Create .cortex/ here; --lang = language AIs write in (default: this computer's)
   start [--port <n>]                 Start the API and the web board on localhost
   login [--actor <id>]               Print a 10-minute login link for the board (default: first human)
   mcp [--actor <id>]                 Run as an MCP server over stdio (default actor: ai-agent)
@@ -50,7 +51,7 @@ async function main() {
     case "init": {
       const { initProject, AGENT_HINT } = await import("./core/init.js");
       const root = process.cwd();
-      const r = initProject(root, values.name);
+      const r = initProject(root, values.name, { language: values.lang });
       console.log(`✔ Cortex initialized in ${r.dir}\n`);
       console.log("Actor tokens (stored in .cortex/.secrets.yaml, git-ignored):");
       for (const [id, t] of Object.entries(r.tokens)) console.log(`  ${id.padEnd(10)} ${t}`);
@@ -109,7 +110,8 @@ Next steps:
     case "bootstrap": {
       const { bootstrapPrompt, findMarkdown } = await import("./core/init.js");
       const project = loadProject();
-      console.log(bootstrapPrompt(project.config.project.name, findMarkdown(project.root)));
+      const { readGlobalLanguage } = await import("./core/language.js");
+      console.log(bootstrapPrompt(project.config.project.name, findMarkdown(project.root), readGlobalLanguage(project.dir)));
       break;
     }
 

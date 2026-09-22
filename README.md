@@ -18,7 +18,7 @@ Humans stay in control: AI writes to knowledge become **drafts** until a human a
 Requires Node.js 22.13 or newer. Nothing else: no database, no Docker, no API key.
 
 ```bash
-npx projcortex init          # creates .cortex/ in your repo
+npx projcortex init          # creates .cortex/ in your repo (--lang tr|en: the language AIs write in)
 npx projcortex start         # API + web board on http://localhost:4747
 ```
 
@@ -48,7 +48,7 @@ It installs a local model runtime and a multilingual model (~420 MB, one time, u
 - **Board**: kanban per item type, columns = statuses from the rules; forbidden moves are dimmed and explained
 - **Knowledge**: the tree with open-item counts, markdown, code links; edit nodes or add children
 - **Activity**: what each AI did and **why**, live; one click to ask about any entry
-- **Approvals**: current vs proposed side by side; approve or reject AI drafts
+- **Approvals**: current vs proposed side by side; approve or reject AI drafts one by one or in bulk
 - **Rules**: edit the YAML rules; invalid rules are refused before they are saved
 
 Everything updates live (server-sent events), including changes made by an AI in another process. Turkish and English, light and dark.
@@ -70,6 +70,7 @@ Everything updates live (server-sent events), including changes made by an AI in
 | Keep knowledge honest | `cortex_verify_node(path)` | mark a node still accurate at the current commit |
 
 Every response carries `_meta.rules_version`; the AI re-reads rules only when it changes.
+The writing language is a human rule too: `language: tr` in `.cortex/rules/_global.yaml` (set by `init --lang`, default: your computer's language). It is the first rule in every brief, so knowledge, items and activity stay in the language your team reads.
 Invalid writes are rejected with the broken rule **and** a correct example, so the AI can fix itself.
 
 ## Knowledge that knows when it is out of date
@@ -122,6 +123,7 @@ GET  /api/code?files=a,b
 GET  /api/search?q=&kind=node,item,activity&type=&path=&limit=&budget=
 GET  /api/rules[/{name}]
 GET  /api/approvals[/{id}]     POST /api/approvals/{id}/approve|reject
+POST /api/approvals/approve    { ids, force? }   POST /api/approvals/reject  { ids, reason? }
 GET  /api/inbox
 GET  /api/items?type=&status=&assignee=&author=&path=&open=&limit=&cursor=
 POST /api/items                GET/PATCH /api/items/{id}
@@ -137,7 +139,8 @@ POST /api/activity             GET /api/activity?since=&actor=&ref=&include_syst
 - [x] **Slice 3:** web board (inbox, kanban, knowledge explorer, live activity feed, approvals, rules editor) in TR/EN
 - [x] **Slice 4:** opt-in semantic search with a local multilingual model, hybrid ranking, incremental background indexing
 - [x] **Slice 5:** code links, stale detection from git history (line-range aware, renames and deletions), verify, code context, live updates on new commits
-- [ ] Later: reports, team server, multi-project
+- [x] **Slice 6:** reports (period summary, AI trust, knowledge health) on the board, REST, MCP and CLI
+- [ ] Later: team server, multi-project
 
 ## Development
 
@@ -164,7 +167,7 @@ npx projcortex init
 npx projcortex start
 ```
 
-`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx projcortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx projcortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx projcortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
 
 **Eskiyen bilgi:** Bilgi düğümleri koda bağlanır. Bağlı kod (satır aralığı verildiyse yalnızca o satırlar) sonradan bir commit ile değişirse düğüm "eskimiş olabilir" diye işaretlenir; hangi dosyanın, hangi commit ile, kim tarafından değiştiği gösterilir. Bu bilgi git geçmişinden hesaplanır, dosyalarınıza hiçbir şey yazılmaz.
 

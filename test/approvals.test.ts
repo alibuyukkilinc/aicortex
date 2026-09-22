@@ -1,0 +1,114 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { writeFileSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { buildServer } from "../src/api/server.js";
+import { bootstrapPrompt } from "../src/core/init.js";
+import { tempProject } from "./helpers.js";
+
+test("bulk approve: parents before children, failures reported without stopping the rest", () => {
+  const t = tempProject();
+  try {
+    // Proposed child-first on purpose: a new branch and its leaf must still approve together.
+    const leaf = t.cortex.putNode(t.ai, { path: "payments", title: "Payments", summary: "branch" });
+    const child = t.cortex.putNode(t.ai, { path: "payments/iyzico", title: "iyzico", summary: "leaf" });
+    const conflicted = t.cortex.putNode(t.ai, { path: "backend", title: "Backend", summary: "AI version." });
+    t.cortex.putNode(t.human, { path: "backend", title: "Backend", summary: "Human edited meanwhile." });
+
+    assert.throws(() => t.cortex.approveMany(t.ai, [leaf.draft_id!]), /Only human/);
+    const r = t.cortex.approveMany(t.human, [child.draft_id!, conflicted.draft_id!, leaf.draft_id!, "01ZZZZZZZZZZZZZZZZZZZZZZZZ"]);
+    assert.deepEqual(r.done.sort(), [leaf.draft_id!, child.draft_id!].sort());
+    assert.deepEqual(r.failed.map((f) => f.code).sort(), ["conflict", "not_found"]);
+    assert.equal(t.cortex.node("payments/iyzico").summary, "leaf");
+    assert.equal(t.cortex.node("backend").summary, "Human edited meanwhile.");
+    assert.equal(t.cortex.listDrafts().length, 1, "the conflicted draft stays for a one-by-one look");
+
+    const rej = t.cortex.rejectMany(t.human, [conflicted.draft_id!], "outdated");
+    assert.equal(rej.done.length, 1);
+    assert.equal(t.cortex.listDrafts().length, 0);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("an AI revising its own pending draft replaces it; other actors' drafts stay", () => {
+  const t = tempProject();
+  try {
+    const first = t.cortex.putNode(t.ai, { path: "backend", title: "Backend", summary: "v1" });
+    const second = t.cortex.putNode(t.ai, { path: "backend", title: "Backend", summary: "v2" });
+    assert.match(second.message, /Replaced your earlier draft/);
+    const drafts = t.cortex.listDrafts();
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].id, second.draft_id);
+    assert.notEqual(first.draft_id, second.draft_id);
+    assert.equal(drafts[0].summary, "v2");
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("writing language is a human rule: first in the brief, validated, changes rules_version", () => {
+  const t = tempProject();
+  try {
+    assert.equal(t.cortex.language(), "en");
+    assert.match(t.cortex.brief(t.ai).rules.global[0], /English \(en\)/);
+
+    const file = join(t.cortex.project.dir, "rules", "_global.yaml");
+    const before = t.cortex.meta().rules_version;
+    const bad = readFileSync(file, "utf8").replace("language: en", "language: Türkçe!!");
+    assert.throws(
+      () => t.cortex.saveRules(t.human, "_global", bad),
+      (e: { hint?: { issues?: string[] } }) => !!e.hint?.issues?.some((i) => i.startsWith("language:")),
+    );
+    assert.throws(() => t.cortex.saveRules(t.ai, "_global", bad), /humans/);
+
+    t.cortex.saveRules(t.human, "_global", readFileSync(file, "utf8").replace("language: en", "language: tr"));
+    const brief = t.cortex.brief(t.ai);
+    assert.match(brief.rules.global[0], /Turkish \(tr\)/);
+    assert.notEqual(t.cortex.meta().rules_version, before);
+    assert.match(bootstrapPrompt("demo", [], "tr"), /Turkish \(tr\)/);
+
+    // No language key (older projects): no rule, nothing breaks.
+    writeFileSync(file, "rules:\n  - Be nice.\n");
+    assert.equal(t.cortex.language(), null);
+    assert.deepEqual(t.cortex.brief(t.ai).rules.global, ["Be nice."]);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("REST: bulk approve and reject are human-only and report per draft", async () => {
+  const t = tempProject();
+  const app = buildServer(t.cortex);
+  const H = (token: string) => ({ host: "localhost:4747", authorization: `Bearer ${token}` });
+  try {
+    const a = t.cortex.putNode(t.ai, { path: "backend/a", title: "A", summary: "a" }).draft_id!;
+    const b = t.cortex.putNode(t.ai, { path: "backend/b", title: "B", summary: "b" }).draft_id!;
+    const asAi = await app.inject({ method: "POST", url: "/api/approvals/approve", headers: H(t.init.tokens["ai-agent"]), payload: { ids: [a] } });
+    assert.equal(asAi.statusCode, 403);
+    const empty = await app.inject({ method: "POST", url: "/api/approvals/approve", headers: H(t.init.tokens.owner), payload: { ids: [] } });
+    assert.equal(empty.statusCode, 400);
+    const ok = await app.inject({ method: "POST", url: "/api/approvals/approve", headers: H(t.init.tokens.owner), payload: { ids: [a] } });
+    assert.deepEqual(ok.json().done, [a]);
+    const rej = await app.inject({ method: "POST", url: "/api/approvals/reject", headers: H(t.init.tokens.owner), payload: { ids: [b], reason: "no" } });
+    assert.deepEqual(rej.json().done, [b]);
+    assert.equal(t.cortex.listDrafts().length, 0);
+  } finally {
+    await app.close();
+    t.cleanup();
+  }
+});
+
+test("brief stays small after a bootstrap with dozens of drafts", async () => {
+  const { estimateTokens } = await import("../src/util/text.js");
+  const t = tempProject();
+  try {
+    for (let i = 0; i < 30; i++) t.cortex.putNode(t.ai, { path: `backend/part-${i}`, title: `Part ${i}`, summary: `Subsystem number ${i} of the backend.` });
+    const brief = t.cortex.brief(t.ai);
+    assert.equal(brief.attention.pending_approvals.count, 30);
+    assert.equal(brief.attention.pending_approvals.top.length, 5);
+    assert.ok(estimateTokens(brief) < 800, `brief is ${estimateTokens(brief)} tokens`);
+  } finally {
+    t.cleanup();
+  }
+});

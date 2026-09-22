@@ -76,7 +76,7 @@ test("AI writes become drafts that only humans can approve", () => {
     assert.equal(r.applied, false);
     assert.ok(r.draft_id);
     assert.equal(code(() => t.cortex.node("backend/payments")), "not_found");
-    assert.equal(t.cortex.brief(t.ai).attention.pending_approvals.length, 1);
+    assert.equal(t.cortex.brief(t.ai).attention.pending_approvals.count, 1);
 
     assert.equal(code(() => t.cortex.approve(t.ai, r.draft_id!)), "forbidden");
     t.cortex.approve(t.human, r.draft_id!);

@@ -198,6 +198,15 @@ export function buildServer(cortex: Cortex): FastifyInstance {
 
   app.get("/api/approvals", async () => ok({ drafts: cortex.listDrafts() }));
   app.get("/api/approvals/:id", async (req) => ok(cortex.getDraft((req.params as Q).id!)));
+  // Bulk review: { ids, force? } / { ids, reason? }. Answers 200 with per-draft results even when some fail.
+  app.post("/api/approvals/approve", async (req) => {
+    const body = (req.body ?? {}) as { ids?: string[]; force?: boolean };
+    return ok(cortex.approveMany(req.actor, body.ids ?? [], body.force === true));
+  });
+  app.post("/api/approvals/reject", async (req) => {
+    const body = (req.body ?? {}) as { ids?: string[]; reason?: string };
+    return ok(cortex.rejectMany(req.actor, body.ids ?? [], body.reason));
+  });
   app.post("/api/approvals/:id/approve", async (req) => {
     const force = (req.query as Q).force === "true";
     return ok(cortex.approve(req.actor, (req.params as Q).id!, force));

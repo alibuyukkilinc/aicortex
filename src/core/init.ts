@@ -7,6 +7,7 @@ import { CortexConfig, CortexError, KnowledgeNode } from "./types.js";
 import { TreeStore } from "../store/tree.js";
 import { nowIso, ulid } from "../util/text.js";
 import { ACTIVITY_SCHEMA, DEFAULT_SCHEMAS } from "./schema.js";
+import { languageRule } from "./language.js";
 
 export const DEFAULT_BRANCHES: [string, string, string][] = [
   ["backend", "Backend", "APIs, business logic, data access and background jobs."],
@@ -54,7 +55,13 @@ export interface InitResult {
   markdownCandidates: string[];
 }
 
-export function initProject(root: string, name = basename(root)): InitResult {
+// The machine's language ("tr" on a Turkish system) unless the user passes --lang.
+export function systemLanguage(): string {
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale || "en";
+  return locale.split("-")[0].toLowerCase() || "en";
+}
+
+export function initProject(root: string, name = basename(root), opts: { language?: string } = {}): InitResult {
   const dir = join(root, CORTEX_DIR);
   if (existsSync(join(dir, "cortex.config.yaml"))) {
     throw new CortexError("already_initialized", `Cortex is already initialized in ${dir}.`, 409);
@@ -86,7 +93,13 @@ export function initProject(root: string, name = basename(root)): InitResult {
   // Same bytes on every OS, so diffs do not flip with core.autocrlf.
   writeFileSync(join(dir, ".gitattributes"), "* text=auto eol=lf\n", "utf8");
 
-  writeFileSync(join(p.rules, "_global.yaml"), "# Rules every AI receives in cortex_brief. Edited by humans only.\n" + YAML.stringify(GLOBAL_RULES), "utf8");
+  writeFileSync(
+    join(p.rules, "_global.yaml"),
+    "# Rules every AI receives in cortex_brief. Edited by humans only.\n" +
+      "# language: the language AIs must write in (knowledge, items, replies, activity), e.g. tr or en.\n" +
+      YAML.stringify({ language: opts.language ?? systemLanguage(), ...GLOBAL_RULES }),
+    "utf8",
+  );
   writeFileSync(join(p.rules, "node.schema.yaml"), YAML.stringify(NODE_SCHEMA), "utf8");
   const header = "# Edited by humans only. Cortex enforces these rules and explains violations to AIs.\n";
   for (const [type, schema] of Object.entries(DEFAULT_SCHEMAS)) {
@@ -137,12 +150,12 @@ export function findMarkdown(root: string, limit = 50): string[] {
 }
 
 // A ready-made task the user hands to their own AI, so filling the tree costs Cortex zero tokens.
-export function bootstrapPrompt(projectName: string, markdown: string[]): string {
+export function bootstrapPrompt(projectName: string, markdown: string[], language?: string | null): string {
   return `# Cortex bootstrap task
 
 You are setting up the Cortex knowledge tree for "${projectName}".
 Cortex is this project's single source of truth. Humans review everything you write.
-
+${language ? `\n${languageRule(language)}\n` : ""}
 1. Call cortex_brief to see the current branches.
 2. Explore the codebase (folders, package files, entry points). Do not guess.
 3. For the root node ("") write a clear project summary (<= 300 chars) and a body describing
