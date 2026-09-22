@@ -15,11 +15,11 @@ links:
     - file: src/hub/roles.ts
     - file: src/hub/access.ts
     - file: src/hub/crypto.ts
-verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
+verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
 id: 01M34ZBMQDA04RDK228RSTYEHP
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T17:21:53.458Z
+updated_at: 2026-09-22T19:28:28.294Z
 ---
 
 ## Parçalar (`src/hub`)
@@ -34,6 +34,9 @@ updated_at: 2026-09-22T17:21:53.458Z
 - AI hiçbir rolde onaylayamaz, kural değiştiremez, üye yönetemez (rol listesinde yok, çekirdek de insan ister).
 - Görünürlük: scope `own` = yazdığı veya kendisine/grubuna (@humans, @ai) atanan kayıtlar; `branches` = yalnızca o dallar (atası olan dallar gezinmek için görünür). Gizli olan 404 döner.
 - Giriş: 15 dakikada adres+e-posta başına 10 hatalı deneme sınırı; davet 7 gün, tek kullanım, şifre belirleyince diğer oturumlar kapanır.
+
+## AI ajanları nasıl bağlanır
+`aicortex mcp --hub <url> --project <id> --token <t>`: MCP araçları merkezdeki proje API'sini kullanır (`remoteApi`), ajanın rolü ve görünürlüğü aynen geçerlidir. MCP konuşamayan araçlar aynı uçları düz HTTP ile kullanabilir.
 
 ## Komutlar
 `aicortex hub init | start | add-project | invite` (`src/cli.ts` → `hubCommand`).

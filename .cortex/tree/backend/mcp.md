@@ -1,22 +1,26 @@
 ---
 title: MCP sunucusu
-summary: "`cortex mcp --actor <id>` stdio üzerinden çalışır. Araçlar: brief,
-  tree, node, search, items, kalem oluştur/güncelle, yanıt, ask, inbox, aktivite
-  yaz/oku, code_context, verify_node, update_node, rules, report. Sıkıştırılmış
-  JSON döner."
+summary: "`aicortex mcp` stdio üzerinden 18 araç sunar. Araçlar proje REST
+  API'sini konuşur: yerel projede süreç içinde, merkezdeki projede `--hub <url>
+  --project <id> --token <t>` ile HTTP üzerinden. Kurallar, rol ve görünürlük
+  iki yolda da aynı."
 tags:
   - mcp
 links:
   code:
     - file: src/mcp/server.ts
-verified_at_commit: d974755195f2cbd8301ad42d39a41c6250682b77
+    - file: src/mcp/client.ts
+verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
 id: 01M34QY9T47QSX4Q0GQ8V6GPEH
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:35:00.943Z
+updated_at: 2026-09-22T19:28:28.264Z
 ---
 
-- Çekirdeğin üstünde ince bir katman (`buildMcpServer`). Çıktı sıkıştırılmış JSON, çünkü her bayt AI için token demek.
-- Hatalar `isError` ile, REST'teki aynı kod/mesaj/ipucuyla döner.
+- Araçlar (`src/mcp/server.ts`) doğrudan çekirdeği değil `McpApi`yi çağırır (`src/mcp/client.ts`):
+  - `localApi(cortex, actor)`: bellek içi Fastify; `projectRoutes` aynen çalışır, ağ yok, token yok.
+  - `remoteApi(hub, project, token)`: `<hub>/api/p/<proje>/…` uçlarına `Authorization: Bearer` ile gider; ajanın rolü ve görünürlüğü uygulanır.
+- Böylece tek kaynak var: REST'te düzelttiğin kural MCP'de de geçerli olur.
+- Hatalar iki tarafta da kod, mesaj ve ipucuyla döner (`setErrorHandler`); yetki reddi `hint.needs` ile hangi yetkinin eksik olduğunu söyler.
 - MCP yolunda asla `console.log` kullanılmaz: stdout protokole aittir (stderr kullan).
-- `test/interfaces.test.ts` araç listesini birebir kontrol eder; yeni araç eklerken orayı da güncelle.
+- `test/interfaces.test.ts` araç listesini, `test/hub.test.ts` merkez üzerinden MCP'yi (rol reddi dahil) kontrol eder.

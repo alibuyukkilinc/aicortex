@@ -13,11 +13,11 @@ links:
     - file: src/index/db.ts
     - file: src/git/git.ts
     - file: src/cli.ts
-verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
+verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
 id: 01M34QYABJE3KGV82NE6BGAWEK
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T17:21:53.446Z
+updated_at: 2026-09-22T19:28:28.247Z
 ---
 
 - **En düşük Node 22.16**: 22.13, 22.14 ve 22.15'teki node:sqlite FTS5 içermiyor, Cortex hiç açılmıyordu. Yerelde 22.16 kullanıldığı için CI'daki en eski sürüm testine kadar fark edilmedi.

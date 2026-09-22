@@ -14,11 +14,11 @@ links:
     - file: web/src/charts.tsx
     - file: web/src/ui.tsx
     - file: web/src/main.tsx
-verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
+verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
 id: 01M34QYA1Q9QSJH06S50NZT2N4
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T17:21:53.485Z
+updated_at: 2026-09-22T19:28:28.254Z
 ---
 
 ## Yazı tipi

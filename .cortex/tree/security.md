@@ -14,11 +14,11 @@ links:
       lines: 40-80
     - file: src/hub/server.ts
     - file: src/hub/crypto.ts
-verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
+verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
 id: 01M34Q1CBF3AXG1Q0MKDJYKB6J
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T17:21:53.430Z
+updated_at: 2026-09-22T19:28:28.225Z
 ---
 
 - `onRequest` kancası localhost/127.0.0.1/[::1] dışındaki her Host'u reddeder.

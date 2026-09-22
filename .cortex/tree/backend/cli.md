@@ -11,11 +11,11 @@ links:
     - file: src/core/init.ts
     - file: src/core/agentFiles.ts
     - file: src/util/runtime-check.ts
-verified_at_commit: 22cc2549d317b2e5d2c6e4dbb92b402671c7213f
+verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
 id: 01M34QY9W1VNPQMRXK141RRDFS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T17:21:53.472Z
+updated_at: 2026-09-22T19:28:28.240Z
 ---
 
 - `init`: .cortex/ klasörünü, token'ları, varsayılan kuralları ve üst dalları oluşturur. Hangi dalların açılacağını terminalde numaralı listeyle sorar (Enter = hepsi); `--branches backend,frontend,odeme` ile sormadan seçilir, şablonda olmayan adlar da kabul edilir (`resolveBranches`). `--lang tr` AI'ların yazım dilini belirler (verilmezse bilgisayarın dili). Rapor saat dilimi bilgisayardan alınıp `cortex.config.yaml`'a yazılır. `--agent-files` var olan CLAUDE.md/AGENTS.md dosyalarına kısa bir Cortex notu ekler.
