@@ -1,6 +1,7 @@
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { Cortex } from "../core/cortex.js";
 import { Actor, CortexError } from "../core/types.js";
+import { DocKind } from "../index/db.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -12,6 +13,8 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 type Q = Record<string, string | undefined>;
 const num = (v: string | undefined) => (v === undefined || v === "" ? undefined : Number(v));
+const bool = (v: string | undefined) => (v === "true" ? true : v === "false" ? false : undefined);
+const list = (v: string | undefined) => (v ? v.split(",").map((x) => x.trim()).filter(Boolean) : undefined);
 
 export function buildServer(cortex: Cortex): FastifyInstance {
   const app = Fastify({ logger: false });
@@ -82,7 +85,16 @@ export function buildServer(cortex: Cortex): FastifyInstance {
 
   app.get("/api/search", async (req) => {
     const q = req.query as Q;
-    return ok(cortex.search(q.q ?? "", { under: q.path, status: q.status, limit: num(q.limit), budget: num(q.budget) }));
+    return ok(
+      cortex.search(q.q ?? "", {
+        kinds: list(q.kind) as DocKind[] | undefined,
+        under: q.path,
+        status: q.status,
+        type: q.type,
+        limit: num(q.limit),
+        budget: num(q.budget),
+      }),
+    );
   });
 
   app.get("/api/rules", async () => ok(cortex.rules()));
@@ -94,7 +106,64 @@ export function buildServer(cortex: Cortex): FastifyInstance {
     const force = (req.query as Q).force === "true";
     return ok(cortex.approve(req.actor, (req.params as Q).id!, force));
   });
-  app.post("/api/approvals/:id/reject", async (req) => ok(cortex.reject(req.actor, (req.params as Q).id!)));
+  app.post("/api/approvals/:id/reject", async (req) => {
+    const reason = ((req.body ?? {}) as Q).reason;
+    return ok(cortex.reject(req.actor, (req.params as Q).id!, reason));
+  });
+
+  // ---- items ----------------------------------------------------------------
+
+  app.get("/api/inbox", async (req) => ok(cortex.items.inbox(req.actor, num((req.query as Q).limit) ?? 20)));
+
+  app.get("/api/items", async (req) => {
+    const q = req.query as Q;
+    return ok(
+      cortex.items.list({
+        type: q.type,
+        status: q.status,
+        assignee: q.assignee,
+        author: q.author,
+        path: q.path,
+        open: bool(q.open),
+        limit: num(q.limit),
+        cursor: q.cursor,
+      }),
+    );
+  });
+  app.post("/api/items", async (req, reply) => {
+    const r = cortex.items.create(req.actor, (req.body ?? {}) as never);
+    return reply.code(r.applied ? 201 : 202).send(ok(r));
+  });
+  app.get("/api/items/:id", async (req) => {
+    const q = req.query as Q;
+    return ok(cortex.items.get((req.params as Q).id!, { replies: num(q.replies), budget: num(q.budget) }));
+  });
+  app.patch("/api/items/:id", async (req, reply) => {
+    const r = cortex.items.update(req.actor, (req.params as Q).id!, (req.body ?? {}) as never);
+    return reply.code(r.applied ? 200 : 202).send(ok(r));
+  });
+  app.post("/api/items/:id/replies", async (req, reply) => {
+    return reply.code(201).send(ok(cortex.items.reply(req.actor, (req.params as Q).id!, (req.body ?? {}) as never)));
+  });
+  app.post("/api/ask", async (req, reply) => {
+    const b = (req.body ?? {}) as { about?: string; title?: string; body?: string; assignee?: string; blocking?: boolean };
+    if (!b.about || !b.title) {
+      throw new CortexError("invalid_request", "Send { about, title }.", 400, {
+        example: { about: "01J9Z... (activity id) | 01J9Y... (item id) | backend/auth (node path)", title: "Why did you disable the cache here?", blocking: false },
+      });
+    }
+    const r = cortex.items.ask(req.actor, { about: b.about, title: b.title, body: b.body, assignee: b.assignee, blocking: b.blocking });
+    return reply.code(r.applied ? 201 : 202).send(ok(r));
+  });
+
+  // ---- activity -------------------------------------------------------------
+
+  app.post("/api/activity", async (req, reply) => reply.code(201).send(ok(cortex.activity.log(req.actor, (req.body ?? {}) as never))));
+  app.get("/api/activity", async (req) => {
+    const q = req.query as Q;
+    return ok(cortex.activity.list({ since: q.since, actor: q.actor, ref: q.ref, include_system: bool(q.include_system), limit: num(q.limit) }));
+  });
+  app.get("/api/activity/:id", async (req) => ok({ entry: cortex.activity.get((req.params as Q).id!) }));
 
   return app;
 }

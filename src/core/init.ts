@@ -6,6 +6,7 @@ import { CORTEX_DIR, paths } from "./project.js";
 import { CortexConfig, CortexError, KnowledgeNode } from "./types.js";
 import { TreeStore } from "../store/tree.js";
 import { nowIso, ulid } from "../util/text.js";
+import { ACTIVITY_SCHEMA, DEFAULT_SCHEMAS } from "./schema.js";
 
 export const DEFAULT_BRANCHES: [string, string, string][] = [
   ["backend", "Backend", "APIs, business logic, data access and background jobs."],
@@ -23,7 +24,8 @@ const GLOBAL_RULES = {
     "Search Cortex before changing code you do not fully understand.",
     "If search does not answer your question, ask a human instead of assuming.",
     "Keep summaries under 300 characters: they are what other AIs read first.",
-    "Explain WHY in every change, not only WHAT.",
+    "Explain WHY in every change, not only WHAT. Log each meaningful change with cortex_log_activity.",
+    "Check cortex_inbox: answer questions assigned to you before starting new work.",
     "Never edit files under .cortex/rules. Rules belong to humans.",
   ],
 };
@@ -65,11 +67,13 @@ export function initProject(root: string, name = basename(root)): InitResult {
       { id: "owner", kind: "human" },
       { id: "ai-agent", kind: "ai" },
     ],
-    approval: { node: "review", decision: "review", note: "auto", question: "auto", task: "auto", issue: "auto", activity: "auto", rules: "human_only" },
+    // Decisions are auto because their schema already reserves accepted/rejected for humans.
+    approval: { node: "review", task: "auto", issue: "auto", question: "auto", note: "auto", decision: "auto" },
   };
   writeFileSync(
     p.config,
-    "# Cortex project settings. Safe to commit.\n# approval: auto = AI writes directly, review = AI writes become drafts, human_only = AI cannot write.\n" +
+    "# Cortex project settings. Safe to commit.\n" +
+      "# approval (for AI actors): auto = writes directly, review = writes become drafts a human approves, human_only = AI cannot write.\n" +
       YAML.stringify(config),
     "utf8",
   );
@@ -77,9 +81,16 @@ export function initProject(root: string, name = basename(root)): InitResult {
   const tokens = { owner: token(), "ai-agent": token() };
   writeFileSync(p.secrets, "# Actor tokens. NEVER commit this file.\n" + YAML.stringify({ tokens }), "utf8");
   writeFileSync(join(dir, ".gitignore"), ".index/\n.secrets.yaml\n", "utf8");
+  // Same bytes on every OS, so diffs do not flip with core.autocrlf.
+  writeFileSync(join(dir, ".gitattributes"), "* text=auto eol=lf\n", "utf8");
 
   writeFileSync(join(p.rules, "_global.yaml"), "# Rules every AI receives in cortex_brief. Edited by humans only.\n" + YAML.stringify(GLOBAL_RULES), "utf8");
   writeFileSync(join(p.rules, "node.schema.yaml"), YAML.stringify(NODE_SCHEMA), "utf8");
+  const header = "# Edited by humans only. Cortex enforces these rules and explains violations to AIs.\n";
+  for (const [type, schema] of Object.entries(DEFAULT_SCHEMAS)) {
+    writeFileSync(join(p.rules, `${type}.schema.yaml`), header + YAML.stringify(schema), "utf8");
+  }
+  writeFileSync(join(p.rules, "activity.schema.yaml"), header + YAML.stringify(ACTIVITY_SCHEMA), "utf8");
   for (const d of [p.items, p.activity, p.drafts]) writeFileSync(join(d, ".gitkeep"), "", "utf8");
 
   const tree = new TreeStore(p.tree);
@@ -141,17 +152,20 @@ Cortex is this project's single source of truth. Humans review everything you wr
 5. Existing markdown worth importing:
 ${markdown.length ? markdown.map((m) => `   - ${m}`).join("\n") : "   (none found)"}
    Move the durable knowledge into nodes. Note contradictions instead of silently picking one.
-6. Always include a short "reason" with each write.
+6. Past decisions you find in docs or commit history: record them with cortex_create_item (type "decision").
+   Open questions and contradictions: cortex_create_item (type "question", assignee "@humans").
+7. Always include a short "reason" with each write.
 
-Everything you write becomes a draft until a human approves it in Cortex.
+Knowledge nodes you write become drafts until a human approves them in Cortex.
 `;
 }
 
 export const AGENT_HINT = `<!-- cortex:start -->
 ## Project knowledge: Cortex
 This project's knowledge lives in Cortex, not in markdown files.
-- Session start: call \`cortex_brief\`.
+- Session start: call \`cortex_brief\`, then \`cortex_inbox\` for questions and issues waiting on you.
 - Before changing code you don't fully understand: \`cortex_search\`, then \`cortex_tree\` / \`cortex_node\`.
-- After a meaningful change: update the relevant node (it becomes a draft for human review).
+- Unsure? Open a question (\`cortex_ask\` or \`cortex_create_item\` type "question") instead of assuming.
+- After a meaningful change: \`cortex_log_activity\` (what, why, files, commit), and update the relevant node.
 Do not update docs in .md files; update Cortex.
 <!-- cortex:end -->`;

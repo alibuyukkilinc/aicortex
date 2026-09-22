@@ -34,14 +34,33 @@ Then fill the tree: `npx projcortex bootstrap` prints a task you hand to your AI
 
 | Step | Tool | Cost |
 |---|---|---|
-| Session start | `cortex_brief` | ~500 tokens: project summary, branches, what needs attention, rules |
+| Session start | `cortex_brief` | ~600 tokens: project summary, branches, inbox, recent activity, rules |
 | Navigate | `cortex_tree(path)` | titles + summaries only |
 | Understand | `cortex_search(q)` | paths + summaries (Turkish & English) |
 | Detail | `cortex_node(path)` | one node, in full |
 | Record | `cortex_update_node(...)` | becomes a draft for human review |
+| Work queue | `cortex_inbox` | questions, issues and answers waiting on you |
+| Collaborate | `cortex_create_item`, `cortex_update_item`, `cortex_reply`, `cortex_items`, `cortex_item` | tasks, issues, questions, notes, decisions |
+| Ask instead of guessing | `cortex_ask(about, title)` | routed to whoever made the thing you ask about |
+| Leave a trail | `cortex_log_activity`, `cortex_activity` | what changed, **why**, files, commit |
 
 Every response carries `_meta.rules_version`; the AI re-reads rules only when it changes.
 Invalid writes are rejected with the broken rule **and** a correct example, so the AI can fix itself.
+
+## Items and rules
+
+Five built-in item types, each defined by an editable file in `.cortex/rules/`:
+
+| Type | Statuses | Built-in rules |
+|---|---|---|
+| task | backlog → todo → doing → review → done | only humans mark done |
+| issue | open → in_progress → review → closed | needs severity + category; a `fixed` reply must list commits and files |
+| question | open → answered → closed | answering flips it to answered; `blocking` questions come first |
+| note | active → archived | |
+| decision | proposed → accepted / rejected → superseded | AI may propose, only humans accept or reject |
+
+Add your own type by dropping `rules/<type>.schema.yaml` next to them (fields, statuses, transitions, human-only statuses, reply rules, AI instructions).
+Assign items to an actor, to `@humans` or to `@ai`.
 
 ## What lives in `.cortex/`
 
@@ -51,6 +70,8 @@ Invalid writes are rejected with the broken rule **and** a correct example, so t
 ├── .secrets.yaml        actor tokens (git-ignored)
 ├── rules/               rules & schemas — humans only
 ├── tree/                the knowledge tree, one markdown file per node
+├── items/               one folder per item, one file per reply
+├── activity/            append-only log, one file per actor per day
 ├── drafts/              AI proposals waiting for approval
 └── .index/              search index cache (git-ignored, rebuildable)
 ```
@@ -65,15 +86,21 @@ All endpoints need `Authorization: Bearer <token>` and answer only on localhost.
 GET  /api/brief
 GET  /api/tree/{path}?depth=1&budget=
 GET  /api/node/{path}          PUT /api/node/{path}
-GET  /api/search?q=&path=&limit=&budget=
+GET  /api/search?q=&kind=node,item,activity&type=&path=&limit=&budget=
 GET  /api/rules[/{name}]
 GET  /api/approvals[/{id}]     POST /api/approvals/{id}/approve|reject
+GET  /api/inbox
+GET  /api/items?type=&status=&assignee=&author=&path=&open=&limit=&cursor=
+POST /api/items                GET/PATCH /api/items/{id}
+POST /api/items/{id}/replies
+POST /api/ask                  { about, title, body?, blocking? }
+POST /api/activity             GET /api/activity?since=&actor=&ref=&include_system=
 ```
 
 ## Roadmap
 
 - [x] **Slice 1:** init, knowledge tree, keyword search (Turkish-aware), brief, drafts & approval, REST, MCP
-- [ ] **Slice 2:** items (task, issue, question, note, decision), inbox, activity log, per-type schemas
+- [x] **Slice 2:** items (task, issue, question, note, decision), inbox, ask-about-anything, activity log, per-type schemas, custom types
 - [ ] **Slice 3:** web board (kanban, tree explorer, activity feed, approvals) in TR/EN
 - [ ] **Slice 4:** semantic search with a local multilingual embedding model (hybrid ranking)
 - [ ] **Slice 5:** code links → stale detection from git history

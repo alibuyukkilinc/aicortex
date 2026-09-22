@@ -9,19 +9,17 @@ export class DraftStore {
 
   save(draft: Draft): void {
     mkdirSync(this.dir, { recursive: true });
-    const { node, ...meta } = draft;
-    const { body, ...nodeMeta } = node;
-    writeFileSync(join(this.dir, `${draft.id}.md`), stringifyFrontmatter({ ...meta, node: nodeMeta }, body), "utf8");
+    const { data, ...meta } = draft;
+    const { body, ...dataMeta } = data;
+    writeFileSync(join(this.dir, `${draft.id}.md`), stringifyFrontmatter({ ...meta, data: dataMeta }, body), "utf8");
   }
 
   get(id: string): Draft | null {
     if (!/^[0-9A-Z]{26}$/.test(id)) return null;
     const file = join(this.dir, `${id}.md`);
     if (!existsSync(file)) return null;
-    const { meta, body } = parseFrontmatter<Omit<Draft, "node"> & { node: Omit<Draft["node"], "body"> }>(
-      readFileSync(file, "utf8"),
-    );
-    return { ...meta, node: { ...meta.node, body } };
+    const { meta, body } = parseFrontmatter<Draft>(readFileSync(file, "utf8"));
+    return { ...meta, data: { ...meta.data, body } } as Draft;
   }
 
   list(): Draft[] {

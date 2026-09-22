@@ -46,6 +46,12 @@ export function loadProject(start?: string): Project {
   config.port ??= 4747;
   config.actors ??= [];
   config.approval ??= {};
+  for (const a of config.actors) {
+    // Actor ids end up in file names (activity/<day>/<actor>.jsonl), so keep them boring.
+    if (!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(a.id ?? "") || (a.kind !== "human" && a.kind !== "ai")) {
+      throw new CortexError("invalid_config", `Invalid actor ${JSON.stringify(a)} in cortex.config.yaml: id must be letters, digits, - or _, kind must be human or ai.`, 500);
+    }
+  }
   return { root, dir, config };
 }
 
