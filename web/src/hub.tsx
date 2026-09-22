@@ -1,8 +1,8 @@
 import { FormEvent, ReactNode, useContext, useState } from "react";
-import { ApiError, api, currentProject, useApi } from "./api";
+import { ApiError, api, currentProject, qs, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
 import type { HubMe } from "./types";
-import { ErrorBox, Icon, Loading, Modal, useRoute, useToast } from "./ui";
+import { Ago, ErrorBox, Icon, Loading, Modal, useRoute, useToast } from "./ui";
 
 // Screens of the team server (hub): sign-in, invites, the project list, organization admin and project members.
 
@@ -250,16 +250,16 @@ type AdminProject = { id: string; name: string; path: string; members: number; e
 export function AdminPage({ me }: { me: HubMe }) {
   const t = useT();
   const route = useRoute();
-  const tab = route[0] === "agents" || route[0] === "projects" ? route[0] : "users";
+  const tab = route[0] === "agents" || route[0] === "projects" || route[0] === "usage" ? route[0] : "users";
   return (
     <HubFrame me={me}>
       <div className="page-head">
         <h1>{t("hub.organization")}</h1>
         <span className="spacer" />
         <div className="segmented" role="tablist">
-          {(["users", "agents", "projects"] as const).map((k) => (
+          {(["users", "agents", "projects", "usage"] as const).map((k) => (
             <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => (location.hash = `#/${k}`)}>
-              {t(k === "users" ? "hub.users" : k === "agents" ? "hub.agents" : "hub.projects")}
+              {t(k === "users" ? "hub.users" : k === "agents" ? "hub.agents" : k === "projects" ? "hub.projects" : "usage.title")}
             </button>
           ))}
         </div>
@@ -267,6 +267,7 @@ export function AdminPage({ me }: { me: HubMe }) {
       {tab === "users" && <UsersTab me={me} />}
       {tab === "agents" && <AgentsTab />}
       {tab === "projects" && <ProjectsTab />}
+      {tab === "usage" && <UsageTab />}
     </HubFrame>
   );
 }
@@ -915,5 +916,123 @@ function AddToProject({ kind, onClose, onDone }: { kind: "human" | "ai"; onClose
         </button>
       </div>
     </Modal>
+  );
+}
+
+// ---- usage ------------------------------------------------------------------------------------
+
+type Usage = {
+  by_principal: { principal: string; name: string; kind: string; project_id: string; calls: number; bytes: number; tokens: number; last_at: string }[];
+  by_route: { principal: string; route: string; calls: number; bytes: number; tokens: number }[];
+  daily: { day: string; calls: number; tokens: number }[];
+  totals: { calls: number; bytes: number; tokens: number };
+  projects?: { id: string; name: string }[];
+};
+
+const PERIODS = ["7d", "30d", "90d"];
+const kb = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+
+// Tucked behind Organization on purpose: nobody needs this to do their work, only to explain a bill.
+function UsageTab() {
+  const t = useT();
+  const [since, setSince] = useState("7d");
+  const [project, setProject] = useState("");
+  const { data, loading } = useApi<Usage>(`/api/admin/usage${qs({ since, project })}`);
+
+  return (
+    <>
+      <p className="muted" style={{ maxWidth: "80ch", marginTop: 0 }}>{t("usage.intro")}</p>
+      <div className="toolbar">
+        <div className="segmented" role="group">
+          {PERIODS.map((p) => (
+            <button key={p} className={since === p ? "on" : ""} aria-pressed={since === p} onClick={() => setSince(p)}>
+              {parseInt(p, 10)} {t("rep.days")}
+            </button>
+          ))}
+        </div>
+        <select className="select" style={{ width: "auto", minWidth: 180 }} value={project} onChange={(e) => setProject(e.target.value)}>
+          <option value="">{t("usage.allProjects")}</option>
+          {(data?.projects ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <span className="spacer" />
+        {data && (
+          <span className="faint">
+            {data.totals.calls} {t("usage.calls")} · {data.totals.tokens.toLocaleString()} {t("usage.tokens")} · {kb(data.totals.bytes)}
+          </span>
+        )}
+      </div>
+      {loading && !data ? (
+        <Loading />
+      ) : !data || data.totals.calls === 0 ? (
+        <div className="card empty">{t("usage.empty")}</div>
+      ) : (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("usage.who")}</th>
+                  <th>{t("hub.projects")}</th>
+                  <th className="num">{t("usage.calls")}</th>
+                  <th className="num">{t("usage.tokens")}</th>
+                  <th className="num">{t("usage.perCall")}</th>
+                  <th className="num">{t("usage.data")}</th>
+                  <th>{t("usage.last")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.by_principal.map((r) => (
+                  <tr key={`${r.principal}-${r.project_id}`}>
+                    <td>
+                      <div className="cell-title">
+                        {r.name} <span className="chip type">{r.kind === "ai" ? t("hub.agent") : t("hub.person")}</span>
+                      </div>
+                      <div className="faint mono">{r.principal}</div>
+                    </td>
+                    <td className="muted mono">{r.project_id}</td>
+                    <td className="num">{r.calls}</td>
+                    <td className="num">{r.tokens.toLocaleString()}</td>
+                    <td className="num">{Math.round(r.tokens / r.calls).toLocaleString()}</td>
+                    <td className="num">{kb(r.bytes)}</td>
+                    <td className="muted">
+                      <Ago iso={r.last_at} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="card">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("usage.routes")}</th>
+                  <th>{t("usage.who")}</th>
+                  <th className="num">{t("usage.calls")}</th>
+                  <th className="num">{t("usage.tokens")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.by_route.slice(0, 15).map((r) => (
+                  <tr key={`${r.principal}-${r.route}`}>
+                    <td className="mono">{r.route}</td>
+                    <td className="muted">{r.principal}</td>
+                    <td className="num">{r.calls}</td>
+                    <td className="num">{r.tokens.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="faint" style={{ fontSize: 12.5, marginTop: 12, maxWidth: "80ch" }}>
+            {t("usage.estimate")}
+          </p>
+        </>
+      )}
+    </>
   );
 }

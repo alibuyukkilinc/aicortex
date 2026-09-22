@@ -365,3 +365,51 @@ test("a project's owner can invite people and create agent tokens, without becom
     await t.cleanup();
   }
 });
+
+test("usage meter: counts each call once, per person and per agent, and stays out of the projects", async () => {
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+  const t = await setup();
+  const clients: { close: () => Promise<void> }[] = [];
+  try {
+    const admin = await t.login("ada@example.com", "correct-horse-1");
+    const token = (await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id: "meter-bot", projects: [{ id: "shop", role: "contributor" }] } })).json().token;
+    await t.app.listen({ port: 0, host: "127.0.0.1" });
+    const url = `http://127.0.0.1:${(t.app.server.address() as { port: number }).port}`;
+
+    // A person browsing, and an agent working over MCP.
+    await t.call({ url: "/api/p/shop/brief", cookie: admin });
+    await t.call({ url: "/api/p/shop/items", cookie: admin });
+    const client = new Client({ name: "meter", version: "1" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp/p/shop`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
+    clients.push(client);
+    await client.callTool({ name: "cortex_brief", arguments: {} });
+    await client.callTool({ name: "cortex_search", arguments: { q: "backend" } });
+
+    const usage = (await t.call({ url: "/api/admin/usage?since=7d", cookie: admin })).json();
+    const bot = usage.by_principal.find((r: { principal: string }) => r.principal === "meter-bot");
+    const person = usage.by_principal.find((r: { principal: string }) => r.principal === t.admin.id);
+    assert.equal(bot.calls, 2, "one row per tool call, not one per inner request");
+    assert.equal(bot.kind, "ai");
+    assert.ok(bot.tokens > 0 && bot.tokens === Math.round(bot.bytes / 4));
+    assert.equal(person.calls, 2, "people are metered too");
+    assert.ok(usage.by_route.some((r: { route: string }) => r.route.startsWith("MCP GET /brief")), "the route says which tool it was");
+    assert.equal(usage.totals.calls, 4);
+    assert.equal(usage.daily.length, 1);
+
+    // Per project, for whoever may read that project's reports; and never mixed with another project.
+    const mine = (await t.call({ url: "/api/p/shop/usage?since=7d", cookie: admin })).json();
+    assert.equal(mine.totals.calls, usage.totals.calls);
+    assert.equal((await t.call({ url: "/api/p/blog/usage?since=7d", cookie: admin })).json().totals.calls, 0);
+
+    // A member without report rights cannot look, and the numbers never enter the project's files.
+    const eve = await invite(t, admin, "eve@example.com", "Eve", [{ id: "shop", role: "member" }]);
+    await t.call({ method: "PUT", url: `/api/p/shop/members/${eve.id}`, cookie: admin, payload: { role: "member", scope: "own" } });
+    assert.equal((await t.call({ url: "/api/p/shop/usage", cookie: eve.cookie })).statusCode, 403, "partial views get no project-wide numbers");
+    assert.equal((await t.call({ url: "/api/admin/usage", cookie: eve.cookie })).statusCode, 403);
+    assert.equal(t.hub.cortex("shop").index.queryActivity({ includeSystem: true, limit: 100 }).filter((a) => a.summary.includes("usage")).length, 0);
+  } finally {
+    for (const c of clients) await c.close();
+    await t.cleanup();
+  }
+});

@@ -85,6 +85,14 @@ class LoginLimiter {
   }
 }
 
+// "7d", "30d" or a date, like the report periods.
+function sinceIso(since?: string): string {
+  const rel = /^(\d{1,3})\s*d$/i.exec(since ?? "7d");
+  if (rel) return new Date(Date.now() - Number(rel[1]) * 86400_000).toISOString();
+  const t = Date.parse(since!);
+  return isNaN(t) ? new Date(Date.now() - 7 * 86400_000).toISOString() : new Date(t).toISOString();
+}
+
 export function buildHubServer(hub: Hub): FastifyInstance {
   const app = baseServer();
   const store = hub.store;
@@ -135,6 +143,18 @@ export function buildHubServer(hub: Hub): FastifyInstance {
     if (!u.org_admin) throw new CortexError("forbidden", "Only organization admins can do this.", 403);
     return u;
   };
+
+  const INTERNAL = "x-cortex-internal";
+  app.addHook("onSend", async (req, _reply, payload) => {
+    const m = /^\/api\/p\/([^/?]+)(\/[^?]*)?/.exec(req.url);
+    if (!m || !req.principal || req.headers[INTERNAL]) return payload;
+    const id = req.principal.kind === "human" ? req.principal.user.id : req.principal.agent.id;
+    const size = typeof payload === "string" ? Buffer.byteLength(payload) : 0;
+    store.record({ project: decodeURIComponent(m[1]), principal: id, kind: req.principal.kind, route: `${req.method} ${m[2] ?? "/"}`, bytes: size });
+    return payload;
+  });
+  // A meter, not a log: three months is plenty to answer "how much did this agent read last month?".
+  store.forgetUsageBefore(new Date(Date.now() - 90 * 86400_000).toISOString());
 
   app.get("/api/health", async () => ({ ok: true, mode: "hub", org: store.settings.org }));
 
@@ -247,6 +267,14 @@ export function buildHubServer(hub: Hub): FastifyInstance {
     return { agent: store.updateAgent((req.params as Q).id!, (req.body ?? {}) as { name?: string; disabled?: boolean }) };
   });
 
+  // Deliberately out of the way: usage is operational detail, looked at when someone asks
+  // "why is this agent so expensive?", not part of the daily flow.
+  app.get("/api/admin/usage", async (req) => {
+    orgAdmin(req);
+    const q = req.query as Q;
+    return { ...store.usage(sinceIso(q.since), q.project), projects: store.projects().map((p) => ({ id: p.id, name: p.name })) };
+  });
+
   app.get("/api/admin/projects", async (req) => {
     orgAdmin(req);
     return { projects: store.projects().map((p) => ({ ...p, members: store.members(p.id).length, exists: existsSync(join(p.path, ".cortex")) })) };
@@ -290,6 +318,13 @@ export function buildHubServer(hub: Hub): FastifyInstance {
       });
 
       await scope.register(projectRoutes);
+
+      scope.get("/usage", async (req) => {
+        if (!req.access!.can("reports")) throw new CortexError("forbidden", "Your role cannot read reports.", 403);
+        // Same rule as the project report: someone who sees only part of the project gets no project-wide numbers.
+        if (req.access!.restricted) throw new CortexError("forbidden", "These numbers cover the whole project; your membership sees only part of it.", 403);
+        return store.usage(sinceIso((req.query as Q).since), (req.params as Q).project!);
+      });
 
       scope.get("/members", async (req) => {
         const projectId = (req.params as Q).project!;
@@ -407,12 +442,14 @@ export function buildHubServer(hub: Hub): FastifyInstance {
           query.set(k, Array.isArray(v) ? v.join(",") : String(v));
         }
         const q = query.toString();
+        const started = Date.now();
         const res = await app.inject({
           method: method as "GET",
           url: `${base}${path}${q ? `?${q}` : ""}`,
-          headers: { authorization: `Bearer ${token}` },
+          headers: { authorization: `Bearer ${token}`, [INTERNAL]: "1" },
           ...(opts.body !== undefined ? { payload: opts.body as object } : {}),
         });
+        store.record({ project, principal: agent.id, kind: "ai", route: `MCP ${method} ${path || "/"}`, bytes: Buffer.byteLength(res.body ?? ""), ms: Date.now() - started });
         if (res.statusCode >= 400) {
           const e = (res.json() as { error?: { code?: string; message?: string; hint?: unknown } }).error ?? {};
           throw new CortexError(e.code ?? "error", e.message ?? `Request failed (${res.statusCode}).`, res.statusCode, e.hint);

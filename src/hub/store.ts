@@ -89,6 +89,13 @@ export class HubStore {
       CREATE TABLE IF NOT EXISTS invites (
         token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TEXT NOT NULL
       );
+      -- One row per API or MCP call: how much reading and writing each person and agent actually does.
+      -- Kept out of the projects on purpose: it is operational noise, not project knowledge.
+      CREATE TABLE IF NOT EXISTS usage (
+        at TEXT NOT NULL, project_id TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL,
+        route TEXT NOT NULL, bytes INTEGER NOT NULL, ms INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS usage_at ON usage(at);
     `);
   }
 
@@ -259,6 +266,45 @@ export class HubStore {
     const r = this.db.prepare("SELECT * FROM agents WHERE token_hash = ?").get(tokenHash(token));
     const a = r ? this.toAgent(r) : null;
     return a && !a.disabled ? a : null;
+  }
+
+  // ---- usage ------------------------------------------------------------------------------
+
+  record(row: { project: string; principal: string; kind: "human" | "ai"; route: string; bytes: number; ms?: number }): void {
+    this.db
+      .prepare("INSERT INTO usage (at, project_id, principal, kind, route, bytes, ms) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(nowIso(), row.project, row.principal, row.kind, row.route, Math.max(0, Math.round(row.bytes)), Math.max(0, Math.round(row.ms ?? 0)));
+  }
+
+  // Old rows are not worth keeping; this is a meter, not a log.
+  forgetUsageBefore(iso: string): void {
+    this.db.prepare("DELETE FROM usage WHERE at < ?").run(iso);
+  }
+
+  usage(since: string, projectId?: string) {
+    const where = projectId ? "at >= ? AND project_id = ?" : "at >= ?";
+    const args = projectId ? [since, projectId] : [since];
+    const rows = this.db
+      .prepare(`SELECT principal, kind, project_id, COUNT(*) AS calls, SUM(bytes) AS bytes, MAX(at) AS last_at FROM usage WHERE ${where} GROUP BY principal, project_id ORDER BY bytes DESC`)
+      .all(...args) as { principal: string; kind: string; project_id: string; calls: number; bytes: number; last_at: string }[];
+    const routes = this.db
+      .prepare(`SELECT principal, route, COUNT(*) AS calls, SUM(bytes) AS bytes FROM usage WHERE ${where} GROUP BY principal, route ORDER BY calls DESC`)
+      .all(...args) as { principal: string; route: string; calls: number; bytes: number }[];
+    const days = this.db
+      .prepare(`SELECT substr(at, 1, 10) AS day, COUNT(*) AS calls, SUM(bytes) AS bytes FROM usage WHERE ${where} GROUP BY day ORDER BY day`)
+      .all(...args) as { day: string; calls: number; bytes: number }[];
+    return {
+      since,
+      // Roughly 4 characters per token, the same estimate the API uses for its budgets.
+      by_principal: rows.map((r) => ({ ...r, name: this.user(r.principal)?.name ?? this.agent(r.principal)?.name ?? r.principal, tokens: Math.round(r.bytes / 4) })),
+      by_route: routes.map((r) => ({ ...r, tokens: Math.round(r.bytes / 4) })),
+      daily: days.map((d) => ({ ...d, tokens: Math.round(d.bytes / 4) })),
+      totals: {
+        calls: rows.reduce((n, r) => n + r.calls, 0),
+        bytes: rows.reduce((n, r) => n + r.bytes, 0),
+        tokens: Math.round(rows.reduce((n, r) => n + r.bytes, 0) / 4),
+      },
+    };
   }
 
   // ---- projects and members -------------------------------------------------------------
