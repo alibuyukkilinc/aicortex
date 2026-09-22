@@ -41,6 +41,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
   const [replyStatus, setReplyStatus] = useState("");
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
 
   if (loading || !data) {
     return (
@@ -70,6 +71,24 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
   const assign = async (assignee: string) => {
     try {
       await api(`/api/items/${id}`, { method: "PATCH", body: { assignee: assignee || null } });
+      reload();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    }
+  };
+
+  const claim = async () => {
+    try {
+      await api(`/api/items/${id}/claim`, { method: "POST", body: { action: "claim", force: me.kind === "human" } });
+      reload();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    }
+  };
+  const release = async (heldByMe: boolean) => {
+    try {
+      await api(`/api/items/${id}/claim`, { method: "POST", body: { action: "release", note: note || undefined, force: !heldByMe } });
+      setNote("");
       reload();
     } catch (e) {
       toast({ text: (e as Error).message, error: true });
@@ -138,7 +157,36 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
         </button>
       </div>
 
+      <div className="row" style={{ marginBottom: 16, gap: 8 }}>
+        <label className="muted" style={{ fontSize: 12.5 }}>{t("item.claim")}</label>
+        {item.claimed_by ? (
+          <>
+            <ActorChip id={item.claimed_by} actors={actors} />
+            <span className="muted" style={{ fontSize: 11.5 }}>
+              <Ago iso={item.claimed_at!} />
+            </span>
+            {item.claimed_by === me.id && (
+              <input className="input" style={{ width: 200 }} placeholder={t("item.handoffNote")} value={note} onChange={(e) => setNote(e.target.value)} />
+            )}
+            {(item.claimed_by === me.id || me.kind === "human") && (
+              <button className="btn sm" onClick={() => void release(item.claimed_by === me.id)}>
+                {t("item.release")}
+              </button>
+            )}
+          </>
+        ) : (
+          <button className="btn sm" onClick={() => void claim()}>
+            {t("item.claimBtn")}
+          </button>
+        )}
+      </div>
+
       <Markdown text={item.body} />
+      {item.handoff_note && (
+        <p className="muted" style={{ fontSize: 12.5, fontStyle: "italic" }}>
+          {t("item.handoffNote")}: {item.handoff_note}
+        </p>
+      )}
 
       {(fieldEntries.length > 0 || item.category_path || item.links) && (
         <div className="section">

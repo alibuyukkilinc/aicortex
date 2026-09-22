@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { CortexError } from "../core/types.js";
 import { ActivityInput } from "../core/activity.js";
-import { CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
+import { ClaimInput, CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
 import { DocKind } from "../index/db.js";
 import type { McpApi } from "./client.js";
 
@@ -229,9 +229,28 @@ export function buildMcpServer(api: McpApi): McpServer {
         tags: z.array(z.string()).optional(),
         fields: z.record(z.string(), z.unknown()).optional(),
         reason: z.string().optional(),
+        if_rev: z.string().optional().describe("The _rev you last read from cortex_item. If the item changed since, this fails with a 409 conflict instead of silently overwriting."),
       },
     },
     wrap(({ id, ...rest }: { id: string } & UpdateItemInput) => api.call("PATCH", `/items/${encodeURIComponent(id)}`, { body: rest })),
+  );
+
+  server.registerTool(
+    "cortex_claim",
+    {
+      description:
+        "Claim an item to say you are actively working it right now, or release it when you stop. Separate from `assignee` " +
+        "(who it belongs to): a claim is how a specific actor signals current ownership so another agent does not collide with you. " +
+        "Claiming an item someone else holds fails with a 409 naming them, unless their claim is stale (2h) or you are a human using force. " +
+        "Always applies directly, never becomes a draft.",
+      inputSchema: {
+        id: z.string(),
+        action: z.enum(["claim", "release"]),
+        note: z.string().max(500).optional().describe("Handoff note: where you left off, or what's left. Visible to whoever reads the item next."),
+        force: z.boolean().optional().describe("Humans only: take over a claim someone else actively holds."),
+      },
+    },
+    wrap(({ id, ...rest }: { id: string } & ClaimInput) => api.call("POST", `/items/${encodeURIComponent(id)}/claim`, { body: rest })),
   );
 
   server.registerTool(

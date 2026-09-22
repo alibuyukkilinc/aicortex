@@ -4,8 +4,10 @@ import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Cortex } from "../src/core/cortex.js";
 import { loadProject } from "../src/core/project.js";
-import { CortexError } from "../src/core/types.js";
+import { itemRevision } from "../src/core/items.js";
+import { Actor, CortexError } from "../src/core/types.js";
 import { estimateTokens } from "../src/util/text.js";
+import { buildServer } from "../src/api/server.js";
 import { tempProject } from "./helpers.js";
 
 function err(fn: () => unknown): CortexError {
@@ -308,6 +310,119 @@ test("replies are trimmed newest-first to fit a budget", () => {
     assert.ok(budgeted.replies.length < 20 && budgeted.replies.length > 0);
     assert.match(budgeted.replies[budgeted.replies.length - 1].body, /^Reply 19/);
   } finally {
+    t.cleanup();
+  }
+});
+
+test("update() with if_rev: mismatched rev conflicts, matching rev applies, omitted rev keeps old last-write-wins behavior", () => {
+  const t = tempProject();
+  try {
+    const { id } = t.cortex.items.create(t.human, { type: "task", title: "Rate limiting" });
+    const rev = t.cortex.items.get(id).rev;
+
+    const stale = err(() => t.cortex.items.update(t.ai, id, { body: "AI's edit", if_rev: "not-the-real-rev" }));
+    assert.equal(stale.code, "conflict");
+    assert.equal((stale.hint as { current_updated_by: string }).current_updated_by, t.human.id);
+
+    const ok = t.cortex.items.update(t.ai, id, { body: "AI's edit", if_rev: rev });
+    assert.equal(ok.applied, true);
+
+    // No if_rev at all: still last-write-wins, unchanged from before this feature.
+    const r2 = t.cortex.items.update(t.human, id, { body: "human's edit, no if_rev" });
+    assert.equal(r2.applied, true);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("claim: unclaimed succeeds, a second actor is refused while held, releasing frees it, force lets a human take over", () => {
+  const t = tempProject();
+  const ai2: Actor = { id: "ai-2", kind: "ai" };
+  try {
+    const { id } = t.cortex.items.create(t.human, { type: "task", title: "Add rate limiting" });
+
+    const claimed = t.cortex.items.claim(t.ai, id, { action: "claim" });
+    assert.equal(claimed.applied, true);
+    assert.equal(t.cortex.itemStore.read(id)!.claimed_by, t.ai.id);
+
+    // Same actor re-claiming is idempotent, not a conflict.
+    assert.equal(t.cortex.items.claim(t.ai, id, { action: "claim" }).applied, true);
+
+    const conflict = err(() => t.cortex.items.claim(ai2, id, { action: "claim" }));
+    assert.equal(conflict.code, "conflict");
+    assert.equal((conflict.hint as { held_by: string }).held_by, t.ai.id);
+
+    // An AI cannot force its way in.
+    assert.equal(err(() => t.cortex.items.claim(ai2, id, { action: "claim", force: true })).code, "conflict");
+
+    // A human can.
+    assert.equal(t.cortex.items.claim(t.human, id, { action: "claim", force: true }).applied, true);
+    assert.equal(t.cortex.itemStore.read(id)!.claimed_by, t.human.id);
+
+    // Only the holder may release; then anyone can claim again.
+    assert.equal(err(() => t.cortex.items.claim(t.ai, id, { action: "release" })).code, "forbidden");
+    const released = t.cortex.items.claim(t.human, id, { action: "release", note: "handed to the AI, see body" });
+    assert.equal(released.applied, true);
+    assert.equal(t.cortex.itemStore.read(id)!.claimed_by, undefined);
+    assert.equal(t.cortex.itemStore.read(id)!.handoff_note, "handed to the AI, see body");
+    assert.equal(t.cortex.items.claim(ai2, id, { action: "claim" }).applied, true);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("claim: a stale claim (past the TTL) can be taken without force", () => {
+  const t = tempProject();
+  const ai2: Actor = { id: "ai-2", kind: "ai" };
+  try {
+    const { id } = t.cortex.items.create(t.human, { type: "task", title: "Add rate limiting" });
+    t.cortex.items.claim(t.ai, id, { action: "claim" });
+
+    // Simulate the claim aging past the 2h TTL without waiting.
+    const current = t.cortex.itemStore.read(id)!;
+    const aged = { ...current, claimed_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() };
+    t.cortex.itemStore.write(aged);
+    t.cortex.index.upsertItem(aged, t.cortex.itemStore.replies(id), false);
+
+    assert.equal(t.cortex.items.claim(ai2, id, { action: "claim" }).applied, true);
+    assert.equal(t.cortex.itemStore.read(id)!.claimed_by, ai2.id);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("claiming and releasing never change itemRevision: an unrelated pending draft's base_rev survives claim activity", () => {
+  const t = tempProject();
+  try {
+    const { id } = t.cortex.items.create(t.human, { type: "task", title: "Add rate limiting" });
+    const before = itemRevision(t.cortex.itemStore.read(id)!);
+
+    t.cortex.items.claim(t.ai, id, { action: "claim" });
+    t.cortex.items.claim(t.ai, id, { action: "release", note: "left off here" });
+
+    const after = itemRevision(t.cortex.itemStore.read(id)!);
+    assert.equal(after, before, "claim/release must not touch the fields itemRevision hashes");
+    assert.equal(t.cortex.items.get(id).rev, before);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("REST: POST /items/:id/claim wires through to ItemService.claim, conflict comes back as 409", async () => {
+  const t = tempProject();
+  const app = buildServer(t.cortex);
+  const H = (token: string) => ({ host: "localhost:4747", authorization: `Bearer ${token}` });
+  try {
+    const { id } = t.cortex.items.create(t.human, { type: "task", title: "Add rate limiting" });
+    const first = await app.inject({ method: "POST", url: `/api/items/${id}/claim`, headers: H(t.init.tokens["ai-agent"]), payload: { action: "claim" } });
+    assert.equal(first.statusCode, 200);
+    assert.equal(first.json().status, "backlog");
+
+    const second = await app.inject({ method: "POST", url: `/api/items/${id}/claim`, headers: H(t.init.tokens.owner), payload: { action: "claim" } });
+    assert.equal(second.statusCode, 409);
+    assert.equal(second.json().error.hint.held_by, "ai-agent");
+  } finally {
+    await app.close();
     t.cleanup();
   }
 });

@@ -51,6 +51,8 @@ export interface ItemSummary {
   category_path?: string;
   author: string;
   assignee?: string;
+  claimed_by?: string;
+  claimed_at?: string;
   blocking?: boolean;
   replies?: number;
   updated_at: string;
@@ -70,6 +72,9 @@ export interface Item {
   category_path?: string;
   author: string;
   assignee?: string;
+  claimed_by?: string;
+  claimed_at?: string;
+  handoff_note?: string;
   tags?: string[];
   links?: { nodes?: string[]; items?: string[]; activity?: string[]; code?: CodeLink[] };
   fields: Record<string, unknown>;

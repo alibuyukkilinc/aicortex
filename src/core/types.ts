@@ -52,6 +52,9 @@ export interface Item {
   category_path?: string;
   author: string;
   assignee?: string; // actor id, "@humans" or "@ai"
+  claimed_by?: string; // actor id actively working this right now; separate from assignee
+  claimed_at?: string;
+  handoff_note?: string; // where the claim holder left off; set on claim/release only
   tags?: string[];
   links?: ItemLinks;
   fields: Record<string, unknown>;

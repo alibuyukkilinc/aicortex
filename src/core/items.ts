@@ -42,9 +42,22 @@ export const UpdateItemInput = z
     fields: z.record(z.string(), z.unknown()).optional(), // merged; null removes a field
     reason: z.string().max(500).optional(),
     force: z.boolean().optional(),
+    if_rev: z.string().optional(), // the _rev you last read; mismatch throws a 409 conflict
   })
   .strict();
 export type UpdateItemInput = z.input<typeof UpdateItemInput>;
+
+export const ClaimInput = z
+  .object({
+    action: z.enum(["claim", "release"]),
+    note: z.string().max(500).optional(),
+    force: z.boolean().optional(), // humans only: take over an actively held claim
+  })
+  .strict();
+export type ClaimInput = z.input<typeof ClaimInput>;
+
+// No background job: staleness-style, computed lazily whenever a claim is checked.
+const CLAIM_TTL_MS = 2 * 60 * 60 * 1000; // 2h
 
 export const ReplyInput = z
   .object({
@@ -210,6 +223,9 @@ export class ItemService {
     const parsed = UpdateItemInput.safeParse(input);
     if (!parsed.success) throw this.invalid(schema, zodIssues(parsed.error), "Update");
     const d = parsed.data;
+    if (d.if_rev !== undefined && d.if_rev !== itemRevision(current)) {
+      throw this.c.conflict(current.updated_by, current.updated_at);
+    }
 
     const next: Item = { ...current, fields: { ...current.fields } };
     if (d.title !== undefined) next.title = d.title;
@@ -284,6 +300,38 @@ export class ItemService {
     this.save(next);
     this.c.activity.system(actor.id, "item.replied", `Replied on ${item.type} "${item.title}"${reply.status_change ? ` (${reply.status_change.from} → ${reply.status_change.to})` : ""}`, [id], { type: item.type, ...(reply.status_change ?? {}) });
     return { applied: true, id, reply_id: reply.id, status: next.status, message: "Reply added." };
+  }
+
+  // Claim/release: who is actively working an item right now, separate from `assignee` (who it belongs to).
+  // Always writes directly (never a draft, whatever the type's approval policy) — it is coordination metadata,
+  // not content to review, and queuing "I'm taking this now" as a pending draft would defeat its purpose.
+  // Deliberately does not touch updated_at/updated_by/itemRevision: claim churn must never invalidate an
+  // unrelated pending content draft's base_rev, or a caller's if_rev.
+  claim(actor: Actor, id: string, input: ClaimInput): ItemWriteResult {
+    const current = this.get(id).item;
+    const parsed = ClaimInput.safeParse(input);
+    if (!parsed.success) throw this.invalid(this.schema(current.type), zodIssues(parsed.error), "Claim");
+    const d = parsed.data;
+
+    if (d.action === "release") {
+      if (current.claimed_by !== actor.id && !(actor.kind === "human" && d.force)) {
+        throw new CortexError("forbidden", `This item is not claimed by ${actor.id}.`, 403, { claimed_by: current.claimed_by ?? null });
+      }
+      const next: Item = { ...current, claimed_by: undefined, claimed_at: undefined, handoff_note: d.note ?? current.handoff_note };
+      this.save(next);
+      this.c.activity.system(actor.id, "item.released", `Released ${next.type} "${next.title}"`, [id], { type: next.type });
+      return { applied: true, id, status: next.status, message: "Claim released." };
+    }
+
+    const heldMs = current.claimed_by && current.claimed_at ? Date.now() - Date.parse(current.claimed_at) : Infinity;
+    const held = current.claimed_by !== undefined && heldMs < CLAIM_TTL_MS;
+    if (held && current.claimed_by !== actor.id && !(actor.kind === "human" && d.force)) {
+      throw new CortexError("conflict", `Already claimed by ${current.claimed_by}.`, 409, { held_by: current.claimed_by, since: current.claimed_at });
+    }
+    const next: Item = { ...current, claimed_by: actor.id, claimed_at: nowIso(), handoff_note: d.note ?? current.handoff_note };
+    this.save(next);
+    this.c.activity.system(actor.id, "item.claimed", `Claimed ${next.type} "${next.title}"`, [id], { type: next.type });
+    return { applied: true, id, status: next.status, message: "Claimed." };
   }
 
   private replyRuleMatches(by: string, actor: Actor, item: Item): boolean {
@@ -382,7 +430,7 @@ export class ItemService {
       }
       replies = kept;
     }
-    return { item, replies, replies_omitted: total - replies.length, rules_url: `/api/rules/${item.type}` };
+    return { item, rev: itemRevision(item), replies, replies_omitted: total - replies.length, rules_url: `/api/rules/${item.type}` };
   }
 
   list(q: {
@@ -453,6 +501,7 @@ function compact(i: IndexedItem) {
     ...(i.category_path ? { category_path: i.category_path } : {}),
     author: i.author,
     ...(i.assignee ? { assignee: i.assignee } : {}),
+    ...(i.claimed_by ? { claimed_by: i.claimed_by, claimed_at: i.claimed_at } : {}),
     ...(i.blocking ? { blocking: true } : {}),
     ...(i.reply_count ? { replies: i.reply_count } : {}),
     updated_at: i.updated_at,

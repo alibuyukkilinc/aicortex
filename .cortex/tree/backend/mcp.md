@@ -1,21 +1,20 @@
 ---
 title: MCP sunucusu
-summary: "`aicortex mcp` stdio üzerinden 18 araç sunar; merkezde ayrıca HTTP ucu
-  vardır (POST /mcp/p/<proje>, Bearer token). Araçlar proje REST API'sini
-  konuşur: yerelde süreç içinde, merkezde HTTP ile. Kurallar, rol ve görünürlük
-  her yolda aynı."
-tags:
-  - mcp
+summary: "`aicortex mcp` stdio üzerinden 19 araç sunar (en yenisi
+  `cortex_claim`: görev devri); merkezde ayrıca HTTP ucu vardır (POST
+  /mcp/p/&lt;proje&gt;, Bearer token). Araçlar proje REST API'sini konuşur:
+  yerelde süreç içinde, merkezde HTTP ile. Kurallar, rol ve görünürlük her yolda
+  aynı."
 links:
   code:
     - file: src/mcp/server.ts
     - file: src/mcp/client.ts
     - file: src/hub/mcpHttp.ts
-verified_at_commit: be22b1b2f35a515bc8d75a0587acf061c5da8034
+verified_at_commit: e047112b0fd3eb0ad9a2607ed9b3c2553c72506e
 id: 01M34QY9T47QSX4Q0GQ8V6GPEH
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T20:09:01.378Z
+updated_at: 2026-09-22T23:09:51.821Z
 ---
 
 - Araçlar (`src/mcp/server.ts`) doğrudan çekirdeği değil `McpApi`yi çağırır (`src/mcp/client.ts`):
@@ -25,4 +24,5 @@ updated_at: 2026-09-22T20:09:01.378Z
 - Böylece tek kaynak var: REST'te düzelttiğin kural MCP'de de geçerli olur.
 - Hatalar iki tarafta da kod, mesaj ve ipucuyla döner (`setErrorHandler`); yetki reddi `hint.needs` ile hangi yetkinin eksik olduğunu söyler.
 - MCP yolunda asla `console.log` kullanılmaz: stdout protokole aittir (stderr kullan).
+- `cortex_claim` (`action: "claim"|"release"`): bir AI'nin bir görevi şu an fiilen üstlendiğini/bıraktığını söylemesi, başka bir ajanın çakışmaması için. `cortex_update_item`'a da isteğe bağlı `if_rev` eklendi (eşzamanlılık koruması). Ayrıntı: `backend/items-and-rules`.
 - `test/interfaces.test.ts` araç listesini, `test/hub.test.ts` merkez üzerinden MCP'yi (rol reddi dahil) kontrol eder.

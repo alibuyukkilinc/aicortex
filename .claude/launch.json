@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cortex-board",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dist/cli.js", "start", "--port", "4748"],
+      "port": 4748
+    }
+  ]
+}

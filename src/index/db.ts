@@ -26,6 +26,8 @@ export interface IndexedItem {
   category_path: string | null;
   author: string;
   assignee: string | null;
+  claimed_by: string | null;
+  claimed_at: string | null;
   blocking: boolean;
   created_at: string;
   updated_at: string;
@@ -82,7 +84,7 @@ const STOPWORDS = new Set(
 );
 
 // Bump when the table layout changes; an old cache is simply dropped and rebuilt from files.
-const INDEX_VERSION = 4;
+const INDEX_VERSION = 5;
 
 // The index is a disposable cache: everything here can be rebuilt from the files with reindex().
 export class Index {
@@ -114,6 +116,7 @@ export class Index {
       CREATE TABLE IF NOT EXISTS items (
         id TEXT PRIMARY KEY, type TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL,
         terminal INTEGER NOT NULL, category_path TEXT, author TEXT NOT NULL, assignee TEXT,
+        claimed_by TEXT, claimed_at TEXT,
         blocking INTEGER NOT NULL, created_at TEXT, updated_at TEXT,
         reply_count INTEGER NOT NULL, last_reply_by TEXT
       );
@@ -262,9 +265,10 @@ export class Index {
     this.insertCodeLinks("item", i.id, i.links?.code);
     const last = replies[replies.length - 1];
     this.db
-      .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(
         i.id, i.type, i.title, i.status, terminal ? 1 : 0, i.category_path ?? null, i.author, i.assignee ?? null,
+        i.claimed_by ?? null, i.claimed_at ?? null,
         i.fields?.blocking === true ? 1 : 0, i.created_at, i.updated_at, replies.length, last?.author ?? null,
       );
     const fieldText = Object.values(i.fields ?? {}).filter((v) => typeof v === "string").join(" ");
@@ -467,6 +471,8 @@ function toItem(r: Record<string, unknown>): IndexedItem {
     category_path: (r.category_path as string | null) ?? null,
     author: r.author as string,
     assignee: (r.assignee as string | null) ?? null,
+    claimed_by: (r.claimed_by as string | null) ?? null,
+    claimed_at: (r.claimed_at as string | null) ?? null,
     blocking: r.blocking === 1,
     created_at: r.created_at as string,
     updated_at: r.updated_at as string,

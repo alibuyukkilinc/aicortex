@@ -721,7 +721,8 @@ export class Cortex {
 
   // ---- helpers ------------------------------------------------------------
 
-  private conflict(by: string, at: string) {
+  // Also used by ItemService.update()'s optional if_rev check, outside the draft-approval path.
+  conflict(by: string, at: string) {
     return new CortexError("conflict", "The target changed after this draft was proposed. Review the diff, then approve with force.", 409, {
       current_updated_by: by,
       current_updated_at: at,

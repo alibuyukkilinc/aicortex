@@ -271,6 +271,13 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     const r = req.cortex.items.update(req.actor, id, (req.body ?? {}) as never);
     return reply.code(r.applied ? 200 : 202).send(ok(req, r));
   });
+  app.post("/items/:id/claim", async (req, reply) => {
+    need(req, "write_items");
+    const id = (req.params as Q).id!;
+    itemVisibleOr404(req, id);
+    const r = req.cortex.items.claim(req.actor, id, (req.body ?? {}) as never);
+    return reply.code(200).send(ok(req, r));
+  });
   app.post("/items/:id/replies", async (req, reply) => {
     const id = (req.params as Q).id!;
     itemVisibleOr404(req, id);
