@@ -1,0 +1,17 @@
+# Cortex project settings. Safe to commit.
+# approval (for AI actors): auto = writes directly, review = writes become drafts a human approves, human_only = AI cannot write.
+project:
+  name: cortex
+port: 4747
+actors:
+  - id: owner
+    kind: human
+  - id: ai-agent
+    kind: ai
+approval:
+  node: review
+  task: auto
+  issue: auto
+  question: auto
+  note: auto
+  decision: auto
