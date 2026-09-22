@@ -366,6 +366,35 @@ test("a project's owner can invite people and create agent tokens, without becom
   }
 });
 
+test("members/candidates never leaks the whole hub roster to a non-org-admin project owner", async () => {
+  const t = await setup();
+  try {
+    const admin = await t.login("ada@example.com", "correct-horse-1");
+    const lead = await invite(t, admin, "lead@example.com", "Mağaza Lideri", [{ id: "shop", role: "owner" }]);
+    const blogger = await invite(t, admin, "blogger@example.com", "Blog Sahibi", [{ id: "blog", role: "owner" }]);
+
+    // Not an org admin, and administers no other project yet: sees nobody unrelated to "shop".
+    const before = await t.call({ url: "/api/p/shop/members/candidates", cookie: lead.cookie });
+    assert.equal(before.statusCode, 200);
+    assert.equal(before.json().candidates.some((c: { id: string }) => c.id === blogger.id), false, "a stranger from another project must not appear");
+
+    // An org admin still sees the full roster.
+    const asAdmin = await t.call({ url: "/api/p/shop/members/candidates", cookie: admin });
+    assert.equal(asAdmin.json().candidates.some((c: { id: string }) => c.id === blogger.id), true, "org admins keep seeing everyone (regression)");
+
+    // Once lead also administers "blog", blog's people become visible as candidates for "shop" too.
+    await t.call({ method: "PUT", url: `/api/p/blog/members/${lead.id}`, cookie: admin, payload: { role: "owner" } });
+    const after = await t.call({ url: "/api/p/shop/members/candidates", cookie: lead.cookie });
+    assert.equal(after.json().candidates.some((c: { id: string }) => c.id === blogger.id), true, "known through a project lead also administers");
+
+    // Inviting a genuinely new person by email never depended on the candidates list.
+    const fresh = await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: lead.cookie, payload: { email: "brand-new@example.com", name: "Yeni" } });
+    assert.equal(fresh.statusCode, 201, fresh.body);
+  } finally {
+    await t.cleanup();
+  }
+});
+
 test("usage meter: counts each call once, per person and per agent, and stays out of the projects", async () => {
   const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
   const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");

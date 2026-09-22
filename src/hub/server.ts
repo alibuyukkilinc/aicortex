@@ -338,15 +338,32 @@ export function buildHubServer(hub: Hub): FastifyInstance {
         };
         return { members: store.members(projectId).map(describe) };
       });
-      // People and agents in the organization who are not in this project yet.
+      // People and agents this caller may add to this project without typing an id/email from scratch.
+      // An organization admin already manages the whole hub and sees everyone. Anyone else (a project
+      // owner/admin who is not an org admin) only sees people and agents already known to them through
+      // another project they also administer — never the whole hub's roster, which would leak identities
+      // across unrelated projects. Inviting someone genuinely new by email, or creating a new agent, does
+      // not go through this list and is unaffected.
       scope.get("/members/candidates", async (req) => {
         if (!req.access!.can("manage_members")) throw new CortexError("forbidden", "Your role cannot manage members.", 403);
         const projectId = (req.params as Q).project!;
         const taken = new Set(store.members(projectId).map((m) => m.principal));
+        const p = req.principal!;
+        const isOrgAdmin = p.kind === "human" && p.user.org_admin;
+        const callerId = p.kind === "human" ? p.user.id : p.agent.id;
+        const visible = isOrgAdmin
+          ? { users: store.users(), agents: store.agents() }
+          : (() => {
+              const otherProjects = new Set(
+                store.memberships(callerId).filter((m) => m.project_id !== projectId && (m.role === "owner" || m.role === "admin")).map((m) => m.project_id),
+              );
+              const ids = new Set([...otherProjects].flatMap((pid) => store.members(pid).map((m) => m.principal)));
+              return { users: store.users().filter((u) => ids.has(u.id)), agents: store.agents().filter((a) => ids.has(a.id)) };
+            })();
         return {
           candidates: [
-            ...store.users().filter((u) => !u.disabled && !taken.has(u.id)).map((u) => ({ id: u.id, name: u.name, kind: "human" })),
-            ...store.agents().filter((a) => !a.disabled && !taken.has(a.id)).map((a) => ({ id: a.id, name: a.name, kind: "ai" })),
+            ...visible.users.filter((u) => !u.disabled && !taken.has(u.id)).map((u) => ({ id: u.id, name: u.name, kind: "human" })),
+            ...visible.agents.filter((a) => !a.disabled && !taken.has(a.id)).map((a) => ({ id: a.id, name: a.name, kind: "ai" })),
           ],
         };
       });

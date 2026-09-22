@@ -4,10 +4,6 @@ summary: "Tek sunucu, çok proje: kişiler e-posta + şifreyle, AI ajanları tok
   ile girer; proje başına rol ve görünürlük. Merkez verisi ~/.cortex/hub'da
   SQLite (git'e girmez), proje bilgisi kendi reposunun .cortex klasöründe
   kalır."
-tags:
-  - hub
-  - ekip
-  - yetki
 links:
   code:
     - file: src/hub/store.ts
@@ -15,11 +11,11 @@ links:
     - file: src/hub/roles.ts
     - file: src/hub/access.ts
     - file: src/hub/crypto.ts
-verified_at_commit: be22b1b2f35a515bc8d75a0587acf061c5da8034
+verified_at_commit: c208862f1da407becc33ea8d1dd0d1eee72911f9
 id: 01M34ZBMQDA04RDK228RSTYEHP
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T20:08:37.526Z
+updated_at: 2026-09-22T23:17:57.183Z
 ---
 
 ## Parçalar (`src/hub`)
@@ -34,6 +30,8 @@ updated_at: 2026-09-22T20:08:37.526Z
 - AI hiçbir rolde onaylayamaz, kural değiştiremez, üye yönetemez (rol listesinde yok, çekirdek de insan ister).
 - Görünürlük: scope `own` = yazdığı veya kendisine/grubuna (@humans, @ai) atanan kayıtlar; `branches` = yalnızca o dallar (atası olan dallar gezinmek için görünür). Gizli olan 404 döner.
 - Giriş: 15 dakikada adres+e-posta başına 10 hatalı deneme sınırı; davet 7 gün, tek kullanım, şifre belirleyince diğer oturumlar kapanır.
+- **Organizasyon kavramı yok, tek düz hub:** `User.org_admin` sadece bir bayrak; true ise o kişi her projede otomatik Sahip sayılır (ayrı bir organizasyon/takım tablosu yok). Bugün için yeterli (tüm projeler tek kişiye ait); birden fazla, birbirinden habersiz taraf hub'a girerse bu ayrı bir tur olarak ele alınmalı (bkz. proposed→accepted karar `01M35AS75BZVM32EFWX3HBCW4H`: mobil ekip mevcut proje+üyelik modeliyle, kod değişikliği olmadan ayrı proje olarak katılabiliyor).
+- **`GET /api/p/:project/members/candidates`** (üyeliğe eklenebilecek kişi/ajan önerileri): org_admin için hâlâ tüm hub roster'ı; org_admin olmayan proje sahibi/yöneticisi için yalnızca **başka bir projede de owner/admin olduğu** kişi/ajanlarla sınırlı — hub'daki ilgisiz herkesin kimliğini görmesin diye. E-posta ile davet bu listeden bağımsız, her zaman çalışır.
 
 ## AI ajanları nasıl bağlanır
 `aicortex mcp --hub <url> --project <id> --token <t>`: MCP araçları merkezdeki proje API'sini kullanır (`remoteApi`), ajanın rolü ve görünürlüğü aynen geçerlidir. MCP konuşamayan araçlar aynı uçları düz HTTP ile kullanabilir.

@@ -2,7 +2,7 @@
 id: 01M35AS75BZVM32EFWX3HBCW4H
 type: decision
 title: Mobil ekip aynı hub üzerinde ayrı proje olarak katılsın
-status: proposed
+status: accepted
 category_path: backend/hub
 author: chatgpt
 links:
@@ -32,8 +32,8 @@ fields:
     HTTP MCP, ekran adımları ve kesin yetki matrisi uygulama öncesi
     doğrulanmalıdır.
 created_at: 2026-09-22T19:51:45.067Z
-updated_at: 2026-09-22T19:51:45.067Z
-updated_by: chatgpt
+updated_at: 2026-09-22T23:17:10.312Z
+updated_by: owner
 ---
 
 Mobil repo aynı hub'a ayrı proje olarak kaydedilsin; .cortex mobil repoda kalsın. Üç kişiden proje sorumlusu owner, diğer ikisi member; ayrı AI kimliği contributor olsun. Dört üyelik mobil projenin tamamını görsün, dal kısıtı olmasın; diğer projelere otomatik erişim verilmesin. Kurulum sırası ilgili issue yanıtındadır. Bu bir öneridir; kabul veya ret insana aittir. Güncel bağlantı ve yetki ayrıntıları 01M35AQFZSWJM0Q4BEYJZP1JRD sorusuyla doğrulanmalıdır.
