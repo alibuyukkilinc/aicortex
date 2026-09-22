@@ -14,8 +14,8 @@ fields:
   consequences: En düşük Node sürümü 22.13. Açılışta çıkan deneysel uyarıyı
     gizliyoruz. Bazı SQL özellikleri (numaralı parametreler) yok.
 created_at: 2026-09-22T14:08:48.010Z
-updated_at: 2026-09-22T14:57:29.221Z
-updated_by: owner
+updated_at: 2026-09-22T15:08:29.752Z
+updated_by: ai-agent
 ---
 
 İndeks node:sqlite kullanır (Node 22.13+), böylece `npx` sırasında derleme gerekmez.

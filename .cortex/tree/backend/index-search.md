@@ -10,11 +10,11 @@ links:
   code:
     - file: src/index/db.ts
     - file: src/util/text.ts
-verified_at_commit: bb4ed332003f1825a56abcbfd80c7fb9823d1e8e
+verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
 id: 01M34QY9AVGX8V5NP7DDB49TM1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:45:15.070Z
+updated_at: 2026-09-22T15:10:02.468Z
 ---
 
 - `Index` (`src/index/db.ts`) düğümleri, kalemleri, aktiviteyi, kod bağlantılarını ve vektörleri tutar.
@@ -24,3 +24,4 @@ updated_at: 2026-09-22T14:45:15.070Z
 - Onay bekleyen bilgi taslakları da indekslenir (iç tür `draft`). Aramada düğüm olarak, `status: "draft"`, `draft_id` ve `proposed_by` ile döner; onay, ret veya yeni revizyonda indeksten düşer. Anlamla aramada da aynısı geçerli.
 - `cortex reindex` her şeyi dosyalardan yeniden kurar. Hiçbir veri yalnızca indekste durmaz.
 - Cevaplar `budget` alır (yaklaşık 4 karakter = 1 token, `estimateTokens`) ve sığacak kadar kesilir.
+- Açılışta FTS5 denenir; yoksa (Node 22.13-22.15) anlaşılmaz "no such module: fts5" yerine açık bir sürüm mesajı verilir (`node_too_old`).

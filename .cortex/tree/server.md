@@ -1,8 +1,9 @@
 ---
 title: Çalıştırma, derleme ve yayın
 summary: "Yalnızca yerelde çalışır: `aicortex start` 127.0.0.1:4747'de açılır.
-  Derleme = tsc (sunucu) + vite (pano), çıktı dist/. npm paketi: aicortex (henüz
-  yayınlanmadı). CI henüz yok."
+  Derleme = tsc + vite, çıktı dist/. CI: Windows, macOS, Linux × Node 22.16 ve
+  24; kurulum testi 2 dakika sınırını ölçer. npm paketi aicortex, henüz
+  yayınlanmadı."
 tags:
   - derleme
   - yayin
@@ -11,15 +12,19 @@ links:
     - file: package.json
     - file: tsconfig.json
     - file: vite.config.ts
-verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
+    - file: .github/workflows/ci.yml
+    - file: scripts/smoke.mjs
+verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
 id: 01M34Q1CBEMJA6S58G199HVFBQ
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:53:23.074Z
+updated_at: 2026-09-22T15:10:02.449Z
 ---
 
-- Node 22.13 veya üstü gerekir (node:sqlite için). Veritabanı sunucusu, Docker veya API anahtarı gerekmez.
+- Node 22.16 veya üstü gerekir (node:sqlite'ın FTS5'li ilk sürümü). Veritabanı sunucusu, Docker veya API anahtarı gerekmez.
 - `npm run build`, `npm test` (node:test, tsx ile), `npm run typecheck` (sunucu ve web).
 - `npm run dev -- start` API'yi kaynaktan çalıştırır, panonun son build'ini sunar.
 - Paket adı `aicortex`; komut `aicortex` ve kısa adıyla `cortex` olarak gelir.
-- Ekip sunucusu, çoklu proje ve CI henüz yapılmadı (açık görevlere bak).
+- CI (`.github/workflows/ci.yml`): her push ve PR'da tip kontrolü, testler, derleme ve `npm run smoke`. Uzak depo henüz yok; GitHub'a gönderilince çalışır.
+- `npm run smoke` (`scripts/smoke.mjs`): paketi `npm pack` ile paketler, boş klasöre kurar, `aicortex init` ve `start` çalıştırır, API/brief/pano cevabını kontrol eder ve süreyi ölçer (sınır 120 s, yerelde ~15-20 s).
+- Ekip sunucusu ve çoklu proje henüz yapılmadı.

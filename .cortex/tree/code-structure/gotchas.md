@@ -1,8 +1,9 @@
 ---
 title: Bilinen tuzaklar
-summary: node:sqlite numaralı parametre (?1) desteklemiyor, adlandırılmış
-  kullan; uyarı filtresinden önce yüklenmemeli. SQL LIKE'ta _ joker sayılıyor,
-  birebir karşılaştır. Windows'ta git çağrısı ~20 ms. Satır sonları LF kalmalı.
+summary: "node:sqlite: FTS5 ancak Node 22.16'dan itibaren var; numaralı
+  parametre (?1) yok, adlandırılmış kullan; uyarı filtresinden önce
+  yüklenmemeli. SQL LIKE'ta _ joker. Windows'ta git çağrısı ~20 ms. Satır
+  sonları LF."
 tags:
   - tuzak
   - sqlite
@@ -12,13 +13,14 @@ links:
     - file: src/index/db.ts
     - file: src/git/git.ts
     - file: src/cli.ts
-verified_at_commit: 4286d44b16a1e5a8ee46681a64ba1e3d593809d0
+verified_at_commit: b9598f3a13fafab490d63c9132c91f06a85def99
 id: 01M34QYABJE3KGV82NE6BGAWEK
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T14:53:23.100Z
+updated_at: 2026-09-22T15:10:02.475Z
 ---
 
+- **En düşük Node 22.16**: 22.13, 22.14 ve 22.15'teki node:sqlite FTS5 içermiyor, Cortex hiç açılmıyordu. Yerelde 22.16 kullanıldığı için CI'daki en eski sürüm testine kadar fark edilmedi.
 - **node:sqlite parametreleri**: `?1` gibi numaralı yer tutucular çalışmıyor; `:ad` ya da düz `?` kullan.
 - **LIKE ve alt çizgi**: dosya adlarındaki `_` joker gibi eşleşiyordu; kod bağlantısı aramaları birebir karşılaştırıyor.
 - **ExperimentalWarning**: `src/cli.ts` SQLite uyarısını gizler; ondan önce hiçbir şey node:sqlite yüklememeli.
