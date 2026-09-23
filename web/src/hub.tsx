@@ -984,11 +984,18 @@ function UsageTab() {
       ) : (
         <>
           <div className="kpis">
-            <Tile label={t("usage.calls")} value={num(totals.calls)} />
-            <Tile label={t("usage.tokens")} value={num(totals.tokens)} sub={kb(totals.bytes)} />
-            <Tile label={t("usage.avg")} value={num(Math.round(totals.tokens / Math.max(1, totals.calls)))} sub={t("usage.tokens")} />
-            <Tile label={t("usage.share")} value={`${Math.round((aiTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(aiTokens)} ${t("usage.tokens")}`} />
-            <Tile label={t("usage.busiest")} value={busiest?.name ?? t("usage.noneYet")} sub={busiest ? `${num(busiest.tokens)} ${t("usage.tokens")}` : undefined} small />
+            <Tile icon="chat" label={t("usage.calls")} value={num(totals.calls)} />
+            <Tile icon="zap" label={t("usage.tokens")} value={num(totals.tokens)} sub={kb(totals.bytes)} />
+            <Tile icon="target" label={t("usage.avg")} value={num(Math.round(totals.tokens / Math.max(1, totals.calls)))} sub={t("usage.tokens")} />
+            <Tile icon="percent" tone="ai" label={t("usage.share")} value={`${Math.round((aiTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(aiTokens)} ${t("usage.tokens")}`} />
+            <Tile
+              icon="star"
+              tone={busiest ? (busiest.kind === "ai" ? "ai" : "human") : undefined}
+              label={t("usage.busiest")}
+              value={busiest?.name ?? t("usage.noneYet")}
+              sub={busiest ? `${num(busiest.tokens)} ${t("usage.tokens")}` : undefined}
+              small
+            />
           </div>
 
           <div className="charts">
@@ -1069,7 +1076,7 @@ function UsageTab() {
                   <tr key={`${r.principal}-${r.project_id}`}>
                     <td>
                       <div className="cell-title">
-                        {r.name} <span className="chip type">{r.kind === "ai" ? t("hub.agent") : t("hub.person")}</span>
+                        {r.name} <span className={`chip ${r.kind === "ai" ? "ai" : "human"}`}>{r.kind === "ai" ? t("hub.agent") : t("hub.person")}</span>
                       </div>
                       <div className="faint mono">{r.principal}</div>
                     </td>
@@ -1093,11 +1100,34 @@ function UsageTab() {
   );
 }
 
-function Tile({ label, value, sub, small }: { label: string; value: string; sub?: string; small?: boolean }) {
+function Tile({
+  label,
+  value,
+  sub,
+  small,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  small?: boolean;
+  icon?: string;
+  tone?: "ai" | "human";
+}) {
   return (
     <div className="card kpi">
-      <div className="label">{label}</div>
-      <div className="value" style={small ? { fontSize: 17, fontWeight: 600 } : undefined}>{value}</div>
+      <div className="kpi-head">
+        {icon && (
+          <span className={`kpi-icon${tone ? ` ${tone}` : ""}`}>
+            <Icon name={icon} size={13} />
+          </span>
+        )}
+        <div className="label">{label}</div>
+      </div>
+      <div className={`value${tone ? ` ${tone}` : ""}`} style={small ? { fontSize: 17, fontWeight: 600 } : undefined}>
+        {value}
+      </div>
       {sub && <div className="sub">{sub}</div>}
     </div>
   );

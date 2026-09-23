@@ -189,14 +189,19 @@ export function HBars({
   const [hover, setHover] = useState<number | null>(null);
   const uid = useId().replace(/:/g, "");
   const rowH = 32;
+  const padBottom = 20; // room for the x-axis tick labels
   const values = data.map((d) => d.value.toLocaleString());
   // Columns size to the actual content (a few px per character) instead of a fixed guess,
   // so long routes and five/six-digit token counts never run off the card edge.
   const labelW = Math.min(170, Math.max(56, Math.max(0, ...data.map((d) => d.label.length)) * 6.4 + 18));
   const valueW = Math.min(80, Math.max(32, Math.max(0, ...values.map((v) => v.length)) * 7.2 + 14));
-  const max = Math.max(...data.map((d) => d.value), 1);
+  const rawMax = Math.max(...data.map((d) => d.value), 1);
+  const ticks = niceTicks(rawMax);
+  const top = ticks[ticks.length - 1] || 1;
   const barMax = Math.max(0, width - labelW - valueW);
-  const height = data.length * rowH;
+  const rowsH = data.length * rowH;
+  const height = rowsH + padBottom;
+  const tickX = (v: number) => labelW + (v / top) * barMax;
   useEffect(() => setTip(null), [data]);
 
   const hide = () => {
@@ -210,13 +215,20 @@ export function HBars({
         <svg width={width} height={height} role="img" aria-label={ariaLabel}>
           <defs>
             <clipPath id={`hbar-lbl-${uid}`}>
-              <rect x={0} y={0} width={Math.max(0, labelW - 8)} height={height} />
+              <rect x={0} y={0} width={Math.max(0, labelW - 8)} height={rowsH} />
             </clipPath>
           </defs>
-          {data.map((_, i) => i > 0 && <line key={i} x1={0} x2={width} y1={i * rowH} y2={i * rowH} stroke="var(--viz-grid)" strokeWidth={1} />)}
-          <line x1={labelW} x2={labelW} y1={0} y2={height} stroke="var(--viz-axis)" strokeWidth={1} />
+          {data.map((_, i) => i > 0 && <line key={`row-${i}`} x1={0} x2={width} y1={i * rowH} y2={i * rowH} stroke="var(--viz-grid)" strokeWidth={1} />)}
+          {ticks.map((tval) => (
+            <g key={tval}>
+              <line x1={tickX(tval)} x2={tickX(tval)} y1={0} y2={rowsH} stroke={tval === 0 ? "var(--viz-axis)" : "var(--viz-grid)"} strokeWidth={1} />
+              <text x={tickX(tval)} y={height - 6} textAnchor="middle">
+                {tickLabel(tval)}
+              </text>
+            </g>
+          ))}
           {data.map((d, i) => {
-            const w = (d.value / max) * barMax;
+            const w = (d.value / top) * barMax;
             const yMid = i * rowH + rowH / 2;
             const show = () => {
               setHover(i);
