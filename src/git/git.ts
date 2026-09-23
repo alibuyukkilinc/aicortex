@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { type Pair, prettierVerdicts } from "./formatting.js";
 
 export interface CommitInfo {
   hash: string;
@@ -113,10 +114,81 @@ export class Git {
     return ranges;
   }
 
-  // True when every difference in `file` between `from` and HEAD is whitespace or blank lines.
-  // `--quiet` exits 0 for no difference and 1 for one; any other failure counts as a real change.
+  // True when `file` changed between `from` and HEAD only in the ways a formatter changes code.
+  // First the cheap check: whitespace and blank lines only (`--quiet` exits 0 for no difference).
+  // That misses what formatters actually do (re-wrap a call over several lines, add trailing commas,
+  // parenthesize a lone arrow parameter), so if it fails both versions are compared after normalizing those.
+  // What is still undecided after that goes to the project's own Prettier, all files in one process
+  // (formatting.ts); a project without Prettier keeps the conservative answer.
+  //
+  // The verdict depends only on the two file contents, so it is keyed by their blob ids and kept in
+  // `verdicts` (which the caller may persist): an unrelated commit, or a restart, costs no re-check.
   formattingOnly(from: string, file: string): boolean {
-    return this.run(["diff", "-w", "--ignore-blank-lines", "--quiet", "--relative", from, "HEAD", "--", file]) !== null;
+    return this.formattingOnlyPairs([{ from, file }]).get(`${from}\0${file}`) ?? false;
+  }
+
+  verdicts = new Map<string, boolean>(); // "<blob before>:<blob after>" -> formatting only
+
+  // Many (commit, file) pairs at once: one `ls-tree` per commit, and at most one Prettier process in total.
+  formattingOnlyPairs(pairs: { from: string; file: string }[]): Map<string, boolean> {
+    const out = new Map<string, boolean>();
+    if (!pairs.length) return out;
+    const files = [...new Set(pairs.map((p) => p.file))];
+    const trees = new Map<string, Map<string, string>>();
+    const blobsAt = (rev: string) => {
+      if (!trees.has(rev)) trees.set(rev, this.blobs(rev, files));
+      return trees.get(rev)!;
+    };
+    const pending: (Pair & { key: string; id: string })[] = [];
+    for (const { from, file } of pairs) {
+      const id = `${from}\0${file}`;
+      const a = blobsAt(from).get(file);
+      const b = blobsAt("HEAD").get(file);
+      if (!a || !b) {
+        out.set(id, false);
+        continue;
+      }
+      const key = `${a}:${b}`;
+      const known = this.verdicts.get(key);
+      if (known !== undefined) {
+        out.set(id, known);
+        continue;
+      }
+      if (this.run(["diff", "-w", "--ignore-blank-lines", "--quiet", a, b]) !== null) {
+        this.verdicts.set(key, true);
+        out.set(id, true);
+        continue;
+      }
+      const before = this.run(["cat-file", "blob", a]);
+      const after = before === null ? null : this.run(["cat-file", "blob", b]);
+      if (before === null || after === null) out.set(id, false);
+      else if (sameCode(before, after)) {
+        this.verdicts.set(key, true);
+        out.set(id, true);
+      } else if (!mayBeFormatting(before, after)) {
+        this.verdicts.set(key, false); // a formatter cannot have made this difference: no need to ask one
+        out.set(id, false);
+      } else if (!pending.some((p) => p.key === key)) pending.push({ file, before, after, key, id });
+      else pending.find((p) => p.key === key)!.id += `\n${id}`; // same contents asked for twice
+    }
+    const verdicts = prettierVerdicts(this.cwd, pending);
+    pending.forEach((p, i) => {
+      const v = verdicts?.[i] ?? false;
+      if (verdicts) this.verdicts.set(p.key, v); // without Prettier, do not remember a guess
+      for (const id of p.id.split("\n")) out.set(id, v);
+    });
+    return out;
+  }
+
+  // Blob id of each of `files` at `rev`, in one call. Paths are relative to the project root.
+  private blobs(rev: string, files: string[]): Map<string, string> {
+    const out = new Map<string, string>();
+    const text = this.run(["ls-tree", "-r", rev, "--", ...files]) ?? "";
+    for (const line of text.split("\n")) {
+      const m = /^\d+ blob ([0-9a-f]+)\t(.+)$/.exec(line);
+      if (m) out.set(m[2], m[1]);
+    }
+    return out;
   }
 
   commitsSince(from: string, file: string, limit = 20): CommitInfo[] {
@@ -130,4 +202,28 @@ export class Git {
         return { hash, author, date, subject: subject.join("\t") };
       });
   }
+}
+
+// Equal once formatting is taken out: whitespace between tokens (kept, as one space, only where it
+// separates two words, so `return x` never equals `returnx`), trailing commas before a closing bracket,
+// and parentheses around a single arrow-function parameter. Deliberately crude: it errs toward "real
+// change", which only costs a look; calling a real change formatting would hide it.
+export function sameCode(a: string, b: string): boolean {
+  return normalizeCode(a) === normalizeCode(b);
+}
+
+function normalizeCode(s: string): string {
+  return s
+    .replace(/\s+/g, " ")
+    .replace(/ (?![\w$])|(?<![\w$]) /g, "") // drop a space unless it sits between two word characters
+    .replace(/,(?=[)\]}>])/g, "")
+    .replace(/\(([\w$]+)\)=>/g, "$1=>");
+}
+
+// A necessary condition for "only a formatter changed this": equal once every character a formatter
+// adds or removes (whitespace, brackets and braces, commas, semicolons, quotes, escapes, union bars) is gone.
+// Different here means different for sure; equal here still needs the real formatter to confirm.
+function mayBeFormatting(a: string, b: string): boolean {
+  const strip = (s: string) => s.replace(/[\s()[\]{},;'"`|\\]/g, ""); // {}: JSX gains {" "} when re-wrapped
+  return strip(a) === strip(b);
 }

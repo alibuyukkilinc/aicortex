@@ -6,7 +6,8 @@ import { Git } from "../git/git.js";
 
 // high: the knowledge is probably wrong now (linked lines rewritten, file deleted or moved).
 // medium: the file it describes changed somewhere; worth a look.
-// low: only formatting changed (whitespace, blank lines); nothing the knowledge could describe.
+// low: only formatting changed (whitespace, re-wrapping, what the project's Prettier would rewrite); nothing
+// the knowledge could describe.
 export type Severity = "high" | "medium" | "low";
 const RANK: Record<Severity, number> = { low: 0, medium: 1, high: 2 };
 
@@ -57,6 +58,7 @@ export class StalenessService {
   private dirty = true;
   private stale = new Map<string, StaleInfo>();
   private snoozes: SnoozeStore;
+  private verdictFile: VerdictFile;
   // Git answers for "what changed in file F between commit C and HEAD" only change when HEAD does.
   // Every node/draft write marks the list dirty and recomputes it; with this, the recompute (and
   // /brief, /stale, approvals in between) re-asks git nothing it already asked at this HEAD.
@@ -66,6 +68,8 @@ export class StalenessService {
   constructor(private c: Cortex) {
     this.git = new Git(c.project.root);
     this.snoozes = new SnoozeStore(c.project.dir);
+    this.verdictFile = new VerdictFile(c.project.dir);
+    this.git.verdicts = this.verdictFile.load();
     c.events.on("change", (e: { type: string; entry?: { action: string } }) => {
       if (e.type === "reindex" || e.entry?.action.startsWith("node.") || e.entry?.action.startsWith("draft.")) this.dirty = true;
     });
@@ -118,6 +122,7 @@ export class StalenessService {
     const files = [...new Set(links.map((l) => l.file.normalize("NFC")))];
     const changed = caches.get(caches.changed, `${commit}\0${files.join("\0")}`, () => this.git.changedFiles(commit, files));
     if (changed === null) return null;
+    this.prefetchFormatting([{ commit, changed }], caches);
     return this.evaluate(commit, changed, links, caches);
   }
 
@@ -175,9 +180,13 @@ export class StalenessService {
       byCommit.set(verified, [...(byCommit.get(verified) ?? []), path]);
     }
 
-    for (const [commit, paths] of byCommit) {
+    const groups = [...byCommit].map(([commit, paths]) => {
       const files = [...new Set(paths.flatMap((p) => byPath.get(p)!.map((l) => l.file)))];
       const changed = caches.get(caches.changed, `${commit}\0${files.join("\0")}`, () => this.git.changedFiles(commit, files)) ?? [];
+      return { commit, paths, changed };
+    });
+    this.prefetchFormatting(groups, caches);
+    for (const { commit, paths, changed } of groups) {
       if (!changed.length) continue;
       for (const path of paths) {
         const changes = this.evaluate(commit, changed, byPath.get(path)!, caches);
@@ -185,6 +194,18 @@ export class StalenessService {
       }
     }
     return out;
+  }
+
+  // "Formatting only?" for every modified file of every commit group in one batch: at most one
+  // Prettier process per recompute. Verdicts are remembered by file contents in .index/, see Git.
+  private prefetchFormatting(groups: { commit: string; changed: FileChange[] }[], caches: Caches): void {
+    const pairs = groups.flatMap(({ commit, changed }) =>
+      changed.filter((c) => c.status === "modified" && !caches.cosmetic.has(`${commit}\0${c.file}`)).map((c) => ({ from: commit, file: c.file })),
+    );
+    if (!pairs.length) return;
+    const known = this.git.verdicts.size;
+    for (const [key, cosmetic] of this.git.formattingOnlyPairs(pairs)) caches.cosmetic.set(key, cosmetic);
+    if (this.git.verdicts.size !== known) this.verdictFile.save(this.git.verdicts);
   }
 
   private evaluate(commit: string, changed: FileChange[], links: CodeLink[], caches: Caches): StaleChange[] {
@@ -241,6 +262,32 @@ function fingerprint(s: StaleInfo): string {
       .sort()
       .join("|") || s.reason
   );
+}
+
+// "Formatting only" verdicts by blob pair. Pure facts about two file contents, so they never go stale;
+// kept in the rebuildable .index/ so a restart does not re-run Prettier over every stale file.
+class VerdictFile {
+  private file: string;
+  constructor(cortexDir: string) {
+    this.file = join(cortexDir, ".index", "formatting.json");
+  }
+  load(): Map<string, boolean> {
+    try {
+      return new Map(Object.entries(JSON.parse(readFileSync(this.file, "utf8")) as Record<string, boolean>));
+    } catch {
+      return new Map();
+    }
+  }
+  save(m: Map<string, boolean>): void {
+    // Newest last; past the cap the oldest are forgotten (a forgotten verdict is just asked again).
+    const entries = [...m].slice(-20_000);
+    try {
+      if (!existsSync(dirname(this.file))) mkdirSync(dirname(this.file), { recursive: true });
+      writeFileSync(this.file, JSON.stringify(Object.fromEntries(entries)), "utf8");
+    } catch {
+      // read-only checkout: keep them in memory only
+    }
+  }
 }
 
 // Re-read when the file changes on disk, so an MCP process and the board see each other's snoozes.
