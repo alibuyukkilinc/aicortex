@@ -31,7 +31,7 @@ export const NodeInput = z.object({
   tags: z.array(z.string().max(40)).max(20).optional(),
   links: z
     .object({
-      code: z.array(z.object({ file: z.string(), lines: z.string().optional() })).optional(),
+      code: z.array(z.object({ file: z.string().transform((f) => f.normalize("NFC")), lines: z.string().optional() })).optional(), // NFC: same file, same key on every OS
       items: z.array(z.string()).optional(),
     })
     .optional(),
@@ -411,7 +411,7 @@ export class Cortex {
   // Everything Cortex knows about some files: read this before editing them.
   codeContext(files: string[]) {
     if (!files.length) throw new CortexError("invalid_request", "Pass at least one file or directory path.", 400, { example: ["src/auth/login.ts"] });
-    const links = this.index.linksForFiles(files);
+    const links = this.index.linksForFiles(files.map((f) => f.normalize("NFC")));
     const nodes = new Map<string, Record<string, unknown>>();
     const items = new Map<string, Record<string, unknown>>();
     for (const l of links) {

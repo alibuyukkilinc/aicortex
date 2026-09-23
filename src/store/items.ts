@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter.js";
 import { Item, Reply } from "../core/types.js";
@@ -15,19 +15,40 @@ export function slugify(title: string): string {
 
 export class ItemStore {
   private dirs = new Map<string, string>();
+  private scannedAt = -1; // mtime of the items folder when `dirs` was last rebuilt from it
+  scans = 0; // folder listings so far; tests use it to prove lookups do not scan per item
 
   constructor(private root: string) {}
 
+  // id -> folder. A miss used to list the whole items folder, and a reindex looks up every item once:
+  // n listings of n entries. Now the folder is listed again only when its own mtime changes (an item
+  // folder was added, removed or renamed), so a full reindex lists it once.
   private dirFor(id: string): string | null {
     if (!ID.test(id)) return null;
     const cached = this.dirs.get(id);
     if (cached && existsSync(cached)) return cached;
-    if (!existsSync(this.root)) return null;
-    const name = readdirSync(this.root).find((n) => n === id || n.startsWith(`${id}-`));
-    if (!name) return null;
-    const dir = join(this.root, name);
-    this.dirs.set(id, dir);
-    return dir;
+    this.rescan();
+    const dir = this.dirs.get(id);
+    return dir && existsSync(dir) ? dir : null;
+  }
+
+  private rescan(): void {
+    let m: number;
+    try {
+      m = statSync(this.root).mtimeMs;
+    } catch {
+      this.dirs.clear();
+      this.scannedAt = -1;
+      return;
+    }
+    if (m === this.scannedAt) return;
+    this.scans++;
+    this.dirs.clear();
+    for (const name of readdirSync(this.root)) {
+      const id = name.slice(0, 26);
+      if (ID.test(id) && (name.length === 26 || name[26] === "-")) this.dirs.set(id, join(this.root, name));
+    }
+    this.scannedAt = m;
   }
 
   exists(id: string): boolean {

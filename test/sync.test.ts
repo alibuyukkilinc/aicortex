@@ -156,3 +156,11 @@ test("an unmappable change falls back to a full rebuild", async () => {
     t.cleanup();
   }
 });
+
+test("a decomposed (macOS) path maps to the same record as the composed one", () => {
+  const composed = "activity/2026-09-23/özge.jsonl"; // ö as one code point
+  const decomposed = "activity/2026-09-23/özge.jsonl"; // o + combining diaeresis, as macOS reports it
+  assert.notEqual(composed, decomposed);
+  assert.deepEqual(mapPath(decomposed), mapPath(composed));
+  assert.deepEqual(mapPath(decomposed), { target: { k: "activity", file: "2026-09-23/özge.jsonl" } });
+});

@@ -20,9 +20,21 @@ export class Git {
 
   constructor(private cwd: string) {}
 
+  calls = 0; // git processes started; tests use it to prove repeated reads are served from cache
+
+  // core.quotepath=false: otherwise git prints "src/\303\266deme.ts" for src/ödeme.ts, and no linked file with a
+  // non-ASCII name ever matches. Output is NFC, so a name typed on macOS (NFD) and on Windows compare equal.
   private run(args: string[]): string | null {
+    this.calls++;
     try {
-      return execFileSync("git", args, { cwd: this.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 32 * 1024 * 1024, windowsHide: true });
+      const out = execFileSync("git", ["-c", "core.quotepath=false", ...args], {
+        cwd: this.cwd,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 32 * 1024 * 1024,
+        windowsHide: true,
+      });
+      return out.normalize("NFC");
     } catch {
       return null;
     }

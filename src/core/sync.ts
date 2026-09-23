@@ -34,7 +34,8 @@ const RESCAN = { rescan: true } as const;
 
 // Which record does a path under .cortex belong to? Pure, so it can be tested on its own.
 export function mapPath(raw: string): PathMapping {
-  const rel = String(raw).replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
+  // NFC: macOS reports decomposed names (o + combining diaeresis); everything else here is composed.
+  const rel = String(raw).normalize("NFC").replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
   if (!rel || rel.split("/").includes("..")) return null;
   const cut = rel.indexOf("/");
   const root = cut === -1 ? rel : rel.slice(0, cut);

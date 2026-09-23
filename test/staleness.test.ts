@@ -339,3 +339,21 @@ test("logging a change names the nodes it made stale, so the AI closes them in t
     p.cleanup();
   }
 });
+
+test("files with non-ASCII names are followed (git quotes them unless told not to)", () => {
+  const p = gitProject();
+  try {
+    p.write("src/ödeme/iade.ts", "export const limit = 1;\n");
+    p.commit("add ödeme");
+    // Linked as a macOS editor would send it (decomposed); git and the index hold the composed form.
+    p.cortex.putNode(p.human, { path: "backend/pay", title: "İade", summary: "Refund limit.", links: { code: [{ file: "src/ödeme/iade.ts" }] } });
+    assert.deepEqual(p.cortex.codeContext(["src/ödeme/iade.ts"]).knowledge.map((k) => k.path), ["backend/pay"]);
+    p.write("src/ödeme/iade.ts", "export const limit = 2;\n");
+    p.commit("raise the limit");
+    const s = stale(p.cortex, "backend/pay");
+    assert.equal(s?.changes[0].file, "src/ödeme/iade.ts");
+    assert.equal(s?.severity, "medium");
+  } finally {
+    p.cleanup();
+  }
+});

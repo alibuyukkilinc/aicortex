@@ -12,22 +12,30 @@ const work = mkdtempSync(join(tmpdir(), "aicortex-smoke-"));
 const app = join(work, "app");
 const t0 = Date.now();
 const step = (msg) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
-// npm and npx are .cmd files on Windows, which only run through a shell.
-const sh = (cmd, cwd) => execFileSync(cmd, { cwd, shell: true, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+// npm with an argument list, never a command string: no shell, so the temp folder's path (spaces, quotes)
+// cannot be misread. Under `npm run`, npm_execpath is npm's own JS entry, run with this Node on every OS.
+// Without it, POSIX runs the npm binary directly; only Windows needs a shell, because npm is a .cmd there.
+const npm = (args, cwd) => {
+  const opts = { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] };
+  const cli = process.env.npm_execpath;
+  if (cli && /\.c?js$/.test(cli)) return execFileSync(process.execPath, [cli, ...args], opts);
+  if (process.platform !== "win32") return execFileSync("npm", args, opts);
+  return execFileSync("npm", args.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)), { ...opts, shell: true });
+};
 
 let server;
 try {
-  const [packed] = JSON.parse(sh(`npm pack --json --pack-destination "${work}"`, repo));
+  const [packed] = JSON.parse(npm(["pack", "--json", "--pack-destination", work], repo));
   const tarball = join(work, packed.filename);
   step(`packed ${packed.filename} (${(packed.size / 1024).toFixed(0)} KB, ${packed.entryCount} files)`);
   if (!packed.files.some((f) => f.path === "dist/web/index.html")) throw new Error("The package does not contain the built board (dist/web/index.html).");
 
   execFileSync(process.execPath, ["-e", "require('fs').mkdirSync(process.argv[1])", app]);
   writeFileSync(join(app, "package.json"), JSON.stringify({ name: "smoke-app", private: true }));
-  sh(`npm install --no-audit --no-fund "${tarball}"`, app);
+  npm(["install", "--no-audit", "--no-fund", tarball], app);
   step("installed into an empty folder");
 
-  const init = sh("npx --no-install aicortex init --name smoke --lang en --branches backend,frontend", app);
+  const init = npm(["exec", "--no", "--", "aicortex", "init", "--name", "smoke", "--lang", "en", "--branches", "backend,frontend"], app);
   if (!init.includes("Cortex initialized")) throw new Error(`init did not report success:\n${init}`);
   step("aicortex init");
 

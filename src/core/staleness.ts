@@ -56,6 +56,11 @@ export class StalenessService {
   private dirty = true;
   private stale = new Map<string, StaleInfo>();
   private snoozes: SnoozeStore;
+  // Git answers for "what changed in file F between commit C and HEAD" only change when HEAD does.
+  // Every node/draft write marks the list dirty and recomputes it; with this, the recompute (and
+  // /brief, /stale, approvals in between) re-asks git nothing it already asked at this HEAD.
+  private caches = new Caches();
+  private cachesHead: string | null = null;
 
   constructor(private c: Cortex) {
     this.git = new Git(c.project.root);
@@ -106,9 +111,13 @@ export class StalenessService {
   // Changes to `links` since `commit`, with severity. Empty when nothing the links cover moved.
   changesSince(commit: string, links: CodeLink[]): StaleChange[] | null {
     if (!this.git.available() || !this.git.commitExists(commit)) return null;
-    const changed = this.git.changedFiles(commit, [...new Set(links.map((l) => l.file))]);
+    const head = this.git.head();
+    if (!head) return null;
+    const caches = this.cachesFor(head);
+    const files = [...new Set(links.map((l) => l.file.normalize("NFC")))];
+    const changed = caches.get(caches.changed, `${commit}\0${files.join("\0")}`, () => this.git.changedFiles(commit, files));
     if (changed === null) return null;
-    return this.evaluate(commit, changed, links, new Caches());
+    return this.evaluate(commit, changed, links, caches);
   }
 
   refresh(force = false): void {
@@ -134,11 +143,20 @@ export class StalenessService {
     return { ...s, snoozed: { at: z.at, by: z.by } };
   }
 
+  private cachesFor(head: string): Caches {
+    if (head !== this.cachesHead) {
+      this.caches = new Caches();
+      this.cachesHead = head;
+    }
+    return this.caches;
+  }
+
   private compute(head: string): Map<string, StaleInfo> {
+    const caches = this.cachesFor(head);
     const byPath = new Map<string, CodeLink[]>();
     for (const l of this.c.index.nodeCodeLinks()) {
       const list = byPath.get(l.path) ?? [];
-      list.push({ file: l.file, lines: l.lines });
+      list.push({ file: l.file.normalize("NFC"), lines: l.lines });
       byPath.set(l.path, list);
     }
 
@@ -148,7 +166,7 @@ export class StalenessService {
     for (const path of byPath.keys()) {
       const verified = this.c.tree.read(path)?.verified_at_commit;
       if (!verified || head.startsWith(verified)) continue;
-      if (!this.git.commitExists(verified)) {
+      if (!caches.get(caches.exists, verified, () => this.git.commitExists(verified))) {
         // History was rewritten under it: nothing to compare against, so someone has to look.
         out.set(path, { path, verified_at_commit: verified, reason: "unknown_commit", severity: "medium", changes: [] });
         continue;
@@ -158,9 +176,8 @@ export class StalenessService {
 
     for (const [commit, paths] of byCommit) {
       const files = [...new Set(paths.flatMap((p) => byPath.get(p)!.map((l) => l.file)))];
-      const changed = this.git.changedFiles(commit, files) ?? [];
+      const changed = caches.get(caches.changed, `${commit}\0${files.join("\0")}`, () => this.git.changedFiles(commit, files)) ?? [];
       if (!changed.length) continue;
-      const caches = new Caches();
       for (const path of paths) {
         const changes = this.evaluate(commit, changed, byPath.get(path)!, caches);
         if (changes.length) out.set(path, { path, verified_at_commit: commit, reason: "changed", severity: worst(changes), changes });
@@ -171,16 +188,17 @@ export class StalenessService {
 
   private evaluate(commit: string, changed: FileChange[], links: CodeLink[], caches: Caches): StaleChange[] {
     const changes: StaleChange[] = [];
-    for (const link of links) {
+    for (const raw of links) {
+      const link = { ...raw, file: raw.file.normalize("NFC") };
       for (const ch of changed.filter((c) => c.file === link.file || c.file.startsWith(`${link.file}/`))) {
         const range = link.lines && ch.status === "modified" && ch.file === link.file ? parseLines(link.lines) : null;
         if (range) {
-          const touched = caches.get(caches.ranges, ch.file, () => this.git.touchedRanges(commit, ch.file));
+          const touched = caches.get(caches.ranges, `${commit}\0${ch.file}`, () => this.git.touchedRanges(commit, ch.file));
           if (touched && !touched.some(([a, b]) => a <= range[1] && b >= range[0])) continue; // changed elsewhere in the file
         }
-        const cosmetic = ch.status === "modified" && caches.get(caches.cosmetic, ch.file, () => this.git.formattingOnly(commit, ch.file));
+        const cosmetic = ch.status === "modified" && caches.get(caches.cosmetic, `${commit}\0${ch.file}`, () => this.git.formattingOnly(commit, ch.file));
         const severity: Severity = ch.status !== "modified" ? "high" : cosmetic ? "low" : range ? "high" : "medium";
-        const list = caches.get(caches.commits, ch.file, () => this.git.commitsSince(commit, ch.file));
+        const list = caches.get(caches.commits, `${commit}\0${ch.file}`, () => this.git.commitsSince(commit, ch.file));
         changes.push({
           file: ch.file,
           status: ch.status,
@@ -197,7 +215,10 @@ export class StalenessService {
   }
 }
 
+// Keyed by "<commit>\0<file>" (or the file list); valid for one HEAD, see StalenessService.cachesFor.
 class Caches {
+  changed = new Map<string, FileChange[] | null>();
+  exists = new Map<string, boolean>();
   ranges = new Map<string, [number, number][] | null>();
   commits = new Map<string, CommitInfo[]>();
   cosmetic = new Map<string, boolean>();

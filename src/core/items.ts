@@ -11,7 +11,7 @@ const Links = z
     nodes: z.array(z.string()).max(20).optional(),
     items: z.array(z.string()).max(20).optional(),
     activity: z.array(z.string()).max(20).optional(),
-    code: z.array(z.object({ file: z.string(), lines: z.string().optional() })).max(50).optional(),
+    code: z.array(z.object({ file: z.string().transform((f) => f.normalize("NFC")), lines: z.string().optional() })).max(50).optional(),
   })
   .strict();
 
