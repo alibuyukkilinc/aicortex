@@ -948,6 +948,7 @@ function UsageTab() {
     new Date(`${row.date}T00:00:00Z`).toLocaleDateString(lang, { day: "numeric", month: "short", timeZone: "UTC" });
   const totals = data?.totals ?? { calls: 0, bytes: 0, tokens: 0 };
   const aiTokens = (data?.by_principal ?? []).filter((r) => r.kind === "ai").reduce((n, r) => n + r.tokens, 0);
+  const humanTokens = (data?.by_principal ?? []).filter((r) => r.kind === "human").reduce((n, r) => n + r.tokens, 0);
   const busiest = (data?.by_principal ?? [])[0];
 
   return (
@@ -988,6 +989,7 @@ function UsageTab() {
             <Tile icon="zap" label={t("usage.tokens")} value={num(totals.tokens)} sub={kb(totals.bytes)} />
             <Tile icon="target" label={t("usage.avg")} value={num(Math.round(totals.tokens / Math.max(1, totals.calls)))} sub={t("usage.tokens")} />
             <Tile icon="percent" tone="ai" label={t("usage.share")} value={`${Math.round((aiTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(aiTokens)} ${t("usage.tokens")}`} />
+            <Tile icon="user" tone="human" label={t("usage.humanShare")} value={`${Math.round((humanTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(humanTokens)} ${t("usage.tokens")}`} />
             <Tile
               icon="star"
               tone={busiest ? (busiest.kind === "ai" ? "ai" : "human") : undefined}
