@@ -5,7 +5,8 @@ import YAML from "yaml";
 import { CortexError } from "../core/types.js";
 import { nowIso } from "../util/text.js";
 import { newToken, tokenHash } from "./crypto.js";
-import { DEFAULT_ROLE, Role, isRoleFor } from "./roles.js";
+import type { Role} from "./roles.js";
+import { DEFAULT_ROLE, isRoleFor } from "./roles.js";
 
 // The hub's own data: people, AI agents, projects and who may do what where. It holds password hashes and
 // sessions, so it lives outside every repository (default ~/.cortex/hub) and is never committed.

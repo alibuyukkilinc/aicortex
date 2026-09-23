@@ -1,5 +1,6 @@
 import { useContext, useState } from "react";
-import { ApiError, api, useApi } from "./api";
+import type { ApiError} from "./api";
+import { api, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
 import { SchemaForm } from "./SchemaForm";
 import type { Item, NodeSummary, Reply, Schema } from "./types";

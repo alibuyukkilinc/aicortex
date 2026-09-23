@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { Cortex } from "../src/core/cortex.js";
 import { initProject } from "../src/core/init.js";
 import { loadProject } from "../src/core/project.js";
-import { Embedder } from "../src/search/embedder.js";
+import type { Embedder } from "../src/search/embedder.js";
 
 // Semantic search is off unless a test passes an embedder, so results never depend on this machine's setup.
 export function tempProject(name = "demo", opts: { embedder?: (() => Embedder) | null } = {}) {

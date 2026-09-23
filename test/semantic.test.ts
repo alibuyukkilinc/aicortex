@@ -4,7 +4,7 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { Cortex } from "../src/core/cortex.js";
 import { loadProject } from "../src/core/project.js";
-import { Embedder } from "../src/search/embedder.js";
+import type { Embedder } from "../src/search/embedder.js";
 import { FakeEmbedder, tempProject } from "./helpers.js";
 
 function withFake() {

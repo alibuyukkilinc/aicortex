@@ -2,9 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { CortexError } from "../core/types.js";
-import { ActivityInput } from "../core/activity.js";
-import { ClaimInput, CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
-import { DocKind } from "../index/db.js";
+import type { ActivityInput } from "../core/activity.js";
+import type { ClaimInput, CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
+import type { DocKind } from "../index/db.js";
 import type { McpApi } from "./client.js";
 
 // Compact JSON: every byte here is a token the AI pays for.

@@ -1,4 +1,5 @@
-import { FormEvent, ReactNode, useContext, useState } from "react";
+import type { FormEvent, ReactNode} from "react";
+import { useContext, useState } from "react";
 import { ApiError, api, currentProject, qs, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
 import type { HubMe } from "./types";
@@ -43,7 +44,7 @@ export function HubLogin({ org }: { org?: string }) {
   };
   return (
     <AuthCard title={t("hub.signIn")} sub={org}>
-      <form onSubmit={submit}>
+      <form onSubmit={(e) => void submit(e)}>
         <ErrorBox error={err} />
         <div className="field">
           <label htmlFor="email">{t("hub.email")}</label>
@@ -95,7 +96,7 @@ export function InvitePage({ token }: { token: string }) {
         {info.data.name} · {info.data.email}
       </p>
       <p className="muted">{t("hub.inviteBody")}</p>
-      <form onSubmit={submit}>
+      <form onSubmit={(e) => void submit(e)}>
         <ErrorBox error={err} />
         <input type="email" autoComplete="username" value={info.data.email} readOnly hidden />
         <div className="field">

@@ -7,7 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { buildServer } from "../src/api/server.js";
 import { reportToMarkdown } from "../src/core/reportMarkdown.js";
 import { parsePeriod } from "../src/core/reports.js";
-import { CortexError } from "../src/core/types.js";
+import type { CortexError } from "../src/core/types.js";
 import { localApi } from "../src/mcp/client.js";
 import { buildMcpServer } from "../src/mcp/server.js";
 import { tempProject } from "./helpers.js";

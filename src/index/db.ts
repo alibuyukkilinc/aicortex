@@ -1,7 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Activity, CortexError, Draft, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
+import type { Activity, Draft, Item, KnowledgeNode, NodeStatus, Reply } from "../core/types.js";
+import { CortexError } from "../core/types.js";
 import { NODE_TOO_OLD_MESSAGE } from "../util/runtime-check.js";
 import { fold, shortHash } from "../util/text.js";
 import { parentPath } from "../store/tree.js";

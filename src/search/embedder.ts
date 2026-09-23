@@ -1,4 +1,5 @@
-import { FeatureExtractor, MODEL, loadTransformers } from "./runtime.js";
+import type { FeatureExtractor} from "./runtime.js";
+import { MODEL, loadTransformers } from "./runtime.js";
 
 export interface Embedder {
   readonly model: string;

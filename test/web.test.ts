@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { get as httpGet } from "node:http";
+import { type ClientRequest, get as httpGet } from "node:http";
 import { join } from "node:path";
 import { buildServer } from "../src/api/server.js";
 import { CSRF_HEADER, SESSION_COOKIE, createLoginCode, verifyLoginCode } from "../src/api/auth.js";
@@ -191,7 +191,7 @@ test("live streams: 15 open boards do not trip Node's leak warning, and the cap 
   const warnings: string[] = [];
   const onWarning = (w: Error) => warnings.push(w.name);
   process.on("warning", onWarning);
-  const open: import("node:http").ClientRequest[] = [];
+  const open: ClientRequest[] = [];
   const connect = (port: number) =>
     new Promise<number>((resolve, reject) => {
       const req = httpGet({ host: "127.0.0.1", port, path: "/api/events", headers: { host: "localhost", authorization: `Bearer ${t.init.tokens.owner}` } }, (res) => {

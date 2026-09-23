@@ -1,5 +1,6 @@
 import type { Cortex } from "./cortex.js";
-import { Activity, ActorKind, CortexError, Item } from "./types.js";
+import type { Activity, ActorKind, Item } from "./types.js";
+import { CortexError } from "./types.js";
 import { actionable } from "./staleness.js";
 import { addDays, dayKey, startOfDay } from "../util/time.js";
 

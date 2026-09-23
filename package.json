@@ -8,7 +8,10 @@
     "dev:web": "vite",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json",
     "test": "node --import tsx --test --test-reporter=spec \"test/**/*.test.ts\"",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "lint": "oxlint --type-aware --deny-warnings src web/src scripts test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [
     "ai",
@@ -38,6 +41,9 @@
     "@vitejs/plugin-react": "^6.1.1",
     "dompurify": "^3.4.15",
     "marked": "^18.0.14",
+    "oxlint": "^1.85.0",
+    "oxlint-tsgolint": "^7.0.2002",
+    "prettier": "^3.9.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tsx": "^4.23.15",

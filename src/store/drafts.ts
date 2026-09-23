@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter.js";
-import { Draft } from "../core/types.js";
+import type { Draft } from "../core/types.js";
 
 // Drafts live next to the data (drafts/<id>.md) so pending approvals are versioned in git too.
 export class DraftStore {

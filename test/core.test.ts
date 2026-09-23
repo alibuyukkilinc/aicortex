@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { initProject } from "../src/core/init.js";
 import { Cortex } from "../src/core/cortex.js";
 import { loadProject } from "../src/core/project.js";
-import { CortexError } from "../src/core/types.js";
+import type { CortexError } from "../src/core/types.js";
 import { estimateTokens } from "../src/util/text.js";
 import { tempProject } from "./helpers.js";
 

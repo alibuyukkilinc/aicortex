@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode} from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 // Small hand-built SVG charts. Specs follow the dataviz guide: bars <= 24px, 4px rounded data end,
 // square at the baseline, 2px surface gap between stacked segments, hairline grid, hover + focus tooltips.

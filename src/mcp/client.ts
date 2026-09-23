@@ -2,7 +2,8 @@ import Fastify from "fastify";
 import { projectRoutes } from "../api/routes.js";
 import { setErrorHandler } from "../api/server.js";
 import type { Cortex } from "../core/cortex.js";
-import { Actor, CortexError } from "../core/types.js";
+import type { Actor} from "../core/types.js";
+import { CortexError } from "../core/types.js";
 
 // MCP tools speak the project REST API, so a local project and a hub project behave exactly the same:
 // the same routes, the same rules, and on a hub the same role and visibility checks.

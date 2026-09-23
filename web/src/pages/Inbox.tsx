@@ -1,6 +1,7 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useApi } from "../api";
-import { Key, useT } from "../i18n";
+import type { Key} from "../i18n";
+import { useT } from "../i18n";
 import type { Draft, ItemSummary, StaleInfo } from "../types";
 import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, TypeChip, go, useSession } from "../ui";
 import { SeverityChip } from "./Knowledge";

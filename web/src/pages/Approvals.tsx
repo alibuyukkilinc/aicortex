@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ApiError, api, useApi } from "../api";
+import type { ApiError} from "../api";
+import { api, useApi } from "../api";
 import { diffLines } from "../diff";
 import { useT } from "../i18n";
 import type { Draft } from "../types";

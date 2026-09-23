@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ApiError, api, qs, useApi } from "../api";
+import type { ApiError} from "../api";
+import { api, qs, useApi } from "../api";
 import { useLabels, useT } from "../i18n";
 import { NewItemDialog, nextStatuses, useBranches, useSchema } from "../items";
 import type { ItemSummary } from "../types";

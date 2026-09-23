@@ -1,5 +1,6 @@
 import type { FastifyRequest } from "fastify";
-import { Activity, CortexError } from "../core/types.js";
+import type { Activity} from "../core/types.js";
+import { CortexError } from "../core/types.js";
 import type { SqlFilter } from "../index/db.js";
 
 // What a principal may do in one project. The hub fills this from the member's role; single-project mode

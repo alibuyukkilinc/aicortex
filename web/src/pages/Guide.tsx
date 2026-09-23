@@ -1,4 +1,5 @@
-import { ReactNode, useContext } from "react";
+import type { ReactNode} from "react";
+import { useContext } from "react";
 import { currentProject, useApi } from "../api";
 import { GLOSSARY, LangContext, useLabels, useT } from "../i18n";
 import { Icon, Term, useSession, useToast } from "../ui";

@@ -1,7 +1,8 @@
 import type { Access, ItemRef, Perm } from "../api/access.js";
 import type { Activity } from "../core/types.js";
 import type { SqlFilter } from "../index/db.js";
-import { ROLE_PERMS, Role } from "./roles.js";
+import type { Role } from "./roles.js";
+import { ROLE_PERMS } from "./roles.js";
 
 // A member's view of one project: what their role allows, and which part of the project they see.
 // scope "own": items they wrote or are assigned to (personally or through @humans / @ai), and activity about those.

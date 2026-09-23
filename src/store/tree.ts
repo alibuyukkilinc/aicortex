@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter.js";
-import { CortexError, KnowledgeNode, NodeMeta } from "../core/types.js";
+import type { KnowledgeNode, NodeMeta } from "../core/types.js";
+import { CortexError } from "../core/types.js";
 
 // Layout on disk:
 //   tree/_node.md                  -> root ("")

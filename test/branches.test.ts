@@ -7,7 +7,7 @@ import { buildServer } from "../src/api/server.js";
 import { Cortex } from "../src/core/cortex.js";
 import { initProject, resolveBranches } from "../src/core/init.js";
 import { loadProject } from "../src/core/project.js";
-import { CortexError } from "../src/core/types.js";
+import type { CortexError } from "../src/core/types.js";
 import { tempProject } from "./helpers.js";
 
 const code = (fn: () => unknown) => {

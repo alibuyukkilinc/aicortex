@@ -8,7 +8,8 @@ import { initProject } from "../src/core/init.js";
 import { hashPassword } from "../src/hub/crypto.js";
 import { Hub, HUB_COOKIE, buildHubServer } from "../src/hub/server.js";
 import { RateLimiter } from "../src/hub/limiter.js";
-import { HubSettings, HubStore, INVITE_DAYS } from "../src/hub/store.js";
+import type { HubSettings} from "../src/hub/store.js";
+import { HubStore, INVITE_DAYS } from "../src/hub/store.js";
 
 // A hub with two projects and an organization admin (ada@example.com / correct-horse-1).
 async function setup(settings: Partial<HubSettings> = {}) {

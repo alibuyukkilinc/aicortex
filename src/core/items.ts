@@ -1,10 +1,12 @@
 import { z } from "zod";
 import type { Cortex } from "./cortex.js";
-import { IndexedItem, ItemQuery, SqlFilter } from "../index/db.js";
+import type { IndexedItem, ItemQuery, SqlFilter } from "../index/db.js";
 import { normalizePath } from "../store/tree.js";
 import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
-import { ItemSchema, ValidationContext, canTransition, describeSchema, validateFields } from "./schema.js";
-import { Actor, CortexError, GROUP_ASSIGNEES, Item, ItemLinks, Reply } from "./types.js";
+import type { ItemSchema, ValidationContext} from "./schema.js";
+import { canTransition, describeSchema, validateFields } from "./schema.js";
+import type { Actor, Item, ItemLinks, Reply } from "./types.js";
+import { CortexError, GROUP_ASSIGNEES } from "./types.js";
 
 const Links = z
   .object({

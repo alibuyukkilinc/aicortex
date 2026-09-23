@@ -1,7 +1,8 @@
 import { chmodSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
-import { CortexConfig, CortexError } from "./types.js";
+import type { CortexConfig} from "./types.js";
+import { CortexError } from "./types.js";
 import { shortHash } from "../util/text.js";
 import { isTimeZone } from "../util/time.js";
 

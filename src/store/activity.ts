@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { Activity } from "../core/types.js";
+import type { Activity } from "../core/types.js";
 
 // Append-only log, one file per actor per day: activity/2026-09-22/claude-code.jsonl
 // Different actors never touch the same file, so parallel work merges cleanly in git.

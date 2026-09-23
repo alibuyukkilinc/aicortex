@@ -1,10 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Cortex } from "../core/cortex.js";
 import { reportToMarkdown } from "../core/reportMarkdown.js";
-import { Activity, CortexError, NodeSummary } from "../core/types.js";
+import type { Activity, NodeSummary } from "../core/types.js";
+import { CortexError } from "../core/types.js";
 import { actionable } from "../core/staleness.js";
-import { DocKind } from "../index/db.js";
-import { Access, ItemRef, hidden, need } from "./access.js";
+import type { DocKind } from "../index/db.js";
+import type { Access, ItemRef} from "./access.js";
+import { hidden, need } from "./access.js";
 
 declare module "fastify" {
   interface FastifyRequest {

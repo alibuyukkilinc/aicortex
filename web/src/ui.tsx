@@ -1,7 +1,8 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ApiError } from "./api";
+import type { ReactNode} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { ApiError } from "./api";
 import { GLOSSARY, LangContext, timeAgo, useLabels, useT } from "./i18n";
 import type { Actor } from "./types";
 

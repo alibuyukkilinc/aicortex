@@ -1,5 +1,6 @@
 import { qs, useApi } from "../api";
-import { Key, useLabels, useT } from "../i18n";
+import type { Key} from "../i18n";
+import { useLabels, useT } from "../i18n";
 import type { SearchHit } from "../types";
 import { Ago, ErrorBox, Loading, StatusChip, go, useSession } from "../ui";
 

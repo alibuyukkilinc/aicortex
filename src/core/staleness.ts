@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Cortex } from "./cortex.js";
-import { CommitInfo, FileChange, Git } from "../git/git.js";
+import type { CommitInfo, FileChange} from "../git/git.js";
+import { Git } from "../git/git.js";
 
 // high: the knowledge is probably wrong now (linked lines rewritten, file deleted or moved).
 // medium: the file it describes changed somewhere; worth a look.

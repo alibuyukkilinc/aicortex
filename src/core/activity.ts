@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { Cortex } from "./cortex.js";
 import { nowIso, ulid } from "../util/text.js";
-import { Actor, Activity, CortexError } from "./types.js";
+import type { Actor, Activity} from "./types.js";
+import { CortexError } from "./types.js";
 
 export const ActivityInput = z
   .object({

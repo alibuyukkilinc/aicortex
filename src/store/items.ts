@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter.js";
-import { Item, Reply } from "../core/types.js";
+import type { Item, Reply } from "../core/types.js";
 import { fold } from "../util/text.js";
 
 // Layout: items/<ID>-<slug>/item.md and items/<ID>-<slug>/replies/<REPLY_ID>.md

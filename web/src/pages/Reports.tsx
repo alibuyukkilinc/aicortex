@@ -1,4 +1,5 @@
-import { ReactNode, useContext, useState } from "react";
+import type { ReactNode} from "react";
+import { useContext, useState } from "react";
 import { apiPath, qs, useApi } from "../api";
 import { HBars, StackedColumns } from "../charts";
 import { LangContext, useT } from "../i18n";

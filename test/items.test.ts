@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { Cortex } from "../src/core/cortex.js";
 import { loadProject } from "../src/core/project.js";
 import { itemRevision } from "../src/core/items.js";
-import { Actor, CortexError } from "../src/core/types.js";
+import type { Actor, CortexError } from "../src/core/types.js";
 import { estimateTokens } from "../src/util/text.js";
 import { buildServer } from "../src/api/server.js";
 import { tempProject } from "./helpers.js";

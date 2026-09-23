@@ -7,7 +7,7 @@ import { buildServer } from "../src/api/server.js";
 import { Cortex } from "../src/core/cortex.js";
 import { initProject } from "../src/core/init.js";
 import { loadProject } from "../src/core/project.js";
-import { CortexError } from "../src/core/types.js";
+import type { CortexError } from "../src/core/types.js";
 import { gitProject } from "./helpers.js";
 
 const stale = (c: Cortex, path: string) => {
