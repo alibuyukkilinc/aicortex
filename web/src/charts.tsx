@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 // Small hand-built SVG charts. Specs follow the dataviz guide: bars <= 24px, 4px rounded data end,
 // square at the baseline, 2px surface gap between stacked segments, hairline grid, hover + focus tooltips.
@@ -186,33 +186,54 @@ export function HBars({
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [tip, setTip] = useState<Tip | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const uid = useId().replace(/:/g, "");
   const rowH = 32;
-  const labelW = 56;
-  const valueW = 36;
+  const values = data.map((d) => d.value.toLocaleString());
+  // Columns size to the actual content (a few px per character) instead of a fixed guess,
+  // so long routes and five/six-digit token counts never run off the card edge.
+  const labelW = Math.min(170, Math.max(56, Math.max(0, ...data.map((d) => d.label.length)) * 6.4 + 18));
+  const valueW = Math.min(80, Math.max(32, Math.max(0, ...values.map((v) => v.length)) * 7.2 + 14));
   const max = Math.max(...data.map((d) => d.value), 1);
   const barMax = Math.max(0, width - labelW - valueW);
   const height = data.length * rowH;
   useEffect(() => setTip(null), [data]);
 
+  const hide = () => {
+    setHover(null);
+    setTip(null);
+  };
+
   return (
-    <div ref={ref} className="chart" style={{ position: "relative" }} onMouseLeave={() => setTip(null)}>
+    <div ref={ref} className="chart" style={{ position: "relative" }} onMouseLeave={hide}>
       {width > 0 && (
         <svg width={width} height={height} role="img" aria-label={ariaLabel}>
+          <defs>
+            <clipPath id={`hbar-lbl-${uid}`}>
+              <rect x={0} y={0} width={Math.max(0, labelW - 8)} height={height} />
+            </clipPath>
+          </defs>
+          {data.map((_, i) => i > 0 && <line key={i} x1={0} x2={width} y1={i * rowH} y2={i * rowH} stroke="var(--viz-grid)" strokeWidth={1} />)}
           <line x1={labelW} x2={labelW} y1={0} y2={height} stroke="var(--viz-axis)" strokeWidth={1} />
           {data.map((d, i) => {
             const w = (d.value / max) * barMax;
             const yMid = i * rowH + rowH / 2;
-            const show = () => detail && setTip({ x: labelW + Math.max(w, 20) / 2, y: yMid - 10, content: detail(i) });
+            const show = () => {
+              setHover(i);
+              detail && setTip({ x: labelW + Math.max(w, 20) / 2, y: yMid - 10, content: detail(i) });
+            };
             return (
-              <g key={d.label} tabIndex={0} aria-label={`${d.label}: ${d.value}`} onMouseMove={show} onFocus={show} onBlur={() => setTip(null)} style={{ outline: "none" }}>
+              <g key={d.label} tabIndex={0} aria-label={`${d.label}: ${d.value}`} onMouseMove={show} onFocus={show} onBlur={hide} style={{ outline: "none" }}>
+                {hover === i && <rect x={0} y={i * rowH} width={width} height={rowH} fill="var(--fill)" />}
                 <rect x={0} y={i * rowH} width={width} height={rowH} fill="transparent" />
-                <text x={labelW - 8} y={yMid + 4} textAnchor="end">
+                <text x={labelW - 8} y={yMid + 4} textAnchor="end" clipPath={`url(#hbar-lbl-${uid})`}>
                   {d.label}
+                  <title>{d.label}</title>
                 </text>
                 {w > 0 && <path d={rightRounded(labelW, yMid - 9, w, 18)} fill={color} />}
                 {/* Value at the bar tip, in text ink - never in the series color. */}
                 <text x={labelW + w + 6} y={yMid + 4} style={{ fill: "var(--muted)" }}>
-                  {d.value}
+                  {values[i]}
                 </text>
               </g>
             );
