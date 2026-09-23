@@ -53,13 +53,21 @@ export class ActivityService {
     this.c.events.emit("change", { type: "activity", entry });
     // Close the loop: knowledge describing the files you just changed may now be wrong.
     const related = entry.files?.length ? this.c.codeContext(entry.files).knowledge : [];
+    const rows = related.map((n) => {
+      const s = this.c.staleness.get(n.path as string);
+      return { path: n.path as string, title: n.title as string, ...(s ? { stale: { severity: s.severity, files: s.changes.map((c) => c.file) } } : {}) };
+    });
+    const stale = rows.filter((r) => r.stale);
     return {
       id: entry.id,
       message: "Activity logged.",
-      ...(related.length
+      ...(rows.length
         ? {
-            related_knowledge: related.map((n) => ({ path: n.path, title: n.title })),
-            hint: "These nodes describe files you changed. Update them if your change affects what they say, or verify them if they are still true.",
+            related_knowledge: rows,
+            // You made them stale, you know best what changed: close them now rather than leaving them for someone else.
+            hint: stale.length
+              ? `Your change made ${stale.length} node(s) stale: ${stale.map((r) => r.path || "(root)").join(", ")}. In this same turn, update each one (cortex_update_node) or, if it is still true, verify it (cortex_verify_node). Either becomes a draft a human approves.`
+              : "These nodes describe files you changed. Update them if your change affects what they say, or verify them if they are still true.",
           }
         : {}),
     };

@@ -157,13 +157,20 @@ export interface SearchHit {
   proposed_by?: string;
 }
 
+export type Severity = "high" | "medium" | "low";
+
 export interface StaleInfo {
   path: string;
+  title?: string; // only on the /api/stale list
   verified_at_commit: string;
   reason: "changed" | "unknown_commit";
+  severity: Severity;
+  snoozed?: { at: string; by: string };
   changes: {
     file: string;
     status: "modified" | "deleted" | "renamed";
+    severity: Severity;
+    formatting_only?: boolean;
     renamed_to?: string;
     lines?: string;
     commits: number;

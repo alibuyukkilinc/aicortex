@@ -1,61 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { buildServer } from "../src/api/server.js";
 import { Cortex } from "../src/core/cortex.js";
 import { initProject } from "../src/core/init.js";
 import { loadProject } from "../src/core/project.js";
 import { CortexError } from "../src/core/types.js";
-
-// A real git repository with a small codebase, Cortex initialized and committed.
-function gitProject() {
-  const root = mkdtempSync(join(tmpdir(), "cortex-git-"));
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  const write = (file: string, text: string) => {
-    mkdirSync(dirname(join(root, file)), { recursive: true });
-    writeFileSync(join(root, file), text);
-  };
-  const commit = (msg: string) => {
-    git("add", "-A");
-    git("commit", "-q", "-m", msg);
-    return git("rev-parse", "HEAD");
-  };
-  git("init", "-q");
-  git("config", "user.email", "dev@example.com");
-  git("config", "user.name", "Dev");
-  git("config", "commit.gpgsign", "false");
-  const lines = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join("\n") + "\n";
-  write("src/auth/login.ts", lines);
-  write("src/auth/token.ts", "export const ttl = 15;\n");
-  write("src/pay/iyzico.ts", "export const provider = 'iyzico';\n");
-  write("src/pay/refund_v2.ts", "export {};\n");
-  write("README.md", "# demo\n");
-  const init = initProject(root, "demo");
-  const first = commit("initial");
-  const cortex = new Cortex(loadProject(root), { embedder: null });
-  return {
-    root,
-    init,
-    cortex,
-    git,
-    write,
-    commit,
-    first,
-    human: cortex.actor("owner"),
-    ai: cortex.actor("ai-agent"),
-    edit(file: string, from: string, to: string) {
-      const content = execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, encoding: "utf8" });
-      write(file, content.replace(from, to));
-    },
-    cleanup() {
-      cortex.close();
-      rmSync(root, { recursive: true, force: true });
-    },
-  };
-}
+import { gitProject } from "./helpers.js";
 
 const stale = (c: Cortex, path: string) => {
   c.staleness.refresh(true);
@@ -289,5 +242,100 @@ test("linking code that is not committed yet is allowed, but the writer is told"
     assert.equal(again.warning, undefined);
   } finally {
     t.cleanup();
+  }
+});
+
+test("severity: formatting is low, linked lines and moved files are high, the rest of the file is medium", () => {
+  const p = gitProject();
+  try {
+    const put = (path: string, file: string, lines?: string) =>
+      p.cortex.putNode(p.human, { path, title: path, summary: "x", links: { code: [{ file, ...(lines ? { lines } : {}) }] } });
+    put("backend", "README.md");
+    put("backend/auth", "src/auth/login.ts", "40-60");
+    put("backend/token", "src/auth/token.ts");
+    put("backend/pay", "src/pay/iyzico.ts");
+
+    p.write("README.md", "#   demo\n\n\n"); // whitespace and blank lines only
+    p.edit("src/auth/login.ts", "line 50\n", "line 50 changed\n");
+    p.write("src/auth/token.ts", "export const ttl = 15;\nexport const refresh = 7;\n");
+    renameSync(join(p.root, "src/pay/iyzico.ts"), join(p.root, "src/pay/provider.ts"));
+    p.commit("mixed");
+
+    assert.equal(stale(p.cortex, "backend")?.severity, "low");
+    assert.equal(stale(p.cortex, "backend")?.changes[0].formatting_only, true);
+    assert.equal(stale(p.cortex, "backend/auth")?.severity, "high", "the linked range was rewritten");
+    assert.equal(stale(p.cortex, "backend/token")?.severity, "medium", "a whole-file link, a real change somewhere in it");
+    assert.equal(stale(p.cortex, "backend/pay")?.severity, "high", "renamed");
+
+    // Counting: the formatting-only one is information, not work.
+    assert.deepEqual(p.cortex.staleness.actionable().map((s) => s.path), ["backend/auth", "backend/pay", "backend/token"]);
+    const brief = p.cortex.brief(p.human);
+    assert.equal(brief.attention.stale_nodes?.count, 3);
+    assert.equal(p.cortex.treeView("", 1).node.children!.find((c) => c.path === "backend")!.status, "active", "low is not flagged in the tree");
+  } finally {
+    p.cleanup();
+  }
+});
+
+test("a snooze silences a stale node until its files change again", async () => {
+  const p = gitProject();
+  try {
+    p.cortex.putNode(p.human, { path: "backend/auth", title: "Auth", summary: "Tokens.", links: { code: [{ file: "src/auth/token.ts" }] } });
+    p.write("src/auth/token.ts", "export const ttl = 30;\n");
+    p.commit("ttl 30");
+    assert.ok(stale(p.cortex, "backend/auth"));
+
+    p.cortex.staleness.snooze("backend/auth", "owner");
+    assert.equal(stale(p.cortex, "backend/auth")?.snoozed?.by, "owner");
+    assert.equal(p.cortex.staleness.actionable().length, 0);
+    assert.equal(p.cortex.brief(p.human).attention.stale_nodes, undefined);
+    // Kept out of the tree: git never sees it.
+    assert.ok(readFileSync(join(p.root, ".cortex/.index/snoozes.json"), "utf8").includes("backend/auth"));
+
+    // Another process sees it too (the MCP server next to the board).
+    const other = new Cortex(loadProject(p.root), { embedder: null });
+    try {
+      assert.ok(stale(other, "backend/auth")?.snoozed);
+    } finally {
+      other.close();
+    }
+
+    p.write("src/auth/token.ts", "export const ttl = 60;\n");
+    p.commit("ttl 60");
+    assert.equal(stale(p.cortex, "backend/auth")?.snoozed, undefined, "a new commit on the file wakes it up");
+    assert.equal(p.cortex.staleness.actionable().length, 1);
+
+    // Over REST: people only.
+    const app = (await import("../src/api/server.js")).buildServer(p.cortex);
+    try {
+      const auth = (t: string) => ({ host: "localhost", authorization: `Bearer ${t}` });
+      const byAi = await app.inject({ method: "POST", url: "/api/snooze/backend/auth", headers: auth(p.init.tokens["ai-agent"]) });
+      assert.equal(byAi.statusCode, 403);
+      const byHuman = await app.inject({ method: "POST", url: "/api/snooze/backend/auth", headers: auth(p.init.tokens.owner) });
+      assert.equal(byHuman.statusCode, 200);
+      const list = (await app.inject({ method: "GET", url: "/api/stale", headers: auth(p.init.tokens.owner) })).json();
+      assert.equal(list.actionable, 0);
+      assert.equal(list.nodes.length, 1);
+    } finally {
+      await app.close();
+    }
+  } finally {
+    p.cleanup();
+  }
+});
+
+test("logging a change names the nodes it made stale, so the AI closes them in the same turn", () => {
+  const p = gitProject();
+  try {
+    p.cortex.putNode(p.human, { path: "backend/auth", title: "Auth", summary: "Tokens.", links: { code: [{ file: "src/auth/token.ts" }] } });
+    p.write("src/auth/token.ts", "export const ttl = 30;\n");
+    p.commit("ttl 30");
+    const r = p.cortex.activity.log(p.ai, { action: "code_change", summary: "ttl 30", why: "Sessions expired too soon", files: ["src/auth/token.ts"] });
+    assert.equal(r.related_knowledge?.[0].stale?.severity, "medium");
+    assert.match(r.hint!, /made 1 node\(s\) stale: backend\/auth/);
+    assert.deepEqual(p.cortex.brief(p.ai).attention.stale_nodes?.from_your_changes, ["backend/auth"]);
+    assert.equal(p.cortex.brief(p.human).attention.stale_nodes?.from_your_changes, undefined, "the owner logged nothing");
+  } finally {
+    p.cleanup();
   }
 });

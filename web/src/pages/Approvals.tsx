@@ -3,9 +3,9 @@ import { ApiError, api, useApi } from "../api";
 import { diffLines } from "../diff";
 import { useT } from "../i18n";
 import type { Draft } from "../types";
-import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, useSession, useToast } from "../ui";
+import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, go, useSession, useToast } from "../ui";
 
-type BulkResult = { done: string[]; failed: { id: string; code: string; message: string }[] };
+type BulkResult = { done: string[]; failed: { id: string; code: string; message: string }[]; stale_after_approval?: string[] };
 
 export function Approvals() {
   const t = useT();
@@ -43,7 +43,14 @@ export function Approvals() {
       // Keep only the failures selected, so the reviewer can open them one by one.
       setPicked(new Set(r.failed.map((f) => f.id)));
       setFailed(r.failed);
-      toast({ text: t(what === "approve" ? "approvals.bulkDone" : "approvals.bulkRejected").replace("{done}", String(r.done.length)), error: r.failed.length > 0 });
+      const still = r.stale_after_approval?.length ?? 0;
+      toast({
+        text:
+          t(what === "approve" ? "approvals.bulkDone" : "approvals.bulkRejected").replace("{done}", String(r.done.length)) +
+          (still ? ` ${t("approvals.staleAfterBulk").replace("{n}", String(still))}` : ""),
+        error: r.failed.length > 0,
+        ...(still ? { action: { label: t("approvals.reviewStale"), run: () => go("stale") } } : {}),
+      });
     } catch (e) {
       toast({ text: (e as Error).message, error: true });
     } finally {
@@ -160,11 +167,21 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
     setErr(null);
     try {
       const reason = what === "reject" ? (prompt(t("approvals.rejectReason")) ?? undefined) : undefined;
-      const r = await api<{ message: string }>(`/api/approvals/${id}/${what}${force ? "?force=true" : ""}`, {
+      const r = await api<{ message: string; warning?: string; path?: string }>(`/api/approvals/${id}/${what}${force ? "?force=true" : ""}`, {
         method: "POST",
         body: reason ? { reason } : {},
       });
-      toast({ text: r.message });
+      if (r.warning === "stale_after_approval" && r.path !== undefined) {
+        // The code moved after the proposal, so the node keeps its old pin. Only the approver can say HEAD is fine too.
+        const path = r.path;
+        toast({
+          text: t("approvals.staleAfter"),
+          action: {
+            label: t("approvals.verifyAtHead"),
+            run: () => void api(`/api/verify/${path}`, { method: "POST", body: {} }).then(() => toast({ text: t("stale.verified") })),
+          },
+        });
+      } else toast({ text: r.message });
       onClose();
     } catch (e) {
       if ((e as ApiError).code === "conflict" && confirm(t("approvals.conflict"))) return act(what, true);

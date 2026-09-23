@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Cortex } from "../core/cortex.js";
 import { reportToMarkdown } from "../core/reportMarkdown.js";
 import { Activity, CortexError, NodeSummary } from "../core/types.js";
+import { actionable } from "../core/staleness.js";
 import { DocKind } from "../index/db.js";
 import { Access, ItemRef, hidden, need } from "./access.js";
 
@@ -159,7 +160,33 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   });
   app.get("/stale", async (req) => {
     const s = req.cortex.staleness;
-    return ok(req, { enabled: s.enabled(), head: s.currentHead(), nodes: s.list().filter((n) => seesNode(req, n.path)) });
+    const nodes = s
+      .list()
+      .filter((n) => seesNode(req, n.path))
+      .map((n) => ({ ...n, title: req.cortex.tree.read(n.path)?.title ?? n.path }));
+    return ok(req, { enabled: s.enabled(), head: s.currentHead(), actionable: nodes.filter(actionable).length, nodes });
+  });
+  // Put a stale node off until its code changes again. People only: an AI that snoozes its own
+  // warnings would be hiding exactly the work this list exists for.
+  app.post("/snooze/*", async (req) => {
+    need(req, "write_knowledge");
+    if (req.actor.kind !== "human") throw new CortexError("forbidden", "Only people can snooze stale knowledge. Verify or update the node instead.", 403);
+    const path = (req.params as Q)["*"] ?? "";
+    if (!seesNode(req, path)) throw hidden(`Node "${path}"`);
+    if (!req.cortex.staleness.get(path)) throw new CortexError("not_stale", `"${path}" is not stale.`, 400);
+    return ok(req, req.cortex.staleness.snooze(path, req.actor.id));
+  });
+  app.delete("/snooze/*", async (req) => {
+    need(req, "write_knowledge");
+    req.cortex.staleness.unsnooze((req.params as Q)["*"] ?? "");
+    return ok(req, { message: "Snooze lifted." });
+  });
+  // "Verify every formatting-only one" on the stale page: { paths }. Each is a normal verify, so an AI's become drafts.
+  app.post("/verify", async (req) => {
+    need(req, "write_knowledge");
+    const paths = ((req.body ?? {}) as { paths?: string[] }).paths ?? [];
+    for (const p of paths) if (!seesNode(req, p)) throw hidden(`Node "${p}"`);
+    return ok(req, req.cortex.verifyMany(req.actor, paths));
   });
   app.post("/verify/*", async (req, reply) => {
     need(req, "write_knowledge");
@@ -206,11 +233,11 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     if (req.access && !req.access.can("approve") && r.draft.proposed_by !== req.actor.id) throw hidden("Draft");
     return ok(req, r);
   });
-  // Bulk review: { ids, force? } / { ids, reason? }. Answers 200 with per-draft results even when some fail.
+  // Bulk review: { ids, force?, verify_at_head? } / { ids, reason? }. Answers 200 with per-draft results even when some fail.
   app.post("/approvals/approve", async (req) => {
     need(req, "approve");
-    const body = (req.body ?? {}) as { ids?: string[]; force?: boolean };
-    return ok(req, req.cortex.approveMany(req.actor, body.ids ?? [], body.force === true));
+    const body = (req.body ?? {}) as { ids?: string[]; force?: boolean; verify_at_head?: boolean };
+    return ok(req, req.cortex.approveMany(req.actor, body.ids ?? [], body.force === true, { verifyAtHead: body.verify_at_head === true }));
   });
   app.post("/approvals/reject", async (req) => {
     need(req, "approve");
@@ -219,7 +246,8 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   });
   app.post("/approvals/:id/approve", async (req) => {
     need(req, "approve");
-    return ok(req, req.cortex.approve(req.actor, (req.params as Q).id!, (req.query as Q).force === "true"));
+    const q = req.query as Q;
+    return ok(req, req.cortex.approve(req.actor, (req.params as Q).id!, q.force === "true", { verifyAtHead: q.verify_at_head === "true" }));
   });
   app.post("/approvals/:id/reject", async (req) => {
     need(req, "approve");

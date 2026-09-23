@@ -4,7 +4,7 @@ import { writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildServer } from "../src/api/server.js";
 import { bootstrapPrompt } from "../src/core/init.js";
-import { tempProject } from "./helpers.js";
+import { gitProject, tempProject } from "./helpers.js";
 
 test("bulk approve: parents before children, failures reported without stopping the rest", () => {
   const t = tempProject();
@@ -110,5 +110,47 @@ test("brief stays small after a bootstrap with dozens of drafts", async () => {
     assert.ok(estimateTokens(brief) < 800, `brief is ${estimateTokens(brief)} tokens`);
   } finally {
     t.cleanup();
+  }
+});
+
+test("approving a draft pins it to HEAD when its files did not change since it was proposed", () => {
+  const p = gitProject();
+  try {
+    const draft = p.cortex.putNode(p.ai, { path: "backend/auth", title: "Auth", summary: "Tokens.", reason: "doc", links: { code: [{ file: "src/auth/token.ts" }] } });
+    p.write("README.md", "# demo\nunrelated\n");
+    const head = p.commit("unrelated work while the draft waited");
+
+    const r = p.cortex.approve(p.human, draft.draft_id!);
+    assert.equal(r.warning, undefined);
+    assert.equal(p.cortex.node("backend/auth").verified_at_commit, head, "not the commit it was proposed at");
+    p.cortex.staleness.refresh(true);
+    assert.equal(p.cortex.staleness.get("backend/auth"), undefined, "approved knowledge is not stale on arrival");
+  } finally {
+    p.cleanup();
+  }
+});
+
+test("approving a draft whose files changed keeps the old pin and says so, unless the approver vouches for HEAD", () => {
+  const p = gitProject();
+  try {
+    const put = (path: string) => p.cortex.putNode(p.ai, { path, title: path, summary: "ttl is 15.", reason: "doc", links: { code: [{ file: "src/auth/token.ts" }] } });
+    const a = put("backend/auth");
+    const b = put("backend/token");
+    p.write("src/auth/token.ts", "export const ttl = 60;\n");
+    const head = p.commit("ttl 60");
+
+    const r = p.cortex.approve(p.human, a.draft_id!);
+    assert.equal(r.warning, "stale_after_approval");
+    assert.equal(r.stale_changes?.[0].file, "src/auth/token.ts");
+    assert.equal(p.cortex.node("backend/auth").verified_at_commit, p.first);
+    p.cortex.staleness.refresh(true);
+    assert.ok(p.cortex.staleness.get("backend/auth"), "a real code change is never skipped silently");
+
+    const bulk = p.cortex.approveMany(p.human, [b.draft_id!], false, { verifyAtHead: true });
+    assert.deepEqual(bulk.done, [b.draft_id]);
+    assert.equal(bulk.stale_after_approval, undefined);
+    assert.equal(p.cortex.node("backend/token").verified_at_commit, head);
+  } finally {
+    p.cleanup();
   }
 });

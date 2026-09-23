@@ -101,6 +101,12 @@ export class Git {
     return ranges;
   }
 
+  // True when every difference in `file` between `from` and HEAD is whitespace or blank lines.
+  // `--quiet` exits 0 for no difference and 1 for one; any other failure counts as a real change.
+  formattingOnly(from: string, file: string): boolean {
+    return this.run(["diff", "-w", "--ignore-blank-lines", "--quiet", "--relative", from, "HEAD", "--", file]) !== null;
+  }
+
   commitsSince(from: string, file: string, limit = 20): CommitInfo[] {
     const out = this.run(["log", `--max-count=${limit}`, "--format=%H%x09%an%x09%aI%x09%s", "--relative", `${from}..HEAD`, "--", file]);
     if (!out) return [];

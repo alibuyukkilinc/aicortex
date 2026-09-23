@@ -10,6 +10,7 @@ import { Inbox } from "./pages/Inbox";
 import { Guide } from "./pages/Guide";
 import { Knowledge } from "./pages/Knowledge";
 import { Reports } from "./pages/Reports";
+import { Stale } from "./pages/Stale";
 import { Rules } from "./pages/Rules";
 import { Search } from "./pages/Search";
 import type { Activity as Entry, HubMe, Me } from "./types";
@@ -153,6 +154,7 @@ const NAV: { key: Key; route: string; icon: string }[] = [
   { key: "nav.knowledge", route: "knowledge", icon: "tree" },
   { key: "nav.activity", route: "activity", icon: "activity" },
   { key: "nav.approvals", route: "approvals", icon: "check" },
+  { key: "nav.stale", route: "stale", icon: "alert" },
   { key: "nav.reports", route: "reports", icon: "report" },
   { key: "nav.rules", route: "rules", icon: "rules" },
   { key: "nav.guide", route: "guide", icon: "ask" },
@@ -204,6 +206,9 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
       break;
     case "rules":
       content = <Rules name={route[1] ?? "_global"} />;
+      break;
+    case "stale":
+      content = <Stale />;
       break;
     case "reports":
       content = <Reports />;
@@ -298,11 +303,11 @@ function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
   const t = useT();
   const inbox = useApi<{ count: number }>("/api/inbox?limit=1");
   const drafts = useApi<{ drafts: unknown[] }>("/api/approvals");
-  const stale = useApi<{ nodes: unknown[] }>("/api/stale");
+  const stale = useApi<{ actionable: number }>("/api/stale");
   const counts: Record<string, number> = {
     inbox: inbox.data?.count ?? 0,
     approvals: drafts.data?.drafts.length ?? 0,
-    knowledge: stale.data?.nodes.length ?? 0, // knowledge that may be out of date
+    stale: stale.data?.actionable ?? 0, // high and medium only: formatting-only and snoozed are not work
   };
   const { lang, setLang } = useContext(LangContext);
   const logout = async () => {
@@ -318,7 +323,7 @@ function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
         <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`}>
           <Icon name={n.icon} />
           {t(n.key)}
-          {counts[n.route] ? <span className={`nav-count ${n.route === "knowledge" ? "warn" : ""}`}>{counts[n.route]}</span> : null}
+          {counts[n.route] ? <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`}>{counts[n.route]}</span> : null}
         </a>
       ))}
       {!hubMe && (

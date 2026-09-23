@@ -1,6 +1,7 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Cortex } from "../src/core/cortex.js";
 import { initProject } from "../src/core/init.js";
 import { loadProject } from "../src/core/project.js";
@@ -19,6 +20,53 @@ export function tempProject(name = "demo", opts: { embedder?: (() => Embedder) |
     cortex,
     human,
     ai,
+    cleanup() {
+      cortex.close();
+      rmSync(root, { recursive: true, force: true });
+    },
+  };
+}
+
+// A real git repository with a small codebase, Cortex initialized and committed.
+export function gitProject() {
+  const root = mkdtempSync(join(tmpdir(), "cortex-git-"));
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  const write = (file: string, text: string) => {
+    mkdirSync(dirname(join(root, file)), { recursive: true });
+    writeFileSync(join(root, file), text);
+  };
+  const commit = (msg: string) => {
+    git("add", "-A");
+    git("commit", "-q", "-m", msg);
+    return git("rev-parse", "HEAD");
+  };
+  git("init", "-q");
+  git("config", "user.email", "dev@example.com");
+  git("config", "user.name", "Dev");
+  git("config", "commit.gpgsign", "false");
+  const lines = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join("\n") + "\n";
+  write("src/auth/login.ts", lines);
+  write("src/auth/token.ts", "export const ttl = 15;\n");
+  write("src/pay/iyzico.ts", "export const provider = 'iyzico';\n");
+  write("src/pay/refund_v2.ts", "export {};\n");
+  write("README.md", "# demo\n");
+  const init = initProject(root, "demo");
+  const first = commit("initial");
+  const cortex = new Cortex(loadProject(root), { embedder: null });
+  return {
+    root,
+    init,
+    cortex,
+    git,
+    write,
+    commit,
+    first,
+    human: cortex.actor("owner"),
+    ai: cortex.actor("ai-agent"),
+    edit(file: string, from: string, to: string) {
+      const content = execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, encoding: "utf8" });
+      write(file, content.replace(from, to));
+    },
     cleanup() {
       cortex.close();
       rmSync(root, { recursive: true, force: true });

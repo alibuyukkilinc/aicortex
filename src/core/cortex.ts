@@ -13,7 +13,7 @@ import { Embedder, TransformersEmbedder } from "../search/embedder.js";
 import { semanticEnabled } from "../search/runtime.js";
 import { SemanticIndex } from "../search/semantic.js";
 import { ActivityService } from "./activity.js";
-import { StalenessService } from "./staleness.js";
+import { StaleChange, StaleInfo, StalenessService, actionable } from "./staleness.js";
 import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
 import { SyncService, SyncStats } from "./sync.js";
@@ -70,6 +70,8 @@ function revision(n: KnowledgeNode): string {
 export interface WriteResult {
   applied: boolean;
   warning?: string;
+  hint?: string;
+  stale_changes?: StaleChange[];
   path?: string;
   id?: string;
   draft_id?: string;
@@ -279,7 +281,9 @@ export class Cortex {
     });
     const drafts = this.drafts.list();
     const mine = actor.kind === "human" ? drafts : drafts.filter((d) => d.proposed_by === actor.id);
-    const stale = this.staleness.list();
+    const allStale = this.staleness.list();
+    const stale = allStale.filter(actionable);
+    const yours = this.staleFromYourChanges(actor, stale);
     const inbox = this.items.inbox(actor, 5);
     const recent = this.index.queryActivity({ includeSystem: false, limit: 3 }).map((a) => ({ id: a.id, actor: a.actor, at: a.at, summary: a.summary }));
 
@@ -297,8 +301,16 @@ export class Cortex {
         // Count + a few: after a bootstrap there can be dozens, and the brief must stay small.
         pending_approvals: { count: mine.length, top: mine.slice(0, rows).map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })) },
         // Knowledge whose code changed since it was verified: fix it or verify it when you touch that area.
+        // Only high and medium count; formatting-only and snoozed ones are left out of the brief.
         ...(stale.length
-          ? { stale_nodes: { count: stale.length, top: stale.slice(0, rows).map((s) => ({ path: s.path, files: s.changes.map((c) => c.file) })) } }
+          ? {
+              stale_nodes: {
+                count: stale.length,
+                top: stale.slice(0, rows).map((s) => ({ path: s.path, severity: s.severity, files: s.changes.map((c) => c.file) })),
+                // Stale because of files you logged changing: yours to close first.
+                ...(yours.length ? { from_your_changes: yours.slice(0, rows) } : {}),
+              },
+            }
           : {}),
       },
       recent_activity: recent.slice(0, activity),
@@ -328,6 +340,21 @@ export class Cortex {
     return out;
   }
 
+  // Worth a warning: formatting-only changes and snoozed nodes are not.
+  private isStale(path: string): boolean {
+    const s = this.staleness.get(path);
+    return !!s && actionable(s);
+  }
+
+  // Stale nodes whose changed files this actor logged in the last two weeks.
+  private staleFromYourChanges(actor: Actor, stale: StaleInfo[]): string[] {
+    if (!stale.length) return [];
+    const since = new Date(Date.now() - 14 * 86_400_000).toISOString();
+    const files = new Set(this.index.queryActivity({ actor: actor.id, since, includeSystem: false, limit: 200 }).flatMap((a) => a.files ?? []));
+    if (!files.size) return [];
+    return stale.filter((s) => s.changes.some((c) => files.has(c.file))).map((s) => s.path);
+  }
+
   treeView(path: string, depth = 1, budget?: number) {
     const p = normalizePath(path);
     const self = this.index.getNode(p);
@@ -336,7 +363,7 @@ export class Cortex {
     let used = 0;
     let truncated = false;
     const build = (n: IndexedNode, level: number): NodeSummary => {
-      const s: NodeSummary = { path: n.path, title: n.title, summary: n.summary, status: this.staleness.get(n.path) ? "stale" : n.status };
+      const s: NodeSummary = { path: n.path, title: n.title, summary: n.summary, status: this.isStale(n.path) ? "stale" : n.status };
       const open = this.index.openItemsUnder(n.path);
       if (open) s.open_items = open;
       used += estimateTokens(s);
@@ -387,7 +414,7 @@ export class Cortex {
         if (!n) continue;
         const cur = (nodes.get(l.ref) ?? { path: n.path, title: n.title, summary: n.summary, files: [] as string[] }) as { files: string[] } & Record<string, unknown>;
         cur.files.push(l.lines ? `${l.file}:${l.lines}` : l.file);
-        if (this.staleness.get(n.path)) cur.stale = true;
+        if (this.isStale(n.path)) cur.stale = true;
         nodes.set(l.ref, cur);
       } else {
         const i = this.index.getItem(l.ref);
@@ -415,6 +442,21 @@ export class Cortex {
     const n = this.node(path);
     const { id: _id, status: _s, updated_by: _u, updated_at: _a, ...content } = n;
     return this.putNode(actor, { ...content, verified_at_commit: head, reason: note ?? `Verified still accurate at ${head.slice(0, 7)}` });
+  }
+
+  verifyMany(actor: Actor, paths: string[]) {
+    if (!Array.isArray(paths) || !paths.length) throw new CortexError("invalid_request", "Pass the node paths to verify.", 400, { example: { paths: ["backend/auth"] } });
+    const done: WriteResult[] = [];
+    const failed: { path: string; code: string; message: string }[] = [];
+    for (const p of new Set(paths)) {
+      try {
+        done.push(this.verifyNode(actor, p));
+      } catch (e) {
+        const err = e instanceof CortexError ? e : new CortexError("internal", String(e), 500);
+        failed.push({ path: p, code: err.code, message: err.message });
+      }
+    }
+    return { done: done.map((r) => r.path!), drafts: done.filter((r) => !r.applied).length, failed, message: `${done.length} verified${failed.length ? `, ${failed.length} failed` : ""}.` };
   }
 
   node(path: string): KnowledgeNode {
@@ -479,7 +521,7 @@ export class Cortex {
     }
     if (kind === "node") {
       const n = this.index.getNode(ref);
-      return n && { kind, path: n.path, title: n.title, summary: n.summary, status: this.staleness.get(n.path) ? "stale" : n.status, score };
+      return n && { kind, path: n.path, title: n.title, summary: n.summary, status: this.isStale(n.path) ? "stale" : n.status, score };
     }
     if (kind === "item") {
       const i = this.index.getItem(ref);
@@ -615,13 +657,18 @@ export class Cortex {
     this.index.removeDraft(id);
   }
 
-  approve(actor: Actor, draftId: string, force = false): WriteResult {
+  // `verifyAtHead`: the approver has checked the draft against the current code, so pin it there even though
+  // the linked files changed after it was proposed.
+  approve(actor: Actor, draftId: string, force = false, opts: { verifyAtHead?: boolean } = {}): WriteResult {
     this.requireHuman(actor);
     const d = this.draftOr404(draftId);
+    let warning: StaleChange[] | undefined;
     if (d.kind === "node") {
       const current = this.tree.read(d.target);
       if (!force && current && d.base_rev !== revision(current)) throw this.conflict(current.updated_by, current.updated_at);
-      this.writeNode({ ...d.data, status: "active", updated_at: nowIso() });
+      const pin = this.pinOnApproval(d.data, opts.verifyAtHead === true);
+      warning = pin.changed;
+      this.writeNode({ ...d.data, ...(pin.commit ? { verified_at_commit: pin.commit } : {}), status: "active", updated_at: nowIso() });
     } else {
       const current = this.itemStore.read(d.target);
       if (!force && current && d.base_rev !== itemRevision(current)) throw this.conflict(current.updated_by, current.updated_at);
@@ -629,7 +676,33 @@ export class Cortex {
     }
     this.removeDraft(d.id);
     this.activity.system(actor.id, "draft.approved", `Approved ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
-    return { applied: true, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: `Approved draft from ${d.proposed_by}.` };
+    return {
+      applied: true,
+      ...(d.kind === "node" ? { path: d.target } : { id: d.target }),
+      message: `Approved draft from ${d.proposed_by}.`,
+      ...(warning?.length
+        ? {
+            warning: "stale_after_approval",
+            stale_changes: warning,
+            hint: "The linked code changed after this draft was proposed, so it stays pinned to the commit it was written at. Approve with verify_at_head once you have checked it against the current code.",
+          }
+        : {}),
+    };
+  }
+
+  // A draft is written against the code at its proposal commit. By approval time HEAD has usually moved on,
+  // and keeping the old pin made every approved draft stale on arrival. So: if none of its linked files
+  // changed in between, the draft describes HEAD equally well and is pinned there. If they did change,
+  // the old pin stays (a real code change is never skipped silently) unless the approver vouches for HEAD.
+  private pinOnApproval(node: KnowledgeNode, verifyAtHead: boolean): { commit?: string; changed?: StaleChange[] } {
+    const links = node.links?.code ?? [];
+    const from = node.verified_at_commit;
+    const head = this.staleness.currentHead();
+    if (!links.length || !from || !head || head.startsWith(from)) return {};
+    if (verifyAtHead) return { commit: head };
+    const changed = this.staleness.changesSince(from, links);
+    if (changed === null) return {}; // commit unknown to this clone: leave it for staleness to report
+    return changed.length ? { changed } : { commit: head };
   }
 
   reject(actor: Actor, draftId: string, reason?: string): WriteResult {
@@ -642,8 +715,8 @@ export class Cortex {
 
   // Bulk review after a bootstrap. Parents go before children so a new branch and its leaves can be approved together.
   // One failure (e.g. a conflict) does not stop the rest; each is reported.
-  approveMany(actor: Actor, ids: string[], force = false) {
-    return this.many(actor, ids, (id) => this.approve(actor, id, force));
+  approveMany(actor: Actor, ids: string[], force = false, opts: { verifyAtHead?: boolean } = {}) {
+    return this.many(actor, ids, (id) => this.approve(actor, id, force, opts));
   }
 
   rejectMany(actor: Actor, ids: string[], reason?: string) {
@@ -660,16 +733,22 @@ export class Cortex {
     const ordered = [...new Set(ids)].map((id) => ({ id, depth: depth(id) })).sort((a, b) => a.depth - b.depth);
     const done: string[] = [];
     const failed: { id: string; code: string; message: string }[] = [];
+    const staleAfter: string[] = []; // approved, but still stale: the code moved after they were proposed
     for (const { id } of ordered) {
       try {
-        fn(id);
+        if (fn(id).warning === "stale_after_approval") staleAfter.push(id);
         done.push(id);
       } catch (e) {
         const err = e instanceof CortexError ? e : new CortexError("internal", String(e), 500);
         failed.push({ id, code: err.code, message: err.message });
       }
     }
-    return { done, failed, message: `${done.length} done${failed.length ? `, ${failed.length} failed` : ""}.` };
+    return {
+      done,
+      failed,
+      ...(staleAfter.length ? { stale_after_approval: staleAfter } : {}),
+      message: `${done.length} done${failed.length ? `, ${failed.length} failed` : ""}${staleAfter.length ? `, ${staleAfter.length} still stale` : ""}.`,
+    };
   }
 
   listDrafts() {

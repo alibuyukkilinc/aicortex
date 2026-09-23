@@ -1,5 +1,6 @@
 import type { Cortex } from "./cortex.js";
 import { Activity, ActorKind, CortexError, Item } from "./types.js";
+import { actionable } from "./staleness.js";
 import { addDays, dayKey, startOfDay } from "../util/time.js";
 
 // Reports answer "what happened, what is waiting, can we trust it" from the files and the activity log.
@@ -203,7 +204,8 @@ export class ReportService {
     // ---- knowledge health ------------------------------------------------------------
     const nodes = this.c.tree.all();
     const linked = new Set(this.c.index.nodeCodeLinks().map((l) => l.path));
-    const stale = this.c.staleness.list();
+    const allStale = this.c.staleness.list();
+    const stale = allStale.filter(actionable); // formatting-only and snoozed ones are reported apart, as information
     const undocumented = nodes.filter((n) => PLACEHOLDER.test(n.summary)).map((n) => n.path || "(root)");
 
     // ---- highlights -------------------------------------------------------------------
@@ -254,13 +256,14 @@ export class ReportService {
         issue_aging: aging,
         blocking_questions: blocking.slice(0, LIST),
         pending_approvals: pending.slice(0, LIST),
-        stale_nodes: stale.slice(0, LIST).map((s) => ({ path: s.path, files: s.changes.map((c) => c.file) })),
+        stale_nodes: stale.slice(0, LIST).map((s) => ({ path: s.path, severity: s.severity, files: s.changes.map((c) => c.file) })),
         undocumented: undocumented.slice(0, LIST),
       },
       knowledge: {
         nodes: nodes.length,
         with_code_links: linked.size,
         stale: stale.length,
+        stale_info: allStale.length - stale.length,
         stale_ratio: linked.size ? Math.round((stale.length / linked.size) * 100) / 100 : 0,
         undocumented: undocumented.length,
         updated_in_period: nodesUpdated,

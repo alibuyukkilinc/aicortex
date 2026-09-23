@@ -34,6 +34,7 @@ const L = {
     nodes: "nodes",
     linked: "linked to code",
     stale: "stale",
+    staleInfo: "formatting-only or snoozed",
     undocumented: "undocumented",
     updated: "updated this period",
     noGit: "not a git repository: staleness unavailable",
@@ -88,6 +89,7 @@ const L = {
     nodes: "düğüm",
     linked: "koda bağlı",
     stale: "eskimiş",
+    staleInfo: "yalnızca biçimsel ya da ertelenmiş",
     undocumented: "belgelenmemiş",
     updated: "bu dönem güncellendi",
     noGit: "git deposu değil: eskime tespiti yok",
@@ -142,7 +144,7 @@ export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
     `| ${t.approvals} | ${T.approvals.approved} ${t.approved} · ${T.approvals.rejected} ${t.rejected} · ${T.approvals.pending} ${t.pending}${T.approvals.oldest_pending_days !== null ? ` (${t.oldest} ${T.approvals.oldest_pending_days} ${t.daysShort})` : ""} |`,
   );
   out.push(
-    `| ${t.knowledge} | ${k.nodes} ${t.nodes} · ${k.with_code_links} ${t.linked} · ${k.git ? `${k.stale} ${t.stale} (${pct(k.stale_ratio)})` : t.noGit} · ${k.undocumented} ${t.undocumented} · ${k.updated_in_period} ${t.updated} |`,
+    `| ${t.knowledge} | ${k.nodes} ${t.nodes} · ${k.with_code_links} ${t.linked} · ${k.git ? `${k.stale} ${t.stale} (${pct(k.stale_ratio)})${k.stale_info ? ` + ${k.stale_info} ${t.staleInfo}` : ""}` : t.noGit} · ${k.undocumented} ${t.undocumented} · ${k.updated_in_period} ${t.updated} |`,
   );
   out.push("");
 
@@ -169,7 +171,7 @@ export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
   out.push(`### ${t.pendingApprovals}`, "", list(r.attention.pending_approvals.map((d) => `${esc(d.title)} (${d.kind}) — ${d.proposed_by}, ${d.age_days} ${t.daysShort}`)), "");
   out.push(`### ${t.issueAging}`, "", `| | ${r.attention.issue_aging.map((b) => b.bucket).join(" | ")} |`, `|---|${r.attention.issue_aging.map(() => "---:").join("|")}|`);
   out.push(`| ${r.attention.open_issues} | ${r.attention.issue_aging.map((b) => b.count).join(" | ")} |`, "");
-  out.push(`### ${t.staleNodes}`, "", list(r.attention.stale_nodes.map((s) => `\`${s.path}\` ← ${s.files.map((f) => `\`${esc(f)}\``).join(", ")}`)), "");
+  out.push(`### ${t.staleNodes}`, "", list(r.attention.stale_nodes.map((s) => `**${s.severity}** \`${s.path}\` ← ${s.files.map((f) => `\`${esc(f)}\``).join(", ")}`)), "");
   out.push(`### ${t.undocumentedBranches}`, "", list(r.attention.undocumented.map((p) => `\`${p}\``)), "");
 
   out.push(`## ${t.actors}`, "", `| ${t.actor} | ${t.kind} | ${t.logged} | ${t.writes} | ${t.draftsCol} | ${t.approvalRate} |`, "|---|---|---:|---:|---:|---:|");

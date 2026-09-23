@@ -3,6 +3,7 @@ import { useApi } from "../api";
 import { Key, useT } from "../i18n";
 import type { Draft, ItemSummary, StaleInfo } from "../types";
 import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, TypeChip, go, useSession } from "../ui";
+import { SeverityChip } from "./Knowledge";
 
 // Notifications: everything waiting for this person, counted and explained in plain words.
 // One question per group: what is this, why am I seeing it, and what do I do with it?
@@ -23,7 +24,8 @@ export function Inbox() {
   const replies = by("new_reply");
   const decisions = by("decision_needs_review");
   const pending = drafts.data?.drafts ?? [];
-  const outdated = stale.data?.nodes ?? [];
+  // Only what needs a person: formatting-only changes and snoozed nodes wait on the stale page instead.
+  const outdated = (stale.data?.nodes ?? []).filter((s) => s.severity !== "low" && !s.snoozed);
 
   const total = all.length + pending.length + outdated.length;
   const n = (key: Key, count: number) => (count ? t(key).replace("{n}", String(count)) : null);
@@ -106,7 +108,9 @@ export function Inbox() {
             rows={outdated.map((s) => (
               <a className="list-row" key={s.path} href={`#/knowledge/${s.path}`} style={{ color: "inherit" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="title">{s.path}</div>
+                  <div className="title">
+                    {s.title ?? s.path} <SeverityChip severity={s.severity} />
+                  </div>
                   <div className="meta">
                     <span className="faint mono">{s.changes.map((c) => c.file).join(", ")}</span>
                   </div>
