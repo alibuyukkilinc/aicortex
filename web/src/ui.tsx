@@ -1,7 +1,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ApiError } from "./api";
 import { GLOSSARY, LangContext, timeAgo, useLabels, useT } from "./i18n";
 import type { Actor } from "./types";
@@ -192,6 +192,50 @@ export function ErrorBox({ error }: { error: unknown }) {
   );
 }
 
+// ---- pressable rows ----------------------------------------------------------------
+
+// Something clicked that cannot be a <button>, because it holds block content (a list row, a board
+// card, a tree row). It gets what a button gives for free: a role screen readers announce, a place in
+// the tab order, and Enter/Space to activate. Keys pressed inside it (a checkbox, a menu) stay theirs.
+export function Pressable({
+  as = "div",
+  onPress,
+  className,
+  label,
+  current,
+  children,
+  ...rest
+}: {
+  as?: "div" | "article" | "li";
+  onPress: () => void;
+  className?: string;
+  label?: string;
+  current?: boolean;
+  children: ReactNode;
+} & Partial<Record<`data-${string}` | "draggable" | "onDragStart" | "onDragEnd" | "title", unknown>>) {
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onPress();
+    }
+  };
+  return createElement(
+    as,
+    { ...rest, className, role: "button", tabIndex: 0, onClick: onPress, onKeyDown, "aria-label": label, "aria-current": current ? "page" : undefined },
+    children,
+  );
+}
+
+// The `list-row` pattern every list page uses, as one keyboard-reachable component.
+export function ListRow({ onPress, className, label, children }: { onPress: () => void; className?: string; label?: string; children: ReactNode }) {
+  return (
+    <Pressable onPress={onPress} className={`list-row${className ? ` ${className}` : ""}`} label={label}>
+      {children}
+    </Pressable>
+  );
+}
+
 // ---- overlays --------------------------------------------------------------------
 
 function useEscape(onClose: () => void) {
@@ -207,7 +251,7 @@ export function Drawer({ onClose, head, children }: { onClose: () => void; head:
   useEscape(onClose);
   return (
     <>
-      <div className="overlay" onClick={onClose} />
+      <div className="overlay" onClick={onClose} aria-hidden="true" />
       <aside className="drawer" role="dialog" aria-modal>
         <div className="drawer-head">
           <div style={{ flex: 1, minWidth: 0 }}>{head}</div>
@@ -226,7 +270,7 @@ export function Modal({ onClose, title, children }: { onClose: () => void; title
   useEscape(onClose);
   return (
     <>
-      <div className="overlay" onClick={onClose} />
+      <div className="overlay" onClick={onClose} aria-hidden="true" />
       <div className="modal" role="dialog" aria-modal aria-label={title}>
         <div className="modal-head">
           <h2>{title}</h2>

@@ -888,6 +888,67 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ---- keyboard and screen readers -------------------------------------------------- */
+/* Rows sit in cards that clip their overflow: draw the focus ring inside them. */
+.list-row:focus-visible,
+.kcard:focus-visible,
+.tree-row .name:focus-visible {
+  outline-offset: -2px;
+}
+/* Tree rows are a link (the name) and a toggle (the twisty), not one clickable div. */
+.tree-row .name {
+  color: inherit;
+  text-decoration: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+button.tree-row,
+.tree-row button.twisty {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.tree-row {
+  width: 100%;
+}
+.tree-row button.twisty {
+  padding: 0;
+  align-self: stretch;
+}
+button.chip {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+/* "Move to" on a board card: small and quiet until it is needed. */
+.kcard-move {
+  margin-left: auto;
+  max-width: 110px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .tree-children {
   margin-left: 14px;
   border-left: 1px solid var(--border);

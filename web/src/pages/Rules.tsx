@@ -33,12 +33,15 @@ export function Rules({ name }: { name: string }) {
       <div className="split">
         <nav className="card tree">
           {names.map((n) => (
-            <div key={n} className={`tree-row ${n === name ? "active" : ""}`} onClick={() => go(`rules/${n}`)}>
-              <span className="name mono">{n}</span>
+            <div key={n} className={`tree-row ${n === name ? "active" : ""}`}>
+              <a className="name mono" href={`#/rules/${n}`} aria-current={n === name ? "page" : undefined}>
+                {n}
+              </a>
             </div>
           ))}
           {me.kind === "human" && (
-            <div
+            <button
+              type="button"
               className="tree-row"
               onClick={() => {
                 const n = prompt(t("rules.newTypeName"))?.trim().toLowerCase();
@@ -46,7 +49,7 @@ export function Rules({ name }: { name: string }) {
               }}
             >
               <Icon name="plus" size={14} /> <span className="name">{t("rules.newType")}</span>
-            </div>
+            </button>
           )}
         </nav>
         <RuleEditor key={name} name={name} />

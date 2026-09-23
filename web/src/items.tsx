@@ -131,10 +131,10 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       }
     >
       <div className="row" style={{ marginBottom: 16 }}>
-        <label className="muted" style={{ fontSize: 12.5 }}>
+        <label htmlFor="items-item-status" className="muted" style={{ fontSize: 12.5 }}>
           {t("item.status")}
         </label>
-        <select className="select" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && void move(e.target.value)}>
+        <select id="items-item-status" className="select" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && void move(e.target.value)}>
           <option value="">{label.status(item.status)} →</option>
           {next.map((s) => (
             <option key={s} value={s}>
@@ -143,10 +143,10 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
             </option>
           ))}
         </select>
-        <label className="muted" style={{ fontSize: 12.5 }}>
+        <label htmlFor="items-item-assignee" className="muted" style={{ fontSize: 12.5 }}>
           {t("item.assignee")}
         </label>
-        <select className="select" style={{ width: "auto" }} value={item.assignee ?? ""} onChange={(e) => void assign(e.target.value)}>
+        <select id="items-item-assignee" className="select" style={{ width: "auto" }} value={item.assignee ?? ""} onChange={(e) => void assign(e.target.value)}>
           <option value="">{t("common.unassigned")}</option>
           <option value="@humans">@humans</option>
           <option value="@ai">@ai</option>
@@ -163,9 +163,9 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       </div>
 
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <label className="muted" style={{ fontSize: 12.5 }}>
+        <span className="muted" style={{ fontSize: 12.5 }}>
           {t("item.claim")}
-        </label>
+        </span>
         {item.claimed_by ? (
           <>
             <ActorChip id={item.claimed_by} actors={actors} />
@@ -386,8 +386,8 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
     <Modal onClose={onClose} title={t("item.new")}>
       <div className="grid2">
         <div className="field">
-          <label>{t("board.type")}</label>
-          <select className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}))}>
+          <label htmlFor="items-board-type">{t("board.type")}</label>
+          <select id="items-board-type" className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}))}>
             {itemTypes.map((x) => (
               <option key={x} value={x}>
                 {label.type(x)}
@@ -396,8 +396,8 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
           </select>
         </div>
         <div className="field">
-          <label>{t("item.assignee")}</label>
-          <select className="select" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+          <label htmlFor="items-item-assignee-2">{t("item.assignee")}</label>
+          <select id="items-item-assignee-2" className="select" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
             <option value="">{t("common.unassigned")}</option>
             <option value="@humans">@humans</option>
             <option value="@ai">@ai</option>
@@ -415,16 +415,16 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
         </p>
       )}
       <div className="field">
-        <label>
+        <label htmlFor="items-item-title">
           {t("item.title")} <span className="req">*</span>
         </label>
-        <input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input id="items-item-title" className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <div className="field">
-        <label>
+        <label htmlFor="items-item-category">
           {t("item.category")} {schema?.category_required && <span className="req">*</span>}
         </label>
-        <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
+        <select id="items-item-category" className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="">—</option>
           {branches.map((b) => (
             <option key={b}>{b}</option>
@@ -432,8 +432,8 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
         </select>
       </div>
       <div className="field">
-        <label>{t("item.body")}</label>
-        <textarea className="textarea" value={body} onChange={(e) => setBody(e.target.value)} />
+        <label htmlFor="items-item-body">{t("item.body")}</label>
+        <textarea id="items-item-body" className="textarea" value={body} onChange={(e) => setBody(e.target.value)} />
       </div>
       {schema && <SchemaForm fields={schema.fields} value={fields} onChange={setFields} actors={actors} />}
       <ErrorBox error={err} />
@@ -477,15 +477,15 @@ export function AskDialog({ about, label, onClose }: { about: string; label: str
         {t("ask.about")}: <strong>{label}</strong>
       </p>
       <div className="field">
-        <label>{t("ask.question")}</label>
-        <input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
+        <label htmlFor="items-ask-question">{t("ask.question")}</label>
+        <input id="items-ask-question" className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <div className="field">
-        <label>{t("ask.details")}</label>
-        <textarea className="textarea" value={body} onChange={(e) => setBody(e.target.value)} />
+        <label htmlFor="items-ask-details">{t("ask.details")}</label>
+        <textarea id="items-ask-details" className="textarea" value={body} onChange={(e) => setBody(e.target.value)} />
       </div>
-      <label className="check">
-        <input type="checkbox" checked={blocking} onChange={(e) => setBlocking(e.target.checked)} /> {t("ask.blocking")}
+      <label htmlFor="items-ask-blocking" className="check">
+        <input id="items-ask-blocking" type="checkbox" checked={blocking} onChange={(e) => setBlocking(e.target.checked)} /> {t("ask.blocking")}
       </label>
       <ErrorBox error={err} />
       <div className="modal-foot">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, qs, useApi } from "../api";
 import { useT } from "../i18n";
 import type { ItemSummary, KnowledgeNode, NodeSummary, StaleInfo } from "../types";
-import { ActorChip, Ago, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, TypeChip, go, useSession, useToast } from "../ui";
+import { ActorChip, Ago, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, TypeChip, go, useSession, useToast, ListRow } from "../ui";
 
 export function Knowledge({ path }: { path: string }) {
   const t = useT();
@@ -25,6 +25,7 @@ export function Knowledge({ path }: { path: string }) {
 }
 
 function TreeNode({ node, active, depth }: { node: NodeSummary; active: string; depth: number }) {
+  const t = useT();
   const isAncestor = active === node.path || active.startsWith(node.path ? `${node.path}/` : "");
   const [open, setOpen] = useState(depth < 1 || isAncestor);
   useEffect(() => {
@@ -33,23 +34,25 @@ function TreeNode({ node, active, depth }: { node: NodeSummary; active: string; 
   const hasKids = (node.children?.length ?? 0) > 0;
   return (
     <div>
-      <div className={`tree-row ${active === node.path ? "active" : ""}`} onClick={() => go(`knowledge/${node.path}`)}>
-        <span
-          className="twisty"
-          onClick={(e) => {
-            e.stopPropagation();
-            setOpen((o) => !o);
-          }}
-        >
-          {hasKids && (
+      <div className={`tree-row ${active === node.path ? "active" : ""}`}>
+        {hasKids ? (
+          <button
+            type="button"
+            className="twisty"
+            aria-expanded={open}
+            aria-label={`${node.title}: ${t(open ? "tree.collapse" : "tree.expand")}`}
+            onClick={() => setOpen((o) => !o)}
+          >
             <span style={{ display: "inline-flex", transform: open ? "rotate(90deg)" : "none", transition: "transform .1s" }}>
               <Icon name="chevron" size={12} />
             </span>
-          )}
-        </span>
-        <span className="name" title={node.summary}>
+          </button>
+        ) : (
+          <span className="twisty" />
+        )}
+        <a className="name" href={`#/knowledge/${node.path}`} title={node.summary} aria-current={active === node.path ? "page" : undefined}>
           {node.title}
-        </span>
+        </a>
         {node.open_items ? <span className="chip warn">{node.open_items}</span> : null}
         {node.status !== "active" && <StatusChip status={node.status} />}
       </div>
@@ -160,13 +163,13 @@ function NodeView({ path }: { path: string }) {
           </h3>
           <div className="card list">
             {items.data.items.map((i) => (
-              <div key={i.id} className="list-row" onClick={() => openItem(i.id)}>
+              <ListRow key={i.id} onPress={() => openItem(i.id)}>
                 <TypeChip type={i.type} />
                 <span className="title" style={{ flex: 1 }}>
                   {i.title}
                 </span>
                 <StatusChip status={i.status} />
-              </div>
+              </ListRow>
             ))}
           </div>
         </div>
@@ -205,10 +208,11 @@ function NodeEditor({ node, parent, onClose }: { node: KnowledgeNode | null; par
     <Modal onClose={onClose} title={node ? t("tree.edit") : t("tree.newChild")}>
       {!node && (
         <div className="field">
-          <label>{t("tree.path")}</label>
+          <label htmlFor="knowledge-tree-path">{t("tree.path")}</label>
           <div className="row" style={{ flexWrap: "nowrap", gap: 4 }}>
             <span className="mono muted">{parent ? `${parent}/` : ""}</span>
             <input
+              id="knowledge-tree-path"
               className="input mono"
               value={slug}
               placeholder="new-node"
@@ -218,18 +222,25 @@ function NodeEditor({ node, parent, onClose }: { node: KnowledgeNode | null; par
         </div>
       )}
       <div className="field">
-        <label>{t("item.title")}</label>
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <label htmlFor="knowledge-item-title">{t("item.title")}</label>
+        <input id="knowledge-item-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <div className="field">
-        <label>
+        <label htmlFor="knowledge-tree-summary">
           {t("tree.summary")} <span className="faint">({summary.length}/300)</span>
         </label>
-        <textarea className="textarea" style={{ minHeight: 60 }} maxLength={300} value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <textarea
+          id="knowledge-tree-summary"
+          className="textarea"
+          style={{ minHeight: 60 }}
+          maxLength={300}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+        />
       </div>
       <div className="field">
-        <label>{t("item.body")}</label>
-        <textarea className="textarea" style={{ minHeight: 200 }} value={body} onChange={(e) => setBody(e.target.value)} />
+        <label htmlFor="knowledge-item-body">{t("item.body")}</label>
+        <textarea id="knowledge-item-body" className="textarea" style={{ minHeight: 200 }} value={body} onChange={(e) => setBody(e.target.value)} />
       </div>
       <ErrorBox error={err} />
       <div className="modal-foot">

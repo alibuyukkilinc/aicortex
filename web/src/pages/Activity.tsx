@@ -19,9 +19,9 @@ export function Activity() {
 
   const refLink = (r: string) =>
     /^[0-9A-Z]{26}$/.test(r) ? (
-      <a key={r} className="chip mono" onClick={() => openItem(r)} style={{ cursor: "pointer" }}>
+      <button type="button" key={r} className="chip mono" onClick={() => openItem(r)} title={r}>
         {r.slice(-8)}
-      </a>
+      </button>
     ) : (
       <a key={r} className="chip" href={`#/knowledge/${r}`}>
         {r || "(root)"}
@@ -39,8 +39,8 @@ export function Activity() {
             <option key={a.id}>{a.id}</option>
           ))}
         </select>
-        <label className="check">
-          <input type="checkbox" checked={system} onChange={(e) => setSystem(e.target.checked)} /> {t("activity.showSystem")}
+        <label htmlFor="activity-activity-showsystem" className="check">
+          <input id="activity-activity-showsystem" type="checkbox" checked={system} onChange={(e) => setSystem(e.target.checked)} /> {t("activity.showSystem")}
         </label>
       </div>
       {error && <ErrorBox error={error} />}

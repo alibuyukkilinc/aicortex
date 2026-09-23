@@ -3,7 +3,7 @@ import { useApi } from "../api";
 import type { Key } from "../i18n";
 import { useT } from "../i18n";
 import type { Draft, ItemSummary, StaleInfo } from "../types";
-import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, TypeChip, go, useSession } from "../ui";
+import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, TypeChip, go, useSession, ListRow } from "../ui";
 import { SeverityChip } from "./Knowledge";
 
 // Notifications: everything waiting for this person, counted and explained in plain words.
@@ -39,7 +39,7 @@ export function Inbox() {
   ].filter(Boolean);
 
   const itemRow = (i: ItemSummary) => (
-    <div className="list-row" key={i.id} onClick={() => openItem(i.id)}>
+    <ListRow key={i.id} onPress={() => openItem(i.id)}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="title">{i.title}</div>
         <div className="meta">
@@ -53,7 +53,7 @@ export function Inbox() {
       <span className="row-go" aria-hidden>
         <Icon name="chevron" size={16} />
       </span>
-    </div>
+    </ListRow>
   );
 
   return (
@@ -86,7 +86,7 @@ export function Inbox() {
             why={t("notif.draftsWhy")}
             action={{ label: t("notif.review"), run: () => go("approvals") }}
             rows={pending.map((d) => (
-              <div className="list-row" key={d.id} onClick={() => go("approvals")}>
+              <ListRow key={d.id} onPress={() => go("approvals")}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="title">{d.title}</div>
                   <div className="meta">
@@ -99,7 +99,7 @@ export function Inbox() {
                 <span className="row-go" aria-hidden>
                   <Icon name="chevron" size={16} />
                 </span>
-              </div>
+              </ListRow>
             ))}
           />
           <Group

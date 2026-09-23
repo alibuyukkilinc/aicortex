@@ -56,7 +56,7 @@ export function SchemaForm({
             break;
           case "boolean":
             input = (
-              <label className="check">
+              <label htmlFor={id} className="check">
                 <input id={id} type="checkbox" checked={v === true} onChange={(e) => set(name, e.target.checked ? true : undefined)} />
                 {spec.description ? labels.hint(spec.description) : label(name)}
               </label>

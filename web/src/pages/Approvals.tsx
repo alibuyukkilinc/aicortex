@@ -4,7 +4,7 @@ import { api, useApi } from "../api";
 import { diffLines } from "../diff";
 import { useT } from "../i18n";
 import type { Draft } from "../types";
-import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, go, useSession, useToast } from "../ui";
+import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, go, useSession, useToast, ListRow } from "../ui";
 
 type BulkResult = { done: string[]; failed: { id: string; code: string; message: string }[]; stale_after_approval?: string[] };
 
@@ -82,8 +82,13 @@ export function Approvals() {
           {drafts.length === 0 && <div className="empty">{t("approvals.empty")}</div>}
           {drafts.length > 0 && can("approve") && (
             <div className="bulk-bar">
-              <label className="check">
-                <input type="checkbox" checked={all} onChange={() => setPicked(all ? new Set() : new Set(drafts.map((d) => d.id)))} />
+              <label htmlFor="approvals-approvals-selectall" className="check">
+                <input
+                  id="approvals-approvals-selectall"
+                  type="checkbox"
+                  checked={all}
+                  onChange={() => setPicked(all ? new Set() : new Set(drafts.map((d) => d.id)))}
+                />
                 {t("approvals.selectAll")}
               </label>
               {selected.length > 0 && (
@@ -101,7 +106,7 @@ export function Approvals() {
             </div>
           )}
           {drafts.map((d) => (
-            <div key={d.id} className={`list-row ${picked.has(d.id) ? "picked" : ""}`} onClick={() => setOpen(d.id)}>
+            <ListRow key={d.id} className={picked.has(d.id) ? "picked" : undefined} onPress={() => setOpen(d.id)}>
               <input
                 type="checkbox"
                 className="row-check"
@@ -122,7 +127,7 @@ export function Approvals() {
               <span className="faint" style={{ fontSize: 12 }}>
                 <Ago iso={d.proposed_at} />
               </span>
-            </div>
+            </ListRow>
           ))}
         </div>
       )}

@@ -4,7 +4,7 @@ import { api, qs, useApi } from "../api";
 import { useLabels, useT } from "../i18n";
 import { NewItemDialog, nextStatuses, useBranches, useSchema } from "../items";
 import type { ItemSummary } from "../types";
-import { ActorChip, ErrorBox, Icon, Loading, go, useSession, useToast } from "../ui";
+import { ActorChip, ErrorBox, Icon, Loading, Pressable, go, useSession, useToast } from "../ui";
 
 export function Board({ type }: { type: string }) {
   const t = useT();
@@ -18,13 +18,17 @@ export function Board({ type }: { type: string }) {
   const [creating, setCreating] = useState(false);
   const [dragging, setDragging] = useState<ItemSummary | null>(null);
   const [over, setOver] = useState<string | null>(null);
+  // Read out by screen readers after a move: dragging gives sighted users that feedback for free.
+  const [announce, setAnnounce] = useState("");
   const { data, error, loading, reload } = useApi<{ items: ItemSummary[]; total: number }>(`/api/items${qs({ type, path: branch, assignee, limit: 500 })}`);
 
   const move = async (item: ItemSummary, status: string, force = false) => {
     if (item.status === status) return;
     try {
       await api(`/api/items/${item.id}`, { method: "PATCH", body: { status, ...(force ? { force } : {}) } });
-      toast({ text: `${item.title}: ${t("board.moved")} ${label.status(status)}` });
+      const said = `${item.title}: ${t("board.moved")} ${label.status(status)}`;
+      toast({ text: said });
+      setAnnounce(said);
       reload();
     } catch (e) {
       const ae = e as ApiError;
@@ -122,13 +126,14 @@ export function Board({ type }: { type: string }) {
                     </div>
                   )}
                   {items.map((i) => (
-                    <article
+                    <Pressable
+                      as="article"
                       key={i.id}
                       className={`kcard ${dragging?.id === i.id ? "dragging" : ""}`}
                       draggable
                       onDragStart={() => setDragging(i)}
                       onDragEnd={() => setDragging(null)}
-                      onClick={() => openItem(i.id)}
+                      onPress={() => openItem(i.id)}
                     >
                       <div className="title">{i.title}</div>
                       <div className="meta">
@@ -140,8 +145,26 @@ export function Board({ type }: { type: string }) {
                             <Icon name="chat" size={12} /> {i.replies}
                           </span>
                         ) : null}
+                        {/* The same moves as dragging, for keyboards and touch screens. */}
+                        {can("write_items") && nextStatuses(schema, i.status).length > 0 && (
+                          <select
+                            className="kcard-move"
+                            value=""
+                            aria-label={`${t("board.moveTo")}: ${i.title}`}
+                            title={t("board.moveTo")}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => e.target.value && void move(i, e.target.value)}
+                          >
+                            <option value="">{t("board.moveTo")}…</option>
+                            {nextStatuses(schema, i.status).map((s) => (
+                              <option key={s} value={s}>
+                                {label.status(s)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
-                    </article>
+                    </Pressable>
                   ))}
                 </div>
               </section>
@@ -149,6 +172,9 @@ export function Board({ type }: { type: string }) {
           })}
         </div>
       )}
+      <div className="sr-only" aria-live="polite">
+        {announce}
+      </div>
       {creating && <NewItemDialog type={type} defaultPath={branch || undefined} onClose={() => setCreating(false)} />}
     </>
   );

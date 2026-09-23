@@ -181,7 +181,7 @@ export function UserMenu({ me }: { me: HubMe }) {
       </button>
       {open && (
         <>
-          <div className="menu-backdrop" onClick={() => setOpen(false)} />
+          <div className="menu-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />
           <div className="menu" role="menu">
             <div className="menu-head">
               <strong>{me.principal.name}</strong>
@@ -573,18 +573,18 @@ function AddPrincipal({
     <Modal onClose={onClose} title={t(kind === "human" ? "hub.addUser" : "hub.addAgent")}>
       <ErrorBox error={err} />
       <div className="field">
-        <label>{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
-        <input className="input" autoFocus value={a} onChange={(e) => setA(e.target.value)} type={kind === "human" ? "email" : "text"} />
+        <label htmlFor="hub-who">{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
+        <input id="hub-who" className="input" autoFocus value={a} onChange={(e) => setA(e.target.value)} type={kind === "human" ? "email" : "text"} />
         {kind === "ai" && <span className="hint">{t("hub.agentIdHint")}</span>}
       </div>
       <div className="field">
-        <label>{t("hub.name")}</label>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        <label htmlFor="hub-hub-name">{t("hub.name")}</label>
+        <input id="hub-hub-name" className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="grid2">
         <div className="field">
-          <label>{t("hub.firstProject")}</label>
-          <select className="select" value={project} onChange={(e) => setProject(e.target.value)}>
+          <label htmlFor="hub-hub-firstproject">{t("hub.firstProject")}</label>
+          <select id="hub-hub-firstproject" className="select" value={project} onChange={(e) => setProject(e.target.value)}>
             <option value="">—</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
@@ -594,8 +594,8 @@ function AddPrincipal({
           </select>
         </div>
         <div className="field">
-          <label>{t("hub.role")}</label>
-          <select className="select" value={role} onChange={(e) => setRole(e.target.value)} disabled={!project}>
+          <label htmlFor="hub-hub-role">{t("hub.role")}</label>
+          <select id="hub-hub-role" className="select" value={role} onChange={(e) => setRole(e.target.value)} disabled={!project}>
             {roles.map((r) => (
               <option key={r} value={r}>
                 {label.role(r)}
@@ -605,8 +605,8 @@ function AddPrincipal({
         </div>
       </div>
       {kind === "human" && (
-        <label className="check" style={{ marginBottom: 8 }}>
-          <input type="checkbox" checked={orgAdmin} onChange={(e) => setOrgAdmin(e.target.checked)} /> {t("hub.orgAdmin")}
+        <label htmlFor="hub-hub-orgadmin" className="check" style={{ marginBottom: 8 }}>
+          <input id="hub-hub-orgadmin" type="checkbox" checked={orgAdmin} onChange={(e) => setOrgAdmin(e.target.checked)} /> {t("hub.orgAdmin")}
         </label>
       )}
       <div className="modal-foot">
@@ -706,25 +706,25 @@ function AddProject({ onClose, onDone }: { onClose: () => void; onDone: () => vo
     <Modal onClose={onClose} title={t("hub.addProject")}>
       <ErrorBox error={err} />
       <div className="field">
-        <label>{t("hub.folder")}</label>
-        <input className="input mono" autoFocus placeholder="/srv/repos/shop" value={path} onChange={(e) => setPath(e.target.value)} />
+        <label htmlFor="hub-hub-folder">{t("hub.folder")}</label>
+        <input id="hub-hub-folder" className="input mono" autoFocus placeholder="/srv/repos/shop" value={path} onChange={(e) => setPath(e.target.value)} />
         <span className="hint">{t("hub.folderHint")}</span>
       </div>
       <div className="grid2">
         <div className="field">
-          <label>{t("hub.name")}</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          <label htmlFor="hub-hub-name-2">{t("hub.name")}</label>
+          <input id="hub-hub-name-2" className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="field">
-          <label>{t("hub.contentLanguage")}</label>
-          <select className="select" value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <label htmlFor="hub-hub-contentlanguage">{t("hub.contentLanguage")}</label>
+          <select id="hub-hub-contentlanguage" className="select" value={language} onChange={(e) => setLanguage(e.target.value)}>
             <option value="tr">Türkçe</option>
             <option value="en">English</option>
           </select>
         </div>
       </div>
-      <label className="check">
-        <input type="checkbox" checked={init} onChange={(e) => setInit(e.target.checked)} /> {t("hub.createCortex")}
+      <label htmlFor="hub-hub-createcortex" className="check">
+        <input id="hub-hub-createcortex" type="checkbox" checked={init} onChange={(e) => setInit(e.target.checked)} /> {t("hub.createCortex")}
       </label>
       <div className="modal-foot">
         <button className="btn" onClick={onClose}>
@@ -968,8 +968,9 @@ function AddToProject({
       </p>
       <ErrorBox error={err} />
       <div className="field">
-        <label>{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
+        <label htmlFor="hub-who-2">{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
         <input
+          id="hub-who-2"
           className={`input ${kind === "ai" ? "mono" : ""}`}
           autoFocus
           type={kind === "human" ? "email" : "text"}
@@ -979,13 +980,13 @@ function AddToProject({
         {kind === "ai" && <span className="hint">{t("hub.agentIdHint")}</span>}
       </div>
       <div className="field">
-        <label>{t("hub.name")}</label>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        <label htmlFor="hub-hub-name-3">{t("hub.name")}</label>
+        <input id="hub-hub-name-3" className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="grid2">
         <div className="field">
-          <label>{t("hub.role")}</label>
-          <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
+          <label htmlFor="hub-hub-role-2">{t("hub.role")}</label>
+          <select id="hub-hub-role-2" className="select" value={role} onChange={(e) => setRole(e.target.value)}>
             {(kind === "human" ? HUMAN_ROLES : AI_ROLES).map((r) => (
               <option key={r} value={r}>
                 {label.role(r)}
@@ -995,8 +996,8 @@ function AddToProject({
         </div>
         {kind === "human" && (
           <div className="field">
-            <label>{t("hub.scope")}</label>
-            <select className="select" value={scope} onChange={(e) => setScope(e.target.value)}>
+            <label htmlFor="hub-hub-scope">{t("hub.scope")}</label>
+            <select id="hub-hub-scope" className="select" value={scope} onChange={(e) => setScope(e.target.value)}>
               <option value="all">{t("hub.scopeAll")}</option>
               <option value="own">{t("hub.scopeOwn")}</option>
             </select>

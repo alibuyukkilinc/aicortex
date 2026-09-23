@@ -3,7 +3,7 @@ import { useContext, useState } from "react";
 import { apiPath, qs, useApi } from "../api";
 import { HBars, StackedColumns } from "../charts";
 import { LangContext, useT } from "../i18n";
-import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, useSession, useToast } from "../ui";
+import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, useSession, useToast, ListRow } from "../ui";
 
 // Mirrors the server's Report shape (src/core/reports.ts); only the fields the page reads.
 interface Report {
@@ -164,8 +164,8 @@ export function Reports() {
                   </span>
                 </div>
                 <span className="spacer" />
-                <label className="check" style={{ fontSize: 12.5 }}>
-                  <input type="checkbox" checked={asTable} onChange={(e) => setAsTable(e.target.checked)} /> {t("rep.table")}
+                <label htmlFor="reports-rep-table" className="check" style={{ fontSize: 12.5 }}>
+                  <input id="reports-rep-table" type="checkbox" checked={asTable} onChange={(e) => setAsTable(e.target.checked)} /> {t("rep.table")}
                 </label>
               </div>
               {asTable ? (
@@ -273,14 +273,14 @@ export function Reports() {
             >
               <Group title={t("rep.blocking")} n={r.attention.blocking_questions.length}>
                 {r.attention.blocking_questions.map((q) => (
-                  <div key={q.id} className="list-row" onClick={() => openItem(q.id)}>
+                  <ListRow key={q.id} onPress={() => openItem(q.id)}>
                     <span className="title" style={{ flex: 1 }}>
                       {q.title}
                     </span>
                     <span className="chip danger">
                       {q.age_days} {t("rep.d")}
                     </span>
-                  </div>
+                  </ListRow>
                 ))}
               </Group>
               <Group title={t("rep.drafts")} n={r.attention.pending_approvals.length}>
@@ -323,18 +323,18 @@ export function Reports() {
           <div className="cols2">
             <Panel title={t("rep.decisionsMade")} empty={!r.highlights.decisions.length}>
               {r.highlights.decisions.map((d) => (
-                <div key={d.id} className="list-row" onClick={() => openItem(d.id)}>
+                <ListRow key={d.id} onPress={() => openItem(d.id)}>
                   <span className="title" style={{ flex: 1 }}>
                     {d.title}
                   </span>
                   <StatusChip status={d.status} />
                   <ActorChip id={d.by} actors={actors} />
-                </div>
+                </ListRow>
               ))}
             </Panel>
             <Panel title={t("rep.closedIssues")} empty={!r.highlights.closed_issues.length}>
               {r.highlights.closed_issues.map((i) => (
-                <div key={i.id} className="list-row" onClick={() => openItem(i.id)}>
+                <ListRow key={i.id} onPress={() => openItem(i.id)}>
                   <span className="title" style={{ flex: 1 }}>
                     {i.title}
                   </span>
@@ -342,7 +342,7 @@ export function Reports() {
                   <span className="faint" style={{ fontSize: 12 }}>
                     {t("rep.openFor")} {i.days_open} {t("rep.d")}
                   </span>
-                </div>
+                </ListRow>
               ))}
             </Panel>
           </div>
