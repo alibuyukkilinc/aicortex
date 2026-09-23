@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Cortex } from "./cortex.js";
-import { IndexedItem, ItemQuery } from "../index/db.js";
+import { IndexedItem, ItemQuery, SqlFilter } from "../index/db.js";
 import { normalizePath } from "../store/tree.js";
 import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
 import { ItemSchema, ValidationContext, canTransition, describeSchema, validateFields } from "./schema.js";
@@ -438,6 +438,7 @@ export class ItemService {
     open?: boolean;
     limit?: number;
     cursor?: string;
+    visible?: SqlFilter | null;
   }) {
     const limit = Math.min(Math.max(q.limit ?? 20, 1), 500);
     const offset = q.cursor ? Math.max(0, Number(q.cursor) || 0) : 0;
@@ -448,6 +449,7 @@ export class ItemService {
       assignee: q.assignee ? [q.assignee] : undefined,
       under: q.path ? normalizePath(q.path) : undefined,
       open: q.open,
+      visible: q.visible,
       limit,
       offset,
     });
@@ -455,7 +457,7 @@ export class ItemService {
     return { items: items.map(compact), total, next_cursor: next };
   }
 
-  inbox(actor: Actor, limit = 20) {
+  inbox(actor: Actor, limit = 20, visible: SqlFilter | null = null) {
     const groups = Object.entries(GROUP_ASSIGNEES)
       .filter(([, kind]) => kind === actor.kind)
       .map(([g]) => g);
@@ -463,7 +465,7 @@ export class ItemService {
     const add = (item: IndexedItem, reason: InboxReason) => {
       if (!seen.has(item.id)) seen.set(item.id, { item, reason });
     };
-    const q = (query: ItemQuery) => this.c.index.queryItems(query).items;
+    const q = (query: ItemQuery) => this.c.index.queryItems({ ...query, visible }).items;
 
     for (const i of q({ open: true, assignee: [actor.id], limit: 200, offset: 0 })) {
       // An answered question waits on its asker, not on the person who answered it.

@@ -70,6 +70,13 @@ export interface SearchOptions {
   limit: number;
 }
 
+// A WHERE fragment over the items table, with its arguments. Used for visibility: applied before
+// LIMIT/OFFSET so a member who sees part of a project gets full pages and a true total.
+export interface SqlFilter {
+  sql: string;
+  args: (string | number)[];
+}
+
 export interface ItemQuery {
   type?: string;
   status?: string;
@@ -77,6 +84,7 @@ export interface ItemQuery {
   author?: string;
   under?: string;
   open?: boolean;
+  visible?: SqlFilter | null;
   limit: number;
   offset: number;
 }
@@ -323,6 +331,7 @@ export class Index {
     if (q.open !== undefined) (where.push("open_work = ?"), args.push(q.open ? 1 : 0));
     if (q.assignee?.length) (where.push(`assignee IN (${q.assignee.map(() => "?").join(",")})`), args.push(...q.assignee));
     if (q.under) (where.push("(category_path = ? OR category_path LIKE ?)"), args.push(q.under, `${q.under}/%`));
+    if (q.visible) (where.push(`(${q.visible.sql})`), args.push(...q.visible.args));
     const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const total = (this.db.prepare(`SELECT COUNT(*) AS c FROM items ${w}`).get(...args) as { c: number }).c;
     const items = this.db

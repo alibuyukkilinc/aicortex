@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { get as httpGet } from "node:http";
 import { join } from "node:path";
 import { buildServer } from "../src/api/server.js";
 import { CSRF_HEADER, SESSION_COOKIE, createLoginCode, verifyLoginCode } from "../src/api/auth.js";
@@ -179,6 +180,46 @@ test("cortex logout ends sessions on a running server; only hashes are stored", 
     assert.equal(new SessionStore(t.init.dir).revokeAll("owner"), 1);
     assert.equal((await app.inject({ url: "/api/me", headers: cookie })).statusCode, 401);
   } finally {
+    await app.close();
+    t.cleanup();
+  }
+});
+
+test("live streams: 15 open boards do not trip Node's leak warning, and the cap answers 503", async () => {
+  const t = tempProject();
+  const app = buildServer(t.cortex);
+  const warnings: string[] = [];
+  const onWarning = (w: Error) => warnings.push(w.name);
+  process.on("warning", onWarning);
+  const open: import("node:http").ClientRequest[] = [];
+  const connect = (port: number) =>
+    new Promise<number>((resolve, reject) => {
+      const req = httpGet({ host: "127.0.0.1", port, path: "/api/events", headers: { host: "localhost", authorization: `Bearer ${t.init.tokens.owner}` } }, (res) => {
+        resolve(res.statusCode ?? 0);
+        if (res.statusCode !== 200) res.resume();
+      });
+      req.on("error", reject);
+      open.push(req);
+    });
+  try {
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const port = (app.server.address() as { port: number }).port;
+    for (let i = 0; i < 15; i++) assert.equal(await connect(port), 200);
+    await new Promise((r) => setTimeout(r, 50)); // warnings are emitted on the next tick
+    assert.deepEqual(warnings.filter((w) => w === "MaxListenersExceededWarning"), []);
+
+    process.env.CORTEX_SSE_LIMIT = "16";
+    assert.equal(await connect(port), 200, "the 16th fits");
+    assert.equal(await connect(port), 503, "the 17th is told to retry");
+
+    // Closing a board frees its slot.
+    open[0].destroy();
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(await connect(port), 200);
+  } finally {
+    delete process.env.CORTEX_SSE_LIMIT;
+    process.off("warning", onWarning);
+    for (const r of open) r.destroy();
     await app.close();
     t.cleanup();
   }

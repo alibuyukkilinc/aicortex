@@ -4,7 +4,7 @@ import { FSWatcher, existsSync, readFileSync, readdirSync, watch, writeFileSync 
 import { join } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
-import { DocKind, Index, IndexedNode, ItemFlags } from "../index/db.js";
+import { DocKind, Index, IndexedNode, ItemFlags, SqlFilter } from "../index/db.js";
 import { ActivityStore } from "../store/activity.js";
 import { DraftStore } from "../store/drafts.js";
 import { ItemStore } from "../store/items.js";
@@ -273,7 +273,7 @@ export class Cortex {
   // The session opener: small, stable, and everything an AI needs to decide where to look next.
   // It is trimmed to fit `budget` tokens: first the branch summaries get shorter, then the lists,
   // because a project with many branches or a long queue must not turn the opener into a wall of text.
-  brief(actor: Actor, budget = BRIEF_BUDGET) {
+  brief(actor: Actor, budget = BRIEF_BUDGET, visible: SqlFilter | null = null) {
     const root = this.tree.read("");
     const branches = this.index.children("").map((n) => {
       const open = this.index.openItemsUnder(n.path);
@@ -290,7 +290,7 @@ export class Cortex {
     const allStale = this.staleness.list();
     const stale = allStale.filter(actionable);
     const yours = this.staleFromYourChanges(actor, stale);
-    const inbox = this.items.inbox(actor, 5);
+    const inbox = this.items.inbox(actor, 5, visible);
     const recent = this.index.queryActivity({ includeSystem: false, limit: 3 }).map((a) => ({ id: a.id, actor: a.actor, at: a.at, summary: a.summary }));
 
     const build = ([chars, rows, activity]: [number, number, number]) => ({

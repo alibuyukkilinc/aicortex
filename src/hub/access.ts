@@ -1,5 +1,6 @@
 import type { Access, ItemRef, Perm } from "../api/access.js";
 import type { Activity } from "../core/types.js";
+import type { SqlFilter } from "../index/db.js";
 import { ROLE_PERMS, Role } from "./roles.js";
 
 // A member's view of one project: what their role allows, and which part of the project they see.
@@ -16,12 +17,24 @@ export function buildAccess(m: { principal: string; kind: "human" | "ai"; role: 
   const seesNode = (path: string) =>
     path === "" || inBranches(path) || m.branches.some((b) => b.startsWith(`${path}/`)); // ancestors of an allowed branch
 
+  // The same rule as seesItem, for the database. Kept next to it so the two cannot drift apart
+  // (test/scoped-pagination.test.ts checks them against each other).
+  const itemSql = (): SqlFilter | null => {
+    if (m.scope === "all" && m.branches.length === 0) return null;
+    const own = { sql: "author = ? OR assignee = ? OR assignee = ?", args: [m.principal, m.principal, group] };
+    if (m.scope !== "all") return own;
+    const like = (b: string) => `${b.replace(/[\\%_]/g, (c) => `\\${c}`)}/%`; // "_" is a LIKE wildcard; branch names use it
+    const branch = m.branches.map(() => "category_path = ? OR category_path LIKE ? ESCAPE '\\'").join(" OR ");
+    return { sql: `${own.sql} OR ${branch}`, args: [...own.args, ...m.branches.flatMap((b) => [b, like(b)])] };
+  };
+
   return {
     role: m.role,
     restricted: m.scope !== "all" || m.branches.length > 0,
     can: (p) => perms.has(p),
     seesNode,
     seesItem,
+    itemSql,
     seesActivity(a: Activity, itemOf) {
       if (a.actor === m.principal) return true;
       const refs = a.refs ?? [];

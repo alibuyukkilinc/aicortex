@@ -39,6 +39,10 @@ function pruneTree(req: FastifyRequest, n: NodeSummary): NodeSummary {
 
 // The project API, mounted at /api (single project) or /api/p/:project (hub). Handlers read the project from
 // req.cortex and the caller's role from req.access, both set by the host server before the handler runs.
+// Open live streams per project (per Cortex instance), and how many one project may hold.
+const streams = new WeakMap<object, number>();
+const sseLimitOf = () => Math.max(1, Number(process.env.CORTEX_SSE_LIMIT) || 50); // env: for tests and small machines
+
 export async function projectRoutes(app: FastifyInstance): Promise<void> {
   app.get("/me", async (req) => {
     const c = req.cortex;
@@ -52,8 +56,17 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Live updates for the board: every write or reindex (including other processes, via the file watcher).
+  // Each open board holds one stream; past the cap a new one is told to retry rather than piling up forever.
   app.get("/events", (req, reply) => {
     const c = req.cortex;
+    const sseLimit = sseLimitOf();
+    const open = streams.get(c) ?? 0;
+    if (open >= sseLimit) {
+      return reply.code(503).header("retry-after", "30").send({ error: { code: "too_many_streams", message: `At most ${sseLimit} live connections per project. Retry shortly.` } });
+    }
+    streams.set(c, open + 1);
+    // Our own listeners count too; without this Node warns about a "leak" at the 11th open board.
+    c.events.setMaxListeners(sseLimit + 20);
     reply.hijack();
     reply.raw.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
     reply.raw.write(": connected\n\n");
@@ -64,10 +77,17 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     };
     const ping = setInterval(() => reply.raw.write(": ping\n\n"), 25000);
     c.events.on("change", onChange);
-    req.raw.on("close", () => {
+    let done = false;
+    const end = () => {
+      if (done) return; // close and error can both fire
+      done = true;
       clearInterval(ping);
       c.events.off("change", onChange);
-    });
+      streams.set(c, (streams.get(c) ?? 1) - 1);
+    };
+    req.raw.on("close", end);
+    req.raw.on("error", end);
+    reply.raw.on("error", end);
   });
 
   // ---- rules ----------------------------------------------------------------
@@ -85,7 +105,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   // ---- knowledge --------------------------------------------------------------
 
   app.get("/brief", async (req) => {
-    const b = req.cortex.brief(req.actor, num((req.query as Q).budget));
+    const b = req.cortex.brief(req.actor, num((req.query as Q).budget), req.access?.itemSql() ?? null);
     if (!req.access) return ok(req, b);
     const stale = b.attention.stale_nodes;
     const staleTop = stale?.top.filter((s) => seesNode(req, s.path)) ?? [];
@@ -94,7 +114,6 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       branches: b.branches.filter((x) => seesNode(req, x.path)),
       attention: {
         ...b.attention,
-        inbox: { ...b.attention.inbox, top: b.attention.inbox.top.filter((i) => seesItem(req, req.cortex.index.getItem(i.id))) },
         ...(stale ? { stale_nodes: { count: staleTop.length, top: staleTop } } : {}),
       },
       recent_activity: b.recent_activity.filter((a) => seesActivity(req, req.cortex.index.getActivity(a.id)!)),
@@ -257,10 +276,8 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   // ---- items ----------------------------------------------------------------------
 
   app.get("/inbox", async (req) => {
-    const r = req.cortex.items.inbox(req.actor, num((req.query as Q).limit) ?? 20);
-    if (!req.access) return ok(req, r);
-    const items = r.items.filter((i) => seesItem(req, i));
-    return ok(req, { count: items.length, items });
+    // Visibility is part of the query, so `count` is the true number, not "what was left of one page".
+    return ok(req, req.cortex.items.inbox(req.actor, num((req.query as Q).limit) ?? 20, req.access?.itemSql() ?? null));
   });
   app.get("/items", async (req) => {
     const q = req.query as Q;
@@ -273,10 +290,10 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       open: bool(q.open),
       limit: num(q.limit),
       cursor: q.cursor,
+      // Filtered before LIMIT/OFFSET: full pages and a true total for members who see part of the project.
+      visible: req.access?.itemSql() ?? null,
     });
-    if (!req.access) return ok(req, r);
-    const items = r.items.filter((i) => seesItem(req, i));
-    return ok(req, { ...r, items, total: r.total - (r.items.length - items.length) });
+    return ok(req, r);
   });
   app.post("/items", async (req, reply) => {
     const body = (req.body ?? {}) as { type?: string; category_path?: string };

@@ -1,5 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { Activity, CortexError } from "../core/types.js";
+import type { SqlFilter } from "../index/db.js";
 
 // What a principal may do in one project. The hub fills this from the member's role; single-project mode
 // (`cortex start`, localhost only) has no access object and relies on the core's own human/AI rules.
@@ -28,6 +29,8 @@ export interface Access {
   restricted: boolean;
   seesNode(path: string): boolean;
   seesItem(item: ItemRef): boolean;
+  // seesItem as SQL over the items table, or null when every item is visible.
+  itemSql(): SqlFilter | null;
   seesActivity(a: Activity, itemOf: (id: string) => ItemRef | null): boolean;
 }
 
