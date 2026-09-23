@@ -5,7 +5,7 @@ Knowledge tree, decisions, questions and AI activity in one place, versioned in 
 
 > 🇹🇷 Türkçe açıklama aşağıda.
 
-> **Status:** early (v0.1). Package: `aicortex` (the CLI is also available as `cortex`).
+> **Status:** early (v0.2). Package: `aicortex` (the CLI is also available as `cortex`).
 
 ## Why
 

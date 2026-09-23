@@ -34,12 +34,19 @@ Usage: cortex <command> [options]
   hub invite <email>                 New invite / password-reset link for a user
   report [--since 7d] [--until <date>] [--lang en|tr] [--json] [--out <file>]
                                      What happened, what is waiting, knowledge health (markdown by default)
+  version                            Print the installed version (also --version)
 `;
 
 async function main() {
   // Before anything touches node:sqlite: a clear message instead of "no such module: fts5".
   if (nodeTooOld()) throw new Error(NODE_TOO_OLD_MESSAGE());
   const [cmd, ...rest] = process.argv.slice(2);
+  if (cmd === "version" || cmd === "--version" || cmd === "-v") {
+    // dist/cli.js and src/cli.ts both sit one level below package.json.
+    const { readFileSync } = await import("node:fs");
+    console.log((JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version);
+    return;
+  }
   const { values, positionals } = parseArgs({
     args: rest,
     options: {

@@ -33,6 +33,9 @@ try {
   const tarball = join(work, packed.filename);
   step(`packed ${packed.filename} (${(packed.size / 1024).toFixed(0)} KB, ${packed.entryCount} files)`);
   if (!packed.files.some((f) => f.path === "dist/web/index.html")) throw new Error("The package does not contain the built board (dist/web/index.html).");
+  // Source maps are two thirds of the unpacked size and nothing reads them at runtime.
+  const maps = packed.files.filter((f) => f.path.endsWith(".map"));
+  if (maps.length) throw new Error(`The package ships ${maps.length} source map(s), e.g. ${maps[0].path}.`);
 
   execFileSync(process.execPath, ["-e", "require('fs').mkdirSync(process.argv[1])", app]);
   writeFileSync(join(app, "package.json"), JSON.stringify({ name: "smoke-app", private: true }));

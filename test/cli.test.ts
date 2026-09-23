@@ -76,6 +76,9 @@ test("cli: wrong input fails with a message and a non-zero exit code", () => {
     assert.match(cli(f.dir, "logout", "--actor", "nobody").err, /not a human actor/);
 
     assert.equal(cli(f.dir, "help").code, 0);
+    const version = cli(f.dir, "--version");
+    assert.equal(version.code, 0);
+    assert.equal(version.out.trim(), JSON.parse(readFileSync("package.json", "utf8")).version);
   } finally {
     f.cleanup();
   }

@@ -1,7 +1,8 @@
 {
   "name": "aicortex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared project brain for humans and AIs: knowledge tree, board, decisions and AI activity in one place.",
+  "author": "alibuyukkilinc",
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "dev": "tsx src/cli.ts",
@@ -11,7 +12,8 @@
     "smoke": "node scripts/smoke.mjs",
     "lint": "oxlint --type-aware --deny-warnings src web/src scripts test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build && npm run smoke"
   },
   "keywords": [
     "ai",
@@ -55,9 +57,15 @@
     "aicortex": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.map",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22.16"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
