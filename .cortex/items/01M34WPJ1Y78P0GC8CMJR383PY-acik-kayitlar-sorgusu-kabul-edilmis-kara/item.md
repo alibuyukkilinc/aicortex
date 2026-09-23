@@ -2,7 +2,7 @@
 id: 01M34WPJ1Y78P0GC8CMJR383PY
 type: issue
 title: "'Açık kayıtlar' sorgusu kabul edilmiş kararları da açık iş gibi döndürüyor"
-status: open
+status: closed
 category_path: backend/items-and-rules
 author: ai-agent
 fields:
@@ -11,7 +11,7 @@ fields:
   expected: Yalnızca üzerinde çalışılacak kayıtlar (görev, issue, soru).
   actual: Kabul edilmiş kararlar da listede.
 created_at: 2026-09-22T15:45:37.854Z
-updated_at: 2026-09-22T15:45:37.854Z
+updated_at: 2026-09-23T18:59:37.393Z
 updated_by: ai-agent
 ---
 
