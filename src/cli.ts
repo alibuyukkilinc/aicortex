@@ -215,7 +215,8 @@ Next steps:
     case "reindex": {
       const { Cortex } = await import("./core/cortex.js");
       const cortex = new Cortex(loadProject());
-      console.log(`✔ Indexed ${cortex.reindex()} node(s).`);
+      const r = cortex.reindex();
+      console.log(`✔ Indexed ${r.nodes} node(s), ${r.items} item(s), ${r.activity} activity entr(ies).`);
       cortex.close();
       break;
     }

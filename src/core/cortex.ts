@@ -16,6 +16,7 @@ import { ActivityService } from "./activity.js";
 import { StalenessService } from "./staleness.js";
 import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
+import { SyncService, SyncStats } from "./sync.js";
 import { Project, loadTokens, paths, rulesVersion } from "./project.js";
 import { DEFAULT_SCHEMAS, ItemSchema, describeSchema, loadActivitySchema, loadSchema } from "./schema.js";
 import { Actor, CortexError, Draft, KnowledgeNode, NodeSummary } from "./types.js";
@@ -91,6 +92,7 @@ export class Cortex {
   readonly semantic: SemanticIndex;
   readonly staleness: StalenessService;
   readonly reports: ReportService;
+  private syncService: SyncService;
   private syncTimer?: NodeJS.Timeout;
 
   // `embedder` overrides the semantic backend (tests pass a fake; null turns semantic search off).
@@ -111,6 +113,7 @@ export class Cortex {
     this.semantic = new SemanticIndex(this.index, factory);
     this.staleness = new StalenessService(this);
     this.reports = new ReportService(this);
+    this.syncService = new SyncService(this);
     // Every write and reindex emits "change"; batch them into one embedding pass.
     this.events.on("change", () => {
       clearTimeout(this.syncTimer);
@@ -132,18 +135,32 @@ export class Cortex {
 
   private closed = false;
   private watchTimer?: NodeJS.Timeout;
+  private pending = new Set<string>();
+  private pendingAll = false;
 
   // Picks up hand edits, git pulls and writes from other Cortex processes (e.g. MCP next to the API).
   watch(onError: (e: unknown) => void = () => {}): void {
     this.watcher = watch(this.project.dir, { recursive: true }, (_event, file) => {
-      const f = String(file ?? "");
-      if (this.closed || f.startsWith(".index") || f === ".secrets.yaml") return;
+      if (this.closed) return;
+      // Node can report a change without naming the file; then we have no choice but to rebuild.
+      if (file == null) this.pendingAll = true;
+      else {
+        const f = String(file).replace(/\\/g, "/");
+        if (f.startsWith(".index") || f === ".secrets.yaml") return;
+        this.pending.add(f);
+      }
       clearTimeout(this.watchTimer);
       this.watchTimer = setTimeout(() => {
+        const paths = [...this.pending];
+        const all = this.pendingAll;
+        this.pending.clear();
+        this.pendingAll = false;
         try {
-          this.reindex();
+          if (all) this.reindex();
+          else for (const e of this.sync(paths).errors) onError(e.error);
         } catch (e) {
           // Usually a half-written file during git checkout; the next event retries.
+          this.pendingAll = true;
           onError(e);
         }
       }, 300);
@@ -162,6 +179,20 @@ export class Cortex {
   }
 
   private headPoll?: NodeJS.Timeout;
+
+  // Index only what these paths (relative to .cortex) name. Falls back to a full rebuild when a
+  // change cannot be pinned to single records — a moved branch, a vanished log, an unknown shape.
+  sync(changed: string[]): SyncStats {
+    const r = this.syncService.run(changed);
+    if ("rescan" in r) {
+      this.reindex();
+      return { nodes: 0, items: 0, drafts: 0, activity: 0, reterm: 0, errors: [] };
+    }
+    // Same event shape as a full reindex: the board's live stream, the semantic debounce and
+    // staleness all key off it. Staying quiet when nothing changed keeps them from spinning.
+    if (r.nodes || r.items || r.drafts || r.activity || r.reterm) this.events.emit("change", { type: "reindex" });
+    return r;
+  }
 
   reindex(): { nodes: number; items: number; activity: number } {
     const nodes = this.tree.all();

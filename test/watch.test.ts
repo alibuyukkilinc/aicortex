@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tempProject } from "./helpers.js";
 
@@ -16,6 +16,21 @@ test("hand edits on disk are picked up without a restart", async () => {
     await new Promise((r) => setTimeout(r, 1000));
     assert.deepEqual(errors, []);
     assert.equal((await t.cortex.search("laravel")).results[0]?.path, "backend");
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("a file deleted on disk leaves the index", async () => {
+  const t = tempProject();
+  const errors: unknown[] = [];
+  try {
+    t.cortex.watch((e) => errors.push(e));
+    assert.ok((await t.cortex.search("seo")).results.some((r) => r.path === "seo"));
+    rmSync(join(t.root, ".cortex/tree/seo.md"));
+    await new Promise((r) => setTimeout(r, 1000));
+    assert.deepEqual(errors, []);
+    assert.equal((await t.cortex.search("seo")).results.some((r) => r.path === "seo"), false);
   } finally {
     t.cleanup();
   }

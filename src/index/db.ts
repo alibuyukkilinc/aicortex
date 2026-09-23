@@ -276,6 +276,29 @@ export class Index {
     this.insertDoc("item", i.id, i.category_path ?? "", i.status, i.type, i.title, i.body.slice(0, 300), `${i.body} ${fieldText} ${replyText}`, (i.tags ?? []).join(" "));
   }
 
+  deleteItem(id: string): void {
+    this.tx(() => {
+      this.db.prepare("DELETE FROM items WHERE id = ?").run(id);
+      this.db.prepare("DELETE FROM code_links WHERE kind = 'item' AND ref = ?").run(id);
+      this.deleteDoc("item", id);
+    });
+  }
+
+  // Whether a status counts as finished comes from the rules, not from the item file, so a rules
+  // edit changes it without any file changing. Recomputing the flag beats re-reading every item.
+  retermItems(isTerminal: (type: string, status: string) => boolean): number {
+    const pairs = this.db.prepare("SELECT DISTINCT type, status FROM items").all() as { type: string; status: string }[];
+    let changed = 0;
+    this.tx(() => {
+      const stmt = this.db.prepare("UPDATE items SET terminal = ? WHERE type = ? AND status = ? AND terminal != ?");
+      for (const p of pairs) {
+        const t = isTerminal(p.type, p.status) ? 1 : 0;
+        changed += stmt.run(t, p.type, p.status, t).changes as number;
+      }
+    });
+    return changed;
+  }
+
   getItem(id: string): IndexedItem | null {
     const row = this.db.prepare("SELECT * FROM items WHERE id = ?").get(id);
     return row ? toItem(row) : null;
@@ -303,6 +326,13 @@ export class Index {
 
   addActivity(a: Activity): void {
     this.tx(() => this.insertActivity(a));
+  }
+
+  // The log is append-only, so a day's file is re-read whole whenever it grows. Entries already
+  // indexed must be skipped rather than re-inserted: FTS5 has no primary key, and deleting by
+  // (kind, ref) scans the whole table because those columns are UNINDEXED.
+  hasActivity(id: string): boolean {
+    return this.db.prepare("SELECT 1 FROM activity WHERE id = ?").get(id) !== undefined;
   }
 
   private insertActivity(a: Activity): void {

@@ -14,19 +14,29 @@ export class ActivityStore {
     appendFileSync(join(dir, `${entry.actor}.jsonl`), JSON.stringify(entry) + "\n", "utf8");
   }
 
+  // One day's log for one actor, e.g. "2026-09-22/owner.jsonl". null means the file is gone:
+  // the caller cannot tell which entries to drop, so it has to fall back to a full rebuild.
+  readFile(rel: string): Activity[] | null {
+    const file = join(this.root, rel);
+    if (!existsSync(file)) return null;
+    const out: Activity[] = [];
+    for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      try {
+        out.push(JSON.parse(line) as Activity);
+      } catch {
+        // A merge-mangled line must not take the whole log down.
+      }
+    }
+    return out;
+  }
+
   all(): Activity[] {
     if (!existsSync(this.root)) return [];
     const out: Activity[] = [];
     for (const day of readdirSync(this.root).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))) {
       for (const f of readdirSync(join(this.root, day)).filter((x) => x.endsWith(".jsonl"))) {
-        for (const line of readFileSync(join(this.root, day, f), "utf8").split(/\r?\n/)) {
-          if (!line.trim()) continue;
-          try {
-            out.push(JSON.parse(line) as Activity);
-          } catch {
-            // A merge-mangled line must not take the whole log down.
-          }
-        }
+        out.push(...(this.readFile(`${day}/${f}`) ?? []));
       }
     }
     return out.sort((a, b) => (a.id < b.id ? -1 : 1));
