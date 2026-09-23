@@ -1,5 +1,5 @@
 import { qs, useApi } from "../api";
-import type { Key} from "../i18n";
+import type { Key } from "../i18n";
 import { useLabels, useT } from "../i18n";
 import type { SearchHit } from "../types";
 import { Ago, ErrorBox, Loading, StatusChip, go, useSession } from "../ui";
@@ -72,11 +72,7 @@ function SearchMode({ data }: { data: SearchResponse }) {
   const t = useT();
   if (data.mode === "hybrid") {
     const s = data.semantic;
-    return (
-      <p>
-        {s.indexed < s.total ? `${t("search.indexing")} ${s.indexed}/${s.total}` : t("search.hybrid")}
-      </p>
-    );
+    return <p>{s.indexed < s.total ? `${t("search.indexing")} ${s.indexed}/${s.total}` : t("search.hybrid")}</p>;
   }
   return (
     <p>

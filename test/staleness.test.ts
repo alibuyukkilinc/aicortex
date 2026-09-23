@@ -75,7 +75,12 @@ test("a committed change to linked code makes the node stale, with the commit th
 test("with a line range, only changes to those lines count", () => {
   const p = gitProject();
   try {
-    p.cortex.putNode(p.human, { path: "backend/auth", title: "Auth", summary: "Login check.", links: { code: [{ file: "src/auth/login.ts", lines: "40-60" }] } });
+    p.cortex.putNode(p.human, {
+      path: "backend/auth",
+      title: "Auth",
+      summary: "Login check.",
+      links: { code: [{ file: "src/auth/login.ts", lines: "40-60" }] },
+    });
 
     p.edit("src/auth/login.ts", "line 5\n", "line 5 changed\n");
     p.commit("touch line 5");
@@ -94,7 +99,12 @@ test("with a line range, only changes to those lines count", () => {
 test("deleted and renamed files are reported", () => {
   const p = gitProject();
   try {
-    p.cortex.putNode(p.human, { path: "backend/pay", title: "Refunds", summary: "v2 refunds.", links: { code: [{ file: "src/pay/refund_v2.ts" }, { file: "src/pay/iyzico.ts" }] } });
+    p.cortex.putNode(p.human, {
+      path: "backend/pay",
+      title: "Refunds",
+      summary: "v2 refunds.",
+      links: { code: [{ file: "src/pay/refund_v2.ts" }, { file: "src/pay/iyzico.ts" }] },
+    });
     unlinkSync(join(p.root, "src/pay/refund_v2.ts"));
     renameSync(join(p.root, "src/pay/iyzico.ts"), join(p.root, "src/pay/provider.ts"));
     p.commit("restructure payments");
@@ -143,7 +153,12 @@ test("code context: what covers these files, and a nudge after logging changes",
   try {
     p.cortex.putNode(p.human, { path: "backend/auth", title: "Auth", summary: "Login.", links: { code: [{ file: "src/auth/login.ts", lines: "1-20" }] } });
     p.cortex.putNode(p.human, { path: "backend/pay", title: "Payments", summary: "iyzico.", links: { code: [{ file: "src/pay" }] } });
-    const decision = p.cortex.items.create(p.human, { type: "decision", title: "Use iyzico", category_path: "backend/pay", fields: { context: "TRY installments" } });
+    const decision = p.cortex.items.create(p.human, {
+      type: "decision",
+      title: "Use iyzico",
+      category_path: "backend/pay",
+      fields: { context: "TRY installments" },
+    });
     const issue = p.cortex.items.create(p.human, {
       type: "issue",
       title: "Refund rounding",
@@ -153,21 +168,34 @@ test("code context: what covers these files, and a nudge after logging changes",
     });
 
     const ctx = p.cortex.codeContext(["src/pay/refund_v2.ts"]);
-    assert.deepEqual(ctx.knowledge.map((k) => k.path), ["backend/pay"], "directory link covers the file");
+    assert.deepEqual(
+      ctx.knowledge.map((k) => k.path),
+      ["backend/pay"],
+      "directory link covers the file",
+    );
     const ids = ctx.items.map((i) => i.id);
     assert.ok(ids.includes(decision.id), "decisions under the matched knowledge");
     assert.ok(ids.includes(issue.id), "items linking the file directly");
 
     // "_" must not act as a wildcard.
     assert.equal(p.cortex.codeContext(["src/pay/refundXv2.ts"]).knowledge.length, 1, "still inside src/pay");
-    assert.equal(p.cortex.codeContext(["src/pay/refundXv2.ts"]).items.some((i) => i.id === issue.id && i.via === "code link"), false);
+    assert.equal(
+      p.cortex.codeContext(["src/pay/refundXv2.ts"]).items.some((i) => i.id === issue.id && i.via === "code link"),
+      false,
+    );
 
     // Asking about a directory finds links to files inside it.
-    assert.deepEqual(p.cortex.codeContext(["src/auth"]).knowledge.map((k) => k.path), ["backend/auth"]);
+    assert.deepEqual(
+      p.cortex.codeContext(["src/auth"]).knowledge.map((k) => k.path),
+      ["backend/auth"],
+    );
     assert.ok(p.cortex.codeContext(["docs/none.md"]).hint);
 
     const logged = p.cortex.activity.log(p.ai, { action: "fix", summary: "Round refunds", why: "Off-by-one kuruş", files: ["./src/pay/refund_v2.ts"] });
-    assert.deepEqual(logged.related_knowledge?.map((k) => k.path), ["backend/pay"]);
+    assert.deepEqual(
+      logged.related_knowledge?.map((k) => k.path),
+      ["backend/pay"],
+    );
   } finally {
     p.cleanup();
   }
@@ -185,7 +213,10 @@ test("REST: stale list, verify and code context endpoints", async () => {
 
     const list = await app.inject({ url: "/api/stale", headers: as("owner") });
     assert.equal(list.json().enabled, true);
-    assert.deepEqual(list.json().nodes.map((n: { path: string }) => n.path), ["backend/auth"]);
+    assert.deepEqual(
+      list.json().nodes.map((n: { path: string }) => n.path),
+      ["backend/auth"],
+    );
     assert.equal((await app.inject({ url: "/api/node/backend/auth", headers: as("ai-agent") })).json().staleness.reason, "changed");
     assert.equal((await app.inject({ url: "/api/code?files=src/auth/token.ts", headers: as("ai-agent") })).json().knowledge[0].stale, true);
 
@@ -211,7 +242,10 @@ test("outside a git repository everything still works, staleness is just off", (
     assert.equal(c.staleness.enabled(), false);
     assert.deepEqual(c.staleness.list(), []);
     assert.equal(c.brief(h).attention.stale_nodes, undefined);
-    assert.throws(() => c.verifyNode(h, "backend/auth"), (e: CortexError) => e.code === "no_git");
+    assert.throws(
+      () => c.verifyNode(h, "backend/auth"),
+      (e: CortexError) => e.code === "no_git",
+    );
   } finally {
     c.close();
     rmSync(root, { recursive: true, force: true });
@@ -268,7 +302,10 @@ test("severity: formatting is low, linked lines and moved files are high, the re
     assert.equal(stale(p.cortex, "backend/pay")?.severity, "high", "renamed");
 
     // Counting: the formatting-only one is information, not work.
-    assert.deepEqual(p.cortex.staleness.actionable().map((s) => s.path), ["backend/auth", "backend/pay", "backend/token"]);
+    assert.deepEqual(
+      p.cortex.staleness.actionable().map((s) => s.path),
+      ["backend/auth", "backend/pay", "backend/token"],
+    );
     const brief = p.cortex.brief(p.human);
     assert.equal(brief.attention.stale_nodes?.count, 3);
     assert.equal(p.cortex.treeView("", 1).node.children!.find((c) => c.path === "backend")!.status, "active", "low is not flagged in the tree");
@@ -347,7 +384,10 @@ test("files with non-ASCII names are followed (git quotes them unless told not t
     p.commit("add ödeme");
     // Linked as a macOS editor would send it (decomposed); git and the index hold the composed form.
     p.cortex.putNode(p.human, { path: "backend/pay", title: "İade", summary: "Refund limit.", links: { code: [{ file: "src/ödeme/iade.ts" }] } });
-    assert.deepEqual(p.cortex.codeContext(["src/ödeme/iade.ts"]).knowledge.map((k) => k.path), ["backend/pay"]);
+    assert.deepEqual(
+      p.cortex.codeContext(["src/ödeme/iade.ts"]).knowledge.map((k) => k.path),
+      ["backend/pay"],
+    );
     p.write("src/ödeme/iade.ts", "export const limit = 2;\n");
     p.commit("raise the limit");
     const s = stale(p.cortex, "backend/pay");

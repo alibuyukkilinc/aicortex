@@ -10,13 +10,11 @@ import { ROLE_PERMS } from "./roles.js";
 export function buildAccess(m: { principal: string; kind: "human" | "ai"; role: Role; scope: "all" | "own"; branches: string[] }): Access {
   const perms = new Set<Perm>(ROLE_PERMS[m.role] ?? []);
   const group = m.kind === "human" ? "@humans" : "@ai";
-  const inBranches = (p: string | null | undefined) =>
-    m.branches.length === 0 || (!!p && m.branches.some((b) => p === b || p.startsWith(`${b}/`)));
+  const inBranches = (p: string | null | undefined) => m.branches.length === 0 || (!!p && m.branches.some((b) => p === b || p.startsWith(`${b}/`)));
   const mine = (i: ItemRef) => i.author === m.principal || i.assignee === m.principal || i.assignee === group;
 
   const seesItem = (i: ItemRef) => mine(i) || (m.scope === "all" && inBranches(i.category_path));
-  const seesNode = (path: string) =>
-    path === "" || inBranches(path) || m.branches.some((b) => b.startsWith(`${path}/`)); // ancestors of an allowed branch
+  const seesNode = (path: string) => path === "" || inBranches(path) || m.branches.some((b) => b.startsWith(`${path}/`)); // ancestors of an allowed branch
 
   // The same rule as seesItem, for the database. Kept next to it so the two cannot drift apart
   // (test/scoped-pagination.test.ts checks them against each other).

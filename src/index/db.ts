@@ -179,12 +179,7 @@ export class Index {
     }
   }
 
-  reindex(data: {
-    nodes: KnowledgeNode[];
-    items: { item: Item; replies: Reply[]; flags: ItemFlags }[];
-    activity: Activity[];
-    drafts?: Draft[];
-  }): void {
+  reindex(data: { nodes: KnowledgeNode[]; items: { item: Item; replies: Reply[]; flags: ItemFlags }[]; activity: Activity[]; drafts?: Draft[] }): void {
     this.tx(() => {
       this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text; DELETE FROM code_links;");
       for (const n of data.nodes) this.insertNode(n);
@@ -283,13 +278,38 @@ export class Index {
     this.db
       .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(
-        i.id, i.type, i.title, i.status, flags.terminal ? 1 : 0, flags.open ? 1 : 0, i.category_path ?? null, i.author, i.assignee ?? null,
-        i.claimed_by ?? null, i.claimed_at ?? null,
-        i.fields?.blocking === true ? 1 : 0, i.created_at, i.updated_at, replies.length, last?.author ?? null,
+        i.id,
+        i.type,
+        i.title,
+        i.status,
+        flags.terminal ? 1 : 0,
+        flags.open ? 1 : 0,
+        i.category_path ?? null,
+        i.author,
+        i.assignee ?? null,
+        i.claimed_by ?? null,
+        i.claimed_at ?? null,
+        i.fields?.blocking === true ? 1 : 0,
+        i.created_at,
+        i.updated_at,
+        replies.length,
+        last?.author ?? null,
       );
-    const fieldText = Object.values(i.fields ?? {}).filter((v) => typeof v === "string").join(" ");
+    const fieldText = Object.values(i.fields ?? {})
+      .filter((v) => typeof v === "string")
+      .join(" ");
     const replyText = replies.map((r) => r.body).join(" ");
-    this.insertDoc("item", i.id, i.category_path ?? "", i.status, i.type, i.title, i.body.slice(0, 300), `${i.body} ${fieldText} ${replyText}`, (i.tags ?? []).join(" "));
+    this.insertDoc(
+      "item",
+      i.id,
+      i.category_path ?? "",
+      i.status,
+      i.type,
+      i.title,
+      i.body.slice(0, 300),
+      `${i.body} ${fieldText} ${replyText}`,
+      (i.tags ?? []).join(" "),
+    );
   }
 
   deleteItem(id: string): void {
@@ -306,9 +326,7 @@ export class Index {
     const pairs = this.db.prepare("SELECT DISTINCT type, status FROM items").all() as { type: string; status: string }[];
     let changed = 0;
     this.tx(() => {
-      const stmt = this.db.prepare(
-        "UPDATE items SET terminal = ?, open_work = ? WHERE type = ? AND status = ? AND (terminal != ? OR open_work != ?)",
-      );
+      const stmt = this.db.prepare("UPDATE items SET terminal = ?, open_work = ? WHERE type = ? AND status = ? AND (terminal != ? OR open_work != ?)");
       for (const p of pairs) {
         const f = flagsOf(p.type, p.status);
         const [t, o] = [f.terminal ? 1 : 0, f.open ? 1 : 0];
@@ -399,10 +417,12 @@ export class Index {
       .prepare("INSERT INTO docs_fts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(kind, ref, scope, status, type, fold(title), fold(summary), fold(body), fold(tags));
     // Title and summary first: the model only reads the first few hundred tokens.
-    const text = [title, summary, body].map((x) => x.trim()).filter(Boolean).join("\n").slice(0, 2000);
-    this.db
-      .prepare("INSERT OR REPLACE INTO doc_text VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .run(kind, ref, scope, status, type, text, shortHash(text));
+    const text = [title, summary, body]
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 2000);
+    this.db.prepare("INSERT OR REPLACE INTO doc_text VALUES (?, ?, ?, ?, ?, ?, ?)").run(kind, ref, scope, status, type, text, shortHash(text));
   }
 
   private deleteDoc(kind: DocKind, ref: string) {
@@ -418,7 +438,11 @@ export class Index {
   }
 
   nodeCodeLinks(): { path: string; file: string; lines: string | null }[] {
-    return this.db.prepare("SELECT ref AS path, file, lines FROM code_links WHERE kind = 'node'").all() as { path: string; file: string; lines: string | null }[];
+    return this.db.prepare("SELECT ref AS path, file, lines FROM code_links WHERE kind = 'node'").all() as {
+      path: string;
+      file: string;
+      lines: string | null;
+    }[];
   }
 
   // Links that cover any of the files: exact match, a linked directory containing the file, or a file inside an asked-about directory.
@@ -447,7 +471,13 @@ export class Index {
       .all()
       .map((r) => {
         const b = r.vec as Uint8Array;
-        return { kind: r.kind as DocKind, ref: r.ref as string, model: r.model as string, hash: r.hash as string, vec: new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)) };
+        return {
+          kind: r.kind as DocKind,
+          ref: r.ref as string,
+          model: r.model as string,
+          hash: r.hash as string,
+          vec: new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)),
+        };
       });
   }
 

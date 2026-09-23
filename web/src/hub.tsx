@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode} from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useContext, useState } from "react";
 import { ApiError, api, currentProject, qs, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
@@ -48,11 +48,28 @@ export function HubLogin({ org }: { org?: string }) {
         <ErrorBox error={err} />
         <div className="field">
           <label htmlFor="email">{t("hub.email")}</label>
-          <input id="email" className="input" type="email" autoComplete="username" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            id="email"
+            className="input"
+            type="email"
+            autoComplete="username"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
         <div className="field">
           <label htmlFor="password">{t("hub.password")}</label>
-          <input id="password" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            id="password"
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </div>
         <button className="btn primary wide" disabled={busy || !email || !password}>
           {busy ? t("hub.signingIn") : t("hub.signIn")}
@@ -101,7 +118,16 @@ export function InvitePage({ token }: { token: string }) {
         <input type="email" autoComplete="username" value={info.data.email} readOnly hidden />
         <div className="field">
           <label htmlFor="pw">{t("hub.password")}</label>
-          <input id="pw" className="input" type="password" autoComplete="new-password" autoFocus minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            id="pw"
+            className="input"
+            type="password"
+            autoComplete="new-password"
+            autoFocus
+            minLength={10}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <span className="hint">{t("hub.passwordHint")}</span>
         </div>
         <div className="field">
@@ -142,7 +168,12 @@ export function UserMenu({ me }: { me: HubMe }) {
     await api("/api/auth/logout", { method: "POST" }).catch(() => {});
     location.href = "/";
   };
-  const initials = me.principal.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const initials = me.principal.name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
   return (
     <div className="menu-wrap">
       <button className="avatar-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} title={me.principal.name}>
@@ -245,7 +276,15 @@ export function HubHome({ me }: { me: HubMe }) {
 
 // ---- organization admin --------------------------------------------------------------------
 
-type AdminUser = { id: string; email: string; name: string; org_admin: boolean; disabled: boolean; has_password: boolean; projects: { id: string; role: string }[] };
+type AdminUser = {
+  id: string;
+  email: string;
+  name: string;
+  org_admin: boolean;
+  disabled: boolean;
+  has_password: boolean;
+  projects: { id: string; role: string }[];
+};
 type AdminAgent = { id: string; name: string; disabled: boolean; projects: { id: string; role: string }[] };
 type AdminProject = { id: string; name: string; path: string; members: number; exists: boolean };
 
@@ -283,7 +322,9 @@ function Secret({ title, value, hint, onClose }: { title: string; value: string;
   const toast = useToast();
   return (
     <Modal onClose={onClose} title={title}>
-      <p className="muted" style={{ marginTop: 0 }}>{hint}</p>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {hint}
+      </p>
       <div className="secret">
         <code>{value}</code>
         <button
@@ -321,7 +362,8 @@ function UsersTab({ me }: { me: HubMe }) {
       toast({ text: (e as Error).message, error: true });
     }
   };
-  const newLink = (u: AdminUser) => act(async () => setSecret((await api<{ invite_url: string }>(`/api/admin/users/${u.id}/invite`, { method: "POST" })).invite_url));
+  const newLink = (u: AdminUser) =>
+    act(async () => setSecret((await api<{ invite_url: string }>(`/api/admin/users/${u.id}/invite`, { method: "POST" })).invite_url));
   const patch = (u: AdminUser, body: object) => act(() => api(`/api/admin/users/${u.id}`, { method: "PATCH", body }));
 
   return (
@@ -357,7 +399,13 @@ function UsersTab({ me }: { me: HubMe }) {
                   </td>
                   <td className="muted">{u.projects.map((p) => `${p.id} · ${label.role(p.role)}`).join(", ") || "—"}</td>
                   <td>
-                    {u.disabled ? <span className="chip danger">{t("hub.disabled")}</span> : u.has_password ? <span className="chip ok">{t("hub.active")}</span> : <span className="chip warn">{t("hub.pending")}</span>}
+                    {u.disabled ? (
+                      <span className="chip danger">{t("hub.disabled")}</span>
+                    ) : u.has_password ? (
+                      <span className="chip ok">{t("hub.active")}</span>
+                    ) : (
+                      <span className="chip warn">{t("hub.pending")}</span>
+                    )}
                   </td>
                   <td className="actions">
                     <button className="btn sm" onClick={() => void newLink(u)}>
@@ -444,10 +492,18 @@ function AgentsTab() {
                   <td className="muted">{a.projects.map((p) => `${p.id} · ${label.role(p.role)}`).join(", ") || "—"}</td>
                   <td>{a.disabled ? <span className="chip danger">{t("hub.disabled")}</span> : <span className="chip ok">{t("hub.active")}</span>}</td>
                   <td className="actions">
-                    <button className="btn sm" onClick={() => void act(async () => setSecret((await api<{ token: string }>(`/api/admin/agents/${a.id}/token`, { method: "POST" })).token))}>
+                    <button
+                      className="btn sm"
+                      onClick={() =>
+                        void act(async () => setSecret((await api<{ token: string }>(`/api/admin/agents/${a.id}/token`, { method: "POST" })).token))
+                      }
+                    >
                       {t("hub.rotate")}
                     </button>
-                    <button className={`btn sm ghost ${a.disabled ? "" : "danger"}`} onClick={() => void act(() => api(`/api/admin/agents/${a.id}`, { method: "PATCH", body: { disabled: !a.disabled } }))}>
+                    <button
+                      className={`btn sm ghost ${a.disabled ? "" : "danger"}`}
+                      onClick={() => void act(() => api(`/api/admin/agents/${a.id}`, { method: "PATCH", body: { disabled: !a.disabled } }))}
+                    >
                       {a.disabled ? t("hub.enable") : t("hub.disable")}
                     </button>
                   </td>
@@ -475,7 +531,17 @@ function AgentsTab() {
   );
 }
 
-function AddPrincipal({ kind, projects, onClose, onDone }: { kind: "human" | "ai"; projects: AdminProject[]; onClose: () => void; onDone: (secret: string) => void }) {
+function AddPrincipal({
+  kind,
+  projects,
+  onClose,
+  onDone,
+}: {
+  kind: "human" | "ai";
+  projects: AdminProject[];
+  onClose: () => void;
+  onDone: (secret: string) => void;
+}) {
   const t = useT();
   const label = useLabels();
   const [a, setA] = useState(""); // email or agent id
@@ -490,7 +556,10 @@ function AddPrincipal({ kind, projects, onClose, onDone }: { kind: "human" | "ai
     try {
       const projectsBody = project ? [{ id: project, role }] : [];
       if (kind === "human") {
-        const r = await api<{ invite_url: string }>("/api/admin/users", { method: "POST", body: { email: a, name, org_admin: orgAdmin, projects: projectsBody } });
+        const r = await api<{ invite_url: string }>("/api/admin/users", {
+          method: "POST",
+          body: { email: a, name, org_admin: orgAdmin, projects: projectsBody },
+        });
         onDone(r.invite_url);
       } else {
         const r = await api<{ token: string }>("/api/admin/agents", { method: "POST", body: { id: a, name, projects: projectsBody } });
@@ -715,7 +784,13 @@ export function MembersPage({ canManage }: { canManage: boolean }) {
         <div className="toolbar">
           {candidates.data && candidates.data.candidates.length > 0 && (
             <>
-              <select className="select" style={{ width: "auto", minWidth: 200 }} value={pick} onChange={(e) => setPick(e.target.value)} aria-label={t("hub.orExisting")}>
+              <select
+                className="select"
+                style={{ width: "auto", minWidth: 200 }}
+                value={pick}
+                onChange={(e) => setPick(e.target.value)}
+                aria-label={t("hub.orExisting")}
+              >
                 <option value="">{t("hub.orExisting")}</option>
                 {candidates.data.candidates.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -831,7 +906,10 @@ function BranchesInput({ value, onSave }: { value: string[]; onSave: (branches: 
   const t = useT();
   const [text, setText] = useState(value.join(", "));
   const commit = () => {
-    const next = text.split(",").map((b) => b.trim()).filter(Boolean);
+    const next = text
+      .split(",")
+      .map((b) => b.trim())
+      .filter(Boolean);
     if (next.join(",") !== value.join(",")) onSave(next);
   };
   return (
@@ -848,7 +926,15 @@ function BranchesInput({ value, onSave }: { value: string[]; onSave: (branches: 
 
 // Invite a person, or create an AI agent, straight from a project. A project's owner or admin can do this;
 // what they hand out never reaches beyond this project.
-function AddToProject({ kind, onClose, onDone }: { kind: "human" | "ai"; onClose: () => void; onDone: (secret: { title: string; value: string; hint: string } | null) => void }) {
+function AddToProject({
+  kind,
+  onClose,
+  onDone,
+}: {
+  kind: "human" | "ai";
+  onClose: () => void;
+  onDone: (secret: { title: string; value: string; hint: string } | null) => void;
+}) {
   const t = useT();
   const label = useLabels();
   const [who, setWho] = useState(""); // email or agent id
@@ -877,11 +963,19 @@ function AddToProject({ kind, onClose, onDone }: { kind: "human" | "ai"; onClose
 
   return (
     <Modal onClose={onClose} title={t(kind === "human" ? "hub.invitePerson" : "hub.newAgent")}>
-      <p className="muted" style={{ marginTop: 0 }}>{t(kind === "human" ? "hub.inviteHint" : "hub.agentHint")}</p>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(kind === "human" ? "hub.inviteHint" : "hub.agentHint")}
+      </p>
       <ErrorBox error={err} />
       <div className="field">
         <label>{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
-        <input className={`input ${kind === "ai" ? "mono" : ""}`} autoFocus type={kind === "human" ? "email" : "text"} value={who} onChange={(e) => setWho(e.target.value)} />
+        <input
+          className={`input ${kind === "ai" ? "mono" : ""}`}
+          autoFocus
+          type={kind === "human" ? "email" : "text"}
+          value={who}
+          onChange={(e) => setWho(e.target.value)}
+        />
         {kind === "ai" && <span className="hint">{t("hub.agentIdHint")}</span>}
       </div>
       <div className="field">
@@ -954,7 +1048,9 @@ function UsageTab() {
 
   return (
     <>
-      <p className="muted" style={{ maxWidth: "80ch", marginTop: 0 }}>{t("usage.intro")}</p>
+      <p className="muted" style={{ maxWidth: "80ch", marginTop: 0 }}>
+        {t("usage.intro")}
+      </p>
       <div className="toolbar">
         <div className="segmented" role="group">
           {PERIODS.map((p) => (
@@ -964,7 +1060,11 @@ function UsageTab() {
           ))}
         </div>
         <div className="segmented" role="group">
-          {[["", "usage.everyone"], ["human", "usage.people"], ["ai", "usage.agents"]].map(([value, key]) => (
+          {[
+            ["", "usage.everyone"],
+            ["human", "usage.people"],
+            ["ai", "usage.agents"],
+          ].map(([value, key]) => (
             <button key={value} className={kind === value ? "on" : ""} aria-pressed={kind === value} onClick={() => setKind(value)}>
               {t(key as "usage.people")}
             </button>
@@ -989,8 +1089,20 @@ function UsageTab() {
             <Tile icon="chat" label={t("usage.calls")} value={num(totals.calls)} />
             <Tile icon="zap" label={t("usage.tokens")} value={num(totals.tokens)} sub={kb(totals.bytes)} />
             <Tile icon="target" label={t("usage.avg")} value={num(Math.round(totals.tokens / Math.max(1, totals.calls)))} sub={t("usage.tokens")} />
-            <Tile icon="percent" tone="ai" label={t("usage.share")} value={`${Math.round((aiTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(aiTokens)} ${t("usage.tokens")}`} />
-            <Tile icon="user" tone="human" label={t("usage.humanShare")} value={`${Math.round((humanTokens / Math.max(1, totals.tokens)) * 100)}%`} sub={`${num(humanTokens)} ${t("usage.tokens")}`} />
+            <Tile
+              icon="percent"
+              tone="ai"
+              label={t("usage.share")}
+              value={`${Math.round((aiTokens / Math.max(1, totals.tokens)) * 100)}%`}
+              sub={`${num(aiTokens)} ${t("usage.tokens")}`}
+            />
+            <Tile
+              icon="user"
+              tone="human"
+              label={t("usage.humanShare")}
+              value={`${Math.round((humanTokens / Math.max(1, totals.tokens)) * 100)}%`}
+              sub={`${num(humanTokens)} ${t("usage.tokens")}`}
+            />
             <Tile
               icon="star"
               tone={busiest ? (busiest.kind === "ai" ? "ai" : "human") : undefined}
@@ -1025,7 +1137,11 @@ function UsageTab() {
                 </div>
               </div>
               <StackedColumns
-                data={(data?.daily ?? []).map((d) => ({ date: d.date, ai: show === "tokens" ? d.ai_tokens : d.ai, human: show === "tokens" ? d.human_tokens : d.human }))}
+                data={(data?.daily ?? []).map((d) => ({
+                  date: d.date,
+                  ai: show === "tokens" ? d.ai_tokens : d.ai,
+                  human: show === "tokens" ? d.human_tokens : d.human,
+                }))}
                 series={[
                   { key: "ai", label: t("usage.agents"), color: "var(--viz-ai)" },
                   { key: "human", label: t("usage.people"), color: "var(--viz-human)" },
@@ -1046,7 +1162,9 @@ function UsageTab() {
                   const r = (data?.by_route ?? [])[i];
                   return (
                     <>
-                      <div className="faint" style={{ marginBottom: 4 }}>{r.route}</div>
+                      <div className="faint" style={{ marginBottom: 4 }}>
+                        {r.route}
+                      </div>
                       <div className="tip-row">
                         <b>{num(r.tokens)}</b> <span className="muted">{t("usage.tokens")}</span>
                       </div>
@@ -1096,28 +1214,16 @@ function UsageTab() {
               </tbody>
             </table>
           </div>
-          <p className="faint" style={{ fontSize: 12.5, maxWidth: "80ch" }}>{t("usage.estimate")}</p>
+          <p className="faint" style={{ fontSize: 12.5, maxWidth: "80ch" }}>
+            {t("usage.estimate")}
+          </p>
         </>
       )}
     </>
   );
 }
 
-function Tile({
-  label,
-  value,
-  sub,
-  small,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  small?: boolean;
-  icon?: string;
-  tone?: "ai" | "human";
-}) {
+function Tile({ label, value, sub, small, icon, tone }: { label: string; value: string; sub?: string; small?: boolean; icon?: string; tone?: "ai" | "human" }) {
   return (
     <div className="card kpi">
       <div className="kpi-head">

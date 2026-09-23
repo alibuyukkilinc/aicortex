@@ -127,7 +127,12 @@ export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
   const k = r.knowledge;
 
   const out: string[] = [];
-  out.push(`# ${t.title}`, "", `**${t.period}:** ${day(r.period.since)} → ${day(r.period.until)} (${r.period.days} ${t.days}, ${r.period.timezone ?? "UTC"})`, "");
+  out.push(
+    `# ${t.title}`,
+    "",
+    `**${t.period}:** ${day(r.period.since)} → ${day(r.period.until)} (${r.period.days} ${t.days}, ${r.period.timezone ?? "UTC"})`,
+    "",
+  );
 
   out.push(`## ${t.atAGlance}`, "");
   out.push(`| | |`, `|---|---|`);
@@ -152,7 +157,8 @@ export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
   out.push(
     list(
       r.highlights.ai_changes.map(
-        (c) => `**${esc(c.summary)}** — ${c.actor}, ${day(c.at)}${c.why ? `\n  - _${esc(c.why)}_` : ""}${c.files?.length ? `\n  - \`${c.files.map(esc).join("`, `")}\`` : ""}`,
+        (c) =>
+          `**${esc(c.summary)}** — ${c.actor}, ${day(c.at)}${c.why ? `\n  - _${esc(c.why)}_` : ""}${c.files?.length ? `\n  - \`${c.files.map(esc).join("`, `")}\`` : ""}`,
       ),
     ),
     "",
@@ -167,15 +173,41 @@ export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
   );
 
   out.push(`## ${t.waiting}`, "");
-  out.push(`### ${t.blocking}`, "", list(r.attention.blocking_questions.map((q) => `${esc(q.title)} — ${q.asked_by} → ${q.assignee ?? "—"} (${q.age_days} ${t.daysShort})`)), "");
-  out.push(`### ${t.pendingApprovals}`, "", list(r.attention.pending_approvals.map((d) => `${esc(d.title)} (${d.kind}) — ${d.proposed_by}, ${d.age_days} ${t.daysShort}`)), "");
-  out.push(`### ${t.issueAging}`, "", `| | ${r.attention.issue_aging.map((b) => b.bucket).join(" | ")} |`, `|---|${r.attention.issue_aging.map(() => "---:").join("|")}|`);
+  out.push(
+    `### ${t.blocking}`,
+    "",
+    list(r.attention.blocking_questions.map((q) => `${esc(q.title)} — ${q.asked_by} → ${q.assignee ?? "—"} (${q.age_days} ${t.daysShort})`)),
+    "",
+  );
+  out.push(
+    `### ${t.pendingApprovals}`,
+    "",
+    list(r.attention.pending_approvals.map((d) => `${esc(d.title)} (${d.kind}) — ${d.proposed_by}, ${d.age_days} ${t.daysShort}`)),
+    "",
+  );
+  out.push(
+    `### ${t.issueAging}`,
+    "",
+    `| | ${r.attention.issue_aging.map((b) => b.bucket).join(" | ")} |`,
+    `|---|${r.attention.issue_aging.map(() => "---:").join("|")}|`,
+  );
   out.push(`| ${r.attention.open_issues} | ${r.attention.issue_aging.map((b) => b.count).join(" | ")} |`, "");
-  out.push(`### ${t.staleNodes}`, "", list(r.attention.stale_nodes.map((s) => `**${s.severity}** \`${s.path}\` ← ${s.files.map((f) => `\`${esc(f)}\``).join(", ")}`)), "");
+  out.push(
+    `### ${t.staleNodes}`,
+    "",
+    list(r.attention.stale_nodes.map((s) => `**${s.severity}** \`${s.path}\` ← ${s.files.map((f) => `\`${esc(f)}\``).join(", ")}`)),
+    "",
+  );
   out.push(`### ${t.undocumentedBranches}`, "", list(r.attention.undocumented.map((p) => `\`${p}\``)), "");
 
-  out.push(`## ${t.actors}`, "", `| ${t.actor} | ${t.kind} | ${t.logged} | ${t.writes} | ${t.draftsCol} | ${t.approvalRate} |`, "|---|---|---:|---:|---:|---:|");
-  for (const a of r.actors) out.push(`| ${a.id} | ${a.kind} | ${a.logged} | ${a.writes} | ${a.drafts.approved} / ${a.drafts.rejected} | ${pct(a.approval_rate)} |`);
+  out.push(
+    `## ${t.actors}`,
+    "",
+    `| ${t.actor} | ${t.kind} | ${t.logged} | ${t.writes} | ${t.draftsCol} | ${t.approvalRate} |`,
+    "|---|---|---:|---:|---:|---:|",
+  );
+  for (const a of r.actors)
+    out.push(`| ${a.id} | ${a.kind} | ${a.logged} | ${a.writes} | ${a.drafts.approved} / ${a.drafts.rejected} | ${pct(a.approval_rate)} |`);
   out.push("", `_${t.footer}_`, "");
   return out.join("\n");
 }

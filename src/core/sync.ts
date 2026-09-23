@@ -8,11 +8,7 @@ import type { Cortex } from "./cortex.js";
 // record, and the record is then re-read from the store. That way a rename (a/b.md -> a/b/_node.md)
 // and a delete need no event ordering — the store simply answers "gone" or "here is the new state".
 
-export type SyncTarget =
-  | { k: "node"; path: string }
-  | { k: "item"; id: string }
-  | { k: "draft"; id: string }
-  | { k: "activity"; file: string };
+export type SyncTarget = { k: "node"; path: string } | { k: "item"; id: string } | { k: "draft"; id: string } | { k: "activity"; file: string };
 
 // rescan: this change cannot be resolved record by record, rebuild everything.
 // rules: the schemas changed, so which statuses count as finished may have changed.

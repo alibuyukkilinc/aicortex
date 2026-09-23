@@ -10,7 +10,13 @@ import { fold } from "../util/text.js";
 const ID = /^[0-9A-Z]{26}$/;
 
 export function slugify(title: string): string {
-  return fold(title).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "") || "item";
+  return (
+    fold(title)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40)
+      .replace(/-+$/, "") || "item"
+  );
 }
 
 export class ItemStore {

@@ -75,7 +75,10 @@ async function main() {
     case "init": {
       const { initProject, AGENT_HINT, DEFAULT_BRANCHES } = await import("./core/init.js");
       const root = process.cwd();
-      let branches = values.branches?.split(",").map((b) => b.trim()).filter(Boolean);
+      let branches = values.branches
+        ?.split(",")
+        .map((b) => b.trim())
+        .filter(Boolean);
       if (!branches && process.stdin.isTTY && process.stdout.isTTY) branches = await askBranches(DEFAULT_BRANCHES);
       const r = initProject(root, values.name, { language: values.lang, branches });
       console.log(`✔ Cortex initialized in ${r.dir}\n`);
@@ -254,7 +257,8 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
   if (sub === "init") {
     const email = str("admin-email");
     const name = str("admin-name");
-    if (!email || !name) throw new Error('Usage: aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" [--public-url https://cortex.acme.com]');
+    if (!email || !name)
+      throw new Error('Usage: aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" [--public-url https://cortex.acme.com]');
     const port = Number(str("port") ?? 4747);
     const store = HubStore.init(dir, {
       org: str("org") ?? "My organization",
@@ -263,7 +267,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       ...(str("public-url") ? { public_url: str("public-url")!.replace(/\/+$/, "") } : {}),
     });
     const admin = store.createUser({ email, name, org_admin: true });
-    const url = `${(store.settings.public_url ?? `http://localhost:${port}`)}/invite/${store.createInvite(admin.id)}`;
+    const url = `${store.settings.public_url ?? `http://localhost:${port}`}/invite/${store.createInvite(admin.id)}`;
     store.close();
     console.log(`✔ Hub created in ${dir} (keep this folder private: it holds password hashes)\n`);
     console.log(`Start it:            aicortex hub start`);
@@ -299,7 +303,11 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
         const { initProject } = await import("./core/init.js");
         initProject(path, name, { language: str("lang") });
       }
-      const id = (str("id") ?? name).toLowerCase().normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^[-_]+|[-_]+$/g, "");
+      const id = (str("id") ?? name)
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^\w-]+/g, "-")
+        .replace(/^[-_]+|[-_]+$/g, "");
       store.addProject({ id, name, path });
       console.log(`✔ Project "${name}" registered as ${id}. Organization admins can open it; add members on the board.`);
       return;
@@ -307,7 +315,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
     if (sub === "invite") {
       const u = arg ? store.userByEmail(arg) : null;
       if (!u) throw new Error("Usage: aicortex hub invite <email of an existing user>");
-      console.log(`${(store.settings.public_url ?? `http://localhost:${store.settings.port}`)}/invite/${store.createInvite(u.id)}`);
+      console.log(`${store.settings.public_url ?? `http://localhost:${store.settings.port}`}/invite/${store.createInvite(u.id)}`);
       console.log("Valid 48 hours, once. Setting a password ends that user's other sessions.");
       store.close();
       return;
@@ -328,7 +336,11 @@ async function askBranches(template: [string, string, string][]): Promise<string
   try {
     const answer = (await rl.question("Numbers and/or new names, separated by commas or spaces [Enter = all]: ")).trim();
     if (!answer) return undefined;
-    return answer.split(/[\s,]+/).filter(Boolean).map((a) => (/^\d+$/.test(a) ? template[Number(a) - 1]?.[0] : a)).filter((a): a is string => !!a);
+    return answer
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map((a) => (/^\d+$/.test(a) ? template[Number(a) - 1]?.[0] : a))
+      .filter((a): a is string => !!a);
   } finally {
     rl.close();
   }

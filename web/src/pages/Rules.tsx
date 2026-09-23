@@ -78,8 +78,18 @@ function RuleEditor({ name }: { name: string }) {
     }
   };
 
-  if (error && !data) return <div className="card doc"><ErrorBox error={error} /></div>;
-  if (loading || source === null) return <div className="card"><Loading /></div>;
+  if (error && !data)
+    return (
+      <div className="card doc">
+        <ErrorBox error={error} />
+      </div>
+    );
+  if (loading || source === null)
+    return (
+      <div className="card">
+        <Loading />
+      </div>
+    );
   const dirty = source !== data?.source;
   return (
     <div className="card doc">

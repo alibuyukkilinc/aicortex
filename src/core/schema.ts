@@ -6,8 +6,7 @@ import YAML from "yaml";
 // the server enforces them and explains violations so an AI can correct itself.
 
 export type FieldType =
-  | "string" | "text" | "enum" | "number" | "boolean" | "date" | "datetime"
-  | "tree_path" | "actor" | "item_ref" | "commit" | "url" | "list";
+  "string" | "text" | "enum" | "number" | "boolean" | "date" | "datetime" | "tree_path" | "actor" | "item_ref" | "commit" | "url" | "list";
 
 export interface FieldSpec {
   type: FieldType;
@@ -277,7 +276,8 @@ export function validateFields(
   for (const rule of conditional) {
     if (!matches(record, rule.when)) continue;
     const missing = rule.require.filter((f) => isEmpty(record[f]));
-    if (missing.length) issues.push(rule.message ? `${rule.message} (missing: ${missing.join(", ")})` : `required when ${JSON.stringify(rule.when)}: ${missing.join(", ")}`);
+    if (missing.length)
+      issues.push(rule.message ? `${rule.message} (missing: ${missing.join(", ")})` : `required when ${JSON.stringify(rule.when)}: ${missing.join(", ")}`);
   }
   return issues;
 }

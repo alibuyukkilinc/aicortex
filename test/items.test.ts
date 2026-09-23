@@ -44,7 +44,10 @@ test("issues are validated against their schema and explain how to fix it", () =
     assert.ok(hint.rules.example, "the rules and an example travel with the error");
 
     assert.equal(err(() => t.cortex.items.create(t.ai, { type: "bug", title: "x" })).code, "unknown_type");
-    assert.equal(err(() => t.cortex.items.create(t.ai, { type: "issue", title: "x", category_path: "nope", fields: { severity: "low" } })).code, "invalid_item");
+    assert.equal(
+      err(() => t.cortex.items.create(t.ai, { type: "issue", title: "x", category_path: "nope", fields: { severity: "low" } })).code,
+      "invalid_item",
+    );
 
     const r = t.cortex.items.create(t.ai, { type: "issue", title: "Login returns 500", category_path: "backend", fields: { severity: "high" } });
     assert.equal(r.applied, true);
@@ -83,7 +86,10 @@ test("AI can propose a decision but only a human can accept it", async () => {
     });
     assert.equal(d.status, "proposed");
     const inbox = t.cortex.items.inbox(t.human);
-    assert.deepEqual(inbox.items.map((i) => [i.id, i.reason]), [[d.id, "decision_needs_review"]]);
+    assert.deepEqual(
+      inbox.items.map((i) => [i.id, i.reason]),
+      [[d.id, "decision_needs_review"]],
+    );
 
     assert.equal(err(() => t.cortex.items.update(t.ai, d.id, { status: "accepted" })).code, "forbidden");
     assert.equal(t.cortex.items.update(t.human, d.id, { status: "accepted" }).status, "accepted");
@@ -109,13 +115,20 @@ test("question round trip: AI asks humans, human answers, AI closes", () => {
       fields: { blocking: true },
     });
     const humanInbox = t.cortex.items.inbox(t.human);
-    assert.deepEqual(humanInbox.items.map((i) => i.id), [q.id, low.id], "blocking questions come first");
+    assert.deepEqual(
+      humanInbox.items.map((i) => i.id),
+      [q.id, low.id],
+      "blocking questions come first",
+    );
     assert.equal(humanInbox.items[0].reason, "assigned_to_group");
     assert.equal(t.cortex.items.inbox(t.ai).count, 0, "the asker is not asked");
 
     const r = t.cortex.items.reply(t.human, q.id, { body: "No, keep it guest-only." });
     assert.equal(r.status, "answered", "answering moves the question automatically");
-    assert.deepEqual(t.cortex.items.inbox(t.ai).items.map((i) => [i.id, i.reason]), [[q.id, "your_question_answered"]]);
+    assert.deepEqual(
+      t.cortex.items.inbox(t.ai).items.map((i) => [i.id, i.reason]),
+      [[q.id, "your_question_answered"]],
+    );
     assert.ok(!t.cortex.items.inbox(t.human).items.some((i) => i.id === q.id), "no longer waiting on humans");
 
     t.cortex.items.update(t.ai, q.id, { status: "closed" });
@@ -131,8 +144,17 @@ test("question round trip: AI asks humans, human answers, AI closes", () => {
 test("a 'fixed' reply must carry commits and files", () => {
   const t = tempProject();
   try {
-    const { id } = t.cortex.items.create(t.human, { type: "issue", title: "Crash on save", category_path: "backend", assignee: "ai-agent", fields: { severity: "critical" } });
-    assert.deepEqual(t.cortex.items.inbox(t.ai).items.map((i) => i.reason), ["assigned_to_you"]);
+    const { id } = t.cortex.items.create(t.human, {
+      type: "issue",
+      title: "Crash on save",
+      category_path: "backend",
+      assignee: "ai-agent",
+      fields: { severity: "critical" },
+    });
+    assert.deepEqual(
+      t.cortex.items.inbox(t.ai).items.map((i) => i.reason),
+      ["assigned_to_you"],
+    );
     t.cortex.items.update(t.ai, id, { status: "in_progress" });
 
     const e = err(() => t.cortex.items.reply(t.ai, id, { body: "Fixed.", fields: { resolution: "fixed" }, status: "review" }));
@@ -145,7 +167,11 @@ test("a 'fixed' reply must carry commits and files", () => {
       status: "review",
     });
     assert.equal(r.status, "review");
-    assert.deepEqual(t.cortex.items.inbox(t.human).items.map((i) => [i.id, i.reason]), [[id, "new_reply"]], "the human author sees the fix");
+    assert.deepEqual(
+      t.cortex.items.inbox(t.human).items.map((i) => [i.id, i.reason]),
+      [[id, "new_reply"]],
+      "the human author sees the fix",
+    );
     assert.equal(err(() => t.cortex.items.reply(t.ai, id, { body: "x", fields: { resolution: "done" } })).code, "invalid_item");
   } finally {
     t.cleanup();
@@ -251,7 +277,13 @@ test("brief surfaces the inbox and open items, and stays small", () => {
   const t = tempProject();
   try {
     for (let i = 0; i < 8; i++) {
-      t.cortex.items.create(t.human, { type: "issue", title: `Bug number ${i} in the payment flow`, category_path: "backend", assignee: "@ai", fields: { severity: "medium" } });
+      t.cortex.items.create(t.human, {
+        type: "issue",
+        title: `Bug number ${i} in the payment flow`,
+        category_path: "backend",
+        assignee: "@ai",
+        fields: { severity: "medium" },
+      });
     }
     t.cortex.activity.log(t.ai, { action: "investigation", summary: "Read the payment module" });
     const brief = t.cortex.brief(t.ai);

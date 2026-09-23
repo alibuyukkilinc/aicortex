@@ -102,7 +102,10 @@ export function buildMcpServer(api: McpApi): McpServer {
         "Use before changing anything you don't fully understand, and to find out why something was done.",
       inputSchema: {
         q: z.string().min(1),
-        kind: z.array(z.enum(["node", "item", "activity"])).optional().describe("Default: all. 'item' covers decisions, issues, questions, tasks, notes."),
+        kind: z
+          .array(z.enum(["node", "item", "activity"]))
+          .optional()
+          .describe("Default: all. 'item' covers decisions, issues, questions, tasks, notes."),
         type: z.string().optional().describe('Item type filter, e.g. "decision" to answer "why did we do X?"'),
         path: z.string().optional().describe("Limit to this branch."),
         limit: z.number().int().min(1).max(50).default(10),
@@ -130,10 +133,21 @@ export function buildMcpServer(api: McpApi): McpServer {
         reason: z.string().describe("Why you are making this change."),
       },
     },
-    wrap((a: { path: string; title: string; summary: string; body: string; tags?: string[]; code_files?: { file: string; lines?: string }[]; verified_at_commit?: string; reason: string }) => {
-      const { code_files, path: p, ...rest } = a;
-      return api.call("PUT", `/node${path(p)}`, { body: { ...rest, ...(code_files ? { links: { code: code_files } } : {}) } });
-    }),
+    wrap(
+      (a: {
+        path: string;
+        title: string;
+        summary: string;
+        body: string;
+        tags?: string[];
+        code_files?: { file: string; lines?: string }[];
+        verified_at_commit?: string;
+        reason: string;
+      }) => {
+        const { code_files, path: p, ...rest } = a;
+        return api.call("PUT", `/node${path(p)}`, { body: { ...rest, ...(code_files ? { links: { code: code_files } } : {}) } });
+      },
+    ),
   );
 
   server.registerTool(
@@ -229,7 +243,10 @@ export function buildMcpServer(api: McpApi): McpServer {
         tags: z.array(z.string()).optional(),
         fields: z.record(z.string(), z.unknown()).optional(),
         reason: z.string().optional(),
-        if_rev: z.string().optional().describe("The _rev you last read from cortex_item. If the item changed since, this fails with a 409 conflict instead of silently overwriting."),
+        if_rev: z
+          .string()
+          .optional()
+          .describe("The _rev you last read from cortex_item. If the item changed since, this fails with a 409 conflict instead of silently overwriting."),
       },
     },
     wrap(({ id, ...rest }: { id: string } & UpdateItemInput) => api.call("PATCH", `/items/${encodeURIComponent(id)}`, { body: rest })),
@@ -256,7 +273,8 @@ export function buildMcpServer(api: McpApi): McpServer {
   server.registerTool(
     "cortex_reply",
     {
-      description: "Reply on an item. Some replies change status automatically (answering a question marks it answered). Reply fields follow the type's rules (e.g. a 'fixed' issue needs commits and files).",
+      description:
+        "Reply on an item. Some replies change status automatically (answering a question marks it answered). Reply fields follow the type's rules (e.g. a 'fixed' issue needs commits and files).",
       inputSchema: {
         id: z.string(),
         body: z.string().min(1),
@@ -289,7 +307,7 @@ export function buildMcpServer(api: McpApi): McpServer {
     {
       description:
         "Project report for a period: what changed and why, decisions, closed issues, what is waiting on people, knowledge health, " +
-        "per-actor approval rates. Counted from the files, not generated. Use it to brief a human, e.g. \"what happened this week?\".",
+        'per-actor approval rates. Counted from the files, not generated. Use it to brief a human, e.g. "what happened this week?".',
       inputSchema: {
         since: z.string().default("7d").describe("7d, 2w, 30d, a date (2026-09-01) or ISO datetime"),
         until: z.string().optional(),
@@ -309,8 +327,7 @@ export function buildMcpServer(api: McpApi): McpServer {
   server.registerTool(
     "cortex_log_activity",
     {
-      description:
-        "Record what you did and WHY, after each meaningful change. Humans read this feed to stay in control and may ask you about any entry.",
+      description: "Record what you did and WHY, after each meaningful change. Humans read this feed to stay in control and may ask you about any entry.",
       inputSchema: {
         action: z.string().describe("code_change | fix | refactor | investigation | config | deploy | docs | other"),
         summary: z.string().max(200).describe("What changed, one line"),

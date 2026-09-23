@@ -1,4 +1,4 @@
-import type { FeatureExtractor} from "./runtime.js";
+import type { FeatureExtractor } from "./runtime.js";
 import { MODEL, loadTransformers } from "./runtime.js";
 
 export interface Embedder {
@@ -14,9 +14,7 @@ export class TransformersEmbedder implements Embedder {
   constructor(private onProgress?: (p: { file?: string; progress?: number; status: string }) => void) {}
 
   load(): Promise<FeatureExtractor> {
-    this.extractor ??= loadTransformers().then((tf) =>
-      tf.pipeline("feature-extraction", MODEL, { dtype: "q8", progress_callback: this.onProgress }),
-    );
+    this.extractor ??= loadTransformers().then((tf) => tf.pipeline("feature-extraction", MODEL, { dtype: "q8", progress_callback: this.onProgress }));
     return this.extractor;
   }
 

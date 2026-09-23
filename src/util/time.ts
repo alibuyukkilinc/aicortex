@@ -20,7 +20,16 @@ const formatters = new Map<string, Intl.DateTimeFormat>();
 function parts(t: number, tz: string): Record<string, number> {
   let f = formatters.get(tz);
   if (!f) {
-    f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
     formatters.set(tz, f);
   }
   const out: Record<string, number> = {};

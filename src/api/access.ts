@@ -1,5 +1,5 @@
 import type { FastifyRequest } from "fastify";
-import type { Activity} from "../core/types.js";
+import type { Activity } from "../core/types.js";
 import { CortexError } from "../core/types.js";
 import type { SqlFilter } from "../index/db.js";
 

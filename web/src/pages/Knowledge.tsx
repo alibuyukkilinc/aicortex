@@ -84,7 +84,12 @@ function NodeView({ path }: { path: string }) {
     }
   };
 
-  if (error) return <div className="doc"><ErrorBox error={error} /></div>;
+  if (error)
+    return (
+      <div className="doc">
+        <ErrorBox error={error} />
+      </div>
+    );
   if (loading || !data) return <Loading />;
   const n = data.node;
   const crumbs = n.path ? n.path.split("/") : [];
@@ -203,7 +208,12 @@ function NodeEditor({ node, parent, onClose }: { node: KnowledgeNode | null; par
           <label>{t("tree.path")}</label>
           <div className="row" style={{ flexWrap: "nowrap", gap: 4 }}>
             <span className="mono muted">{parent ? `${parent}/` : ""}</span>
-            <input className="input mono" value={slug} placeholder="new-node" onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} />
+            <input
+              className="input mono"
+              value={slug}
+              placeholder="new-node"
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+            />
           </div>
         </div>
       )}
@@ -303,7 +313,8 @@ export function StaleBanner({
                     {c.formatting_only && <span className="chip">{t("stale.formatting")}</span>}
                     {c.last && (
                       <div className="faint" style={{ fontSize: 12.5 }}>
-                        {c.commits} {t("stale.commits")} · <span className="mono">{c.last.hash.slice(0, 7)}</span> “{c.last.subject}” — {c.last.author}, <Ago iso={c.last.date} />
+                        {c.commits} {t("stale.commits")} · <span className="mono">{c.last.hash.slice(0, 7)}</span> “{c.last.subject}” — {c.last.author},{" "}
+                        <Ago iso={c.last.date} />
                       </div>
                     )}
                   </li>

@@ -12,7 +12,10 @@ test("pending knowledge drafts are searchable, labelled draft, and leave the ind
     let r = hits(await t.cortex.search("redis kuyruk"));
     assert.equal(r.length, 1);
     const { kind, path, status, draft_id, proposed_by } = r[0];
-    assert.deepEqual({ kind, path, status, draft_id, proposed_by }, { kind: "node", path: "backend/queue", status: "draft", draft_id: d.draft_id, proposed_by: "ai-agent" });
+    assert.deepEqual(
+      { kind, path, status, draft_id, proposed_by },
+      { kind: "node", path: "backend/queue", status: "draft", draft_id: d.draft_id, proposed_by: "ai-agent" },
+    );
 
     // Filters: drafts ride with nodes, never with items or a non-draft status.
     assert.equal(hits(await t.cortex.search("redis", { kinds: ["item"] })).length, 0);
@@ -23,7 +26,10 @@ test("pending knowledge drafts are searchable, labelled draft, and leave the ind
     // A revision replaces the old draft in search too.
     const d2 = t.cortex.putNode(t.ai, { path: "backend/queue", title: "Kuyruk", summary: "Redis tabanlı iş kuyruğu, 5 deneme." });
     r = hits(await t.cortex.search("redis kuyruk"));
-    assert.deepEqual(r.map((h) => h.draft_id), [d2.draft_id]);
+    assert.deepEqual(
+      r.map((h) => h.draft_id),
+      [d2.draft_id],
+    );
 
     // Survives a full reindex (hand edits, git pull).
     t.cortex.reindex();
@@ -31,7 +37,11 @@ test("pending knowledge drafts are searchable, labelled draft, and leave the ind
 
     t.cortex.approve(t.human, d2.draft_id!);
     r = hits(await t.cortex.search("redis kuyruk"));
-    assert.deepEqual(r.map((h) => [h.status, h.draft_id]), [["active", undefined]], "only the approved node remains");
+    assert.deepEqual(
+      r.map((h) => [h.status, h.draft_id]),
+      [["active", undefined]],
+      "only the approved node remains",
+    );
 
     const d3 = t.cortex.putNode(t.ai, { path: "backend/cache", title: "Önbellek", summary: "Memcached." });
     assert.equal(hits(await t.cortex.search("memcached")).length, 1);

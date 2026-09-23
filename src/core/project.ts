@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
-import type { CortexConfig} from "./types.js";
+import type { CortexConfig } from "./types.js";
 import { CortexError } from "./types.js";
 import { shortHash } from "../util/text.js";
 import { isTimeZone } from "../util/time.js";
@@ -51,7 +51,11 @@ export function loadProject(start?: string): Project {
   for (const a of config.actors) {
     // Actor ids end up in file names (activity/<day>/<actor>.jsonl), so keep them boring.
     if (!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(a.id ?? "") || (a.kind !== "human" && a.kind !== "ai")) {
-      throw new CortexError("invalid_config", `Invalid actor ${JSON.stringify(a)} in cortex.config.yaml: id must be letters, digits, - or _, kind must be human or ai.`, 500);
+      throw new CortexError(
+        "invalid_config",
+        `Invalid actor ${JSON.stringify(a)} in cortex.config.yaml: id must be letters, digits, - or _, kind must be human or ai.`,
+        500,
+      );
     }
   }
   if (config.timezone !== undefined && !isTimeZone(String(config.timezone))) {

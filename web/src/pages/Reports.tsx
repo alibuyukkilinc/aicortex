@@ -1,4 +1,4 @@
-import type { ReactNode} from "react";
+import type { ReactNode } from "react";
 import { useContext, useState } from "react";
 import { apiPath, qs, useApi } from "../api";
 import { HBars, StackedColumns } from "../charts";
@@ -87,19 +87,19 @@ export function Reports() {
           <p>{t("rep.intro")}</p>
         </div>
         <div className="page-actions">
-        <div className="segmented" role="group" aria-label={t("rep.title")}>
-          {PRESETS.map((p) => (
-            <button key={p} className={since === p ? "on" : ""} aria-pressed={since === p} onClick={() => setSince(p)}>
-              {parseInt(p, 10)} {t("rep.days")}
-            </button>
-          ))}
-        </div>
-        <button className="btn" onClick={() => void copy()}>
-          {t("rep.copy")}
-        </button>
-        <button className="btn primary" onClick={() => void download()}>
-          {t("rep.download")}
-        </button>
+          <div className="segmented" role="group" aria-label={t("rep.title")}>
+            {PRESETS.map((p) => (
+              <button key={p} className={since === p ? "on" : ""} aria-pressed={since === p} onClick={() => setSince(p)}>
+                {parseInt(p, 10)} {t("rep.days")}
+              </button>
+            ))}
+          </div>
+          <button className="btn" onClick={() => void copy()}>
+            {t("rep.copy")}
+          </button>
+          <button className="btn primary" onClick={() => void download()}>
+            {t("rep.download")}
+          </button>
         </div>
       </div>
       {error && <ErrorBox error={error} />}
@@ -118,7 +118,9 @@ export function Reports() {
             <Kpi
               label={t("rep.questions")}
               value={`${r.totals.questions.answered} / ${r.totals.questions.asked}`}
-              sub={r.totals.questions.median_answer_hours !== null ? `${t("rep.median")} ${r.totals.questions.median_answer_hours} ${t("rep.hours")}` : undefined}
+              sub={
+                r.totals.questions.median_answer_hours !== null ? `${t("rep.median")} ${r.totals.questions.median_answer_hours} ${t("rep.hours")}` : undefined
+              }
             />
             <Kpi label={t("rep.decisions")} value={r.totals.decisions.accepted} sub={`${r.totals.decisions.proposed} ${t("rep.proposed")}`} />
             <Kpi
@@ -219,8 +221,18 @@ export function Reports() {
                   const sev = Object.entries(b.by_severity);
                   return (
                     <>
-                      <div className="faint" style={{ marginBottom: 4 }}>{bucket(b.bucket)}</div>
-                      {sev.length ? sev.map(([k, v]) => <div key={k} className="tip-row"><b>{v}</b> <span className="muted">{k}</span></div>) : <b>0</b>}
+                      <div className="faint" style={{ marginBottom: 4 }}>
+                        {bucket(b.bucket)}
+                      </div>
+                      {sev.length ? (
+                        sev.map(([k, v]) => (
+                          <div key={k} className="tip-row">
+                            <b>{v}</b> <span className="muted">{k}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <b>0</b>
+                      )}
                     </>
                   );
                 }}
@@ -252,30 +264,47 @@ export function Reports() {
 
             <Panel
               title={t("rep.waiting")}
-              empty={!r.attention.blocking_questions.length && !r.attention.pending_approvals.length && !r.attention.stale_nodes.length && !r.attention.undocumented.length}
+              empty={
+                !r.attention.blocking_questions.length &&
+                !r.attention.pending_approvals.length &&
+                !r.attention.stale_nodes.length &&
+                !r.attention.undocumented.length
+              }
             >
               <Group title={t("rep.blocking")} n={r.attention.blocking_questions.length}>
                 {r.attention.blocking_questions.map((q) => (
                   <div key={q.id} className="list-row" onClick={() => openItem(q.id)}>
-                    <span className="title" style={{ flex: 1 }}>{q.title}</span>
-                    <span className="chip danger">{q.age_days} {t("rep.d")}</span>
+                    <span className="title" style={{ flex: 1 }}>
+                      {q.title}
+                    </span>
+                    <span className="chip danger">
+                      {q.age_days} {t("rep.d")}
+                    </span>
                   </div>
                 ))}
               </Group>
               <Group title={t("rep.drafts")} n={r.attention.pending_approvals.length}>
                 {r.attention.pending_approvals.map((d) => (
                   <a key={d.draft_id} className="list-row" href="#/approvals" style={{ color: "inherit", textDecoration: "none" }}>
-                    <span className="title" style={{ flex: 1 }}>{d.title}</span>
+                    <span className="title" style={{ flex: 1 }}>
+                      {d.title}
+                    </span>
                     <ActorChip id={d.proposed_by} actors={actors} />
-                    <span className="chip">{d.age_days} {t("rep.d")}</span>
+                    <span className="chip">
+                      {d.age_days} {t("rep.d")}
+                    </span>
                   </a>
                 ))}
               </Group>
               <Group title={t("rep.stale")} n={r.attention.stale_nodes.length}>
                 {r.attention.stale_nodes.map((s) => (
                   <a key={s.path} className="list-row" href={`#/knowledge/${s.path}`} style={{ color: "inherit", textDecoration: "none" }}>
-                    <span className="mono" style={{ flex: 1 }}>{s.path}</span>
-                    <span className="faint mono" style={{ fontSize: 12 }}>{s.files.join(", ")}</span>
+                    <span className="mono" style={{ flex: 1 }}>
+                      {s.path}
+                    </span>
+                    <span className="faint mono" style={{ fontSize: 12 }}>
+                      {s.files.join(", ")}
+                    </span>
                   </a>
                 ))}
               </Group>
@@ -295,7 +324,9 @@ export function Reports() {
             <Panel title={t("rep.decisionsMade")} empty={!r.highlights.decisions.length}>
               {r.highlights.decisions.map((d) => (
                 <div key={d.id} className="list-row" onClick={() => openItem(d.id)}>
-                  <span className="title" style={{ flex: 1 }}>{d.title}</span>
+                  <span className="title" style={{ flex: 1 }}>
+                    {d.title}
+                  </span>
                   <StatusChip status={d.status} />
                   <ActorChip id={d.by} actors={actors} />
                 </div>
@@ -304,7 +335,9 @@ export function Reports() {
             <Panel title={t("rep.closedIssues")} empty={!r.highlights.closed_issues.length}>
               {r.highlights.closed_issues.map((i) => (
                 <div key={i.id} className="list-row" onClick={() => openItem(i.id)}>
-                  <span className="title" style={{ flex: 1 }}>{i.title}</span>
+                  <span className="title" style={{ flex: 1 }}>
+                    {i.title}
+                  </span>
                   {i.resolution && <span className="chip ok">{i.resolution}</span>}
                   <span className="faint" style={{ fontSize: 12 }}>
                     {t("rep.openFor")} {i.days_open} {t("rep.d")}
@@ -368,7 +401,13 @@ function Panel({ title, empty, children }: { title: string; empty: boolean; chil
   return (
     <section className="card" style={{ marginBottom: 12 }}>
       <h3 style={{ padding: "14px 16px 6px" }}>{title}</h3>
-      {empty ? <div className="empty" style={{ padding: 20 }}>{t("rep.nothing")}</div> : <div className="list">{children}</div>}
+      {empty ? (
+        <div className="empty" style={{ padding: 20 }}>
+          {t("rep.nothing")}
+        </div>
+      ) : (
+        <div className="list">{children}</div>
+      )}
     </section>
   );
 }

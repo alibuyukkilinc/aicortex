@@ -8,7 +8,7 @@ import { initProject } from "../src/core/init.js";
 import { hashPassword } from "../src/hub/crypto.js";
 import { Hub, HUB_COOKIE, buildHubServer } from "../src/hub/server.js";
 import { RateLimiter } from "../src/hub/limiter.js";
-import type { HubSettings} from "../src/hub/store.js";
+import type { HubSettings } from "../src/hub/store.js";
 import { HubStore, INVITE_DAYS } from "../src/hub/store.js";
 
 // A hub with two projects and an organization admin (ada@example.com / correct-horse-1).
@@ -88,7 +88,10 @@ test("hub sign-in: password, session cookie, CSRF, rate limit, invites", async (
 
     // Ten wrong passwords, then the door closes for a while (even for the right one).
     for (let i = 0; i < 10; i++) await t.call({ method: "POST", url: "/api/auth/login", payload: { email: "ada@example.com", password: "nope" } });
-    assert.equal((await t.call({ method: "POST", url: "/api/auth/login", payload: { email: "ada@example.com", password: "correct-horse-1" } })).statusCode, 429);
+    assert.equal(
+      (await t.call({ method: "POST", url: "/api/auth/login", payload: { email: "ada@example.com", password: "correct-horse-1" } })).statusCode,
+      429,
+    );
   } finally {
     await t.cleanup();
   }
@@ -108,7 +111,10 @@ test("hub roles: non-members are out, viewers read and ask, members write, only 
     assert.equal(brief.statusCode, 200);
     assert.equal(brief.json().you.role, "viewer");
     assert.equal((await t.call({ method: "POST", url: "/api/p/shop/items", cookie: eve.cookie, payload: { type: "task", title: "Nope" } })).statusCode, 403);
-    assert.equal((await t.call({ method: "POST", url: "/api/p/shop/items", cookie: eve.cookie, payload: { type: "question", title: "Why?" } })).statusCode, 201);
+    assert.equal(
+      (await t.call({ method: "POST", url: "/api/p/shop/items", cookie: eve.cookie, payload: { type: "question", title: "Why?" } })).statusCode,
+      201,
+    );
     assert.equal((await t.call({ method: "PUT", url: "/api/p/shop/node/backend", cookie: eve.cookie, payload: { title: "B", summary: "x" } })).statusCode, 403);
     assert.equal((await t.call({ url: "/api/p/blog/brief", cookie: eve.cookie })).statusCode, 403, "membership is per project");
 
@@ -116,10 +122,16 @@ test("hub roles: non-members are out, viewers read and ask, members write, only 
     const me = (await t.call({ url: "/api/p/shop/me", cookie: eve.cookie })).json();
     assert.equal(me.role, "member");
     assert.ok(me.perms.includes("write_knowledge") && !me.perms.includes("edit_rules"));
-    assert.ok(me.actors.some((a: { id: string }) => a.id === eve.id), "hub members are actors in the project");
+    assert.ok(
+      me.actors.some((a: { id: string }) => a.id === eve.id),
+      "hub members are actors in the project",
+    );
     const put = await t.call({ method: "PUT", url: "/api/p/shop/node/backend", cookie: eve.cookie, payload: { title: "Backend", summary: "Node API." } });
     assert.equal(put.statusCode, 200, "people write knowledge directly");
-    assert.equal((await t.call({ method: "PUT", url: "/api/p/shop/rules/_global/source", cookie: eve.cookie, payload: { source: "rules: []\n" } })).statusCode, 403);
+    assert.equal(
+      (await t.call({ method: "PUT", url: "/api/p/shop/rules/_global/source", cookie: eve.cookie, payload: { source: "rules: []\n" } })).statusCode,
+      403,
+    );
     assert.equal((await t.call({ method: "PUT", url: `/api/p/shop/members/${t.admin.id}`, cookie: eve.cookie, payload: { role: "viewer" } })).statusCode, 403);
 
     // The last owner cannot be removed.
@@ -140,12 +152,23 @@ test("hub visibility: 'own' scope and branch limits hide the rest of the project
     await t.call({ method: "PUT", url: `/api/p/shop/members/${own.id}`, cookie: admin, payload: { scope: "own" } });
 
     const mk = async (title: string, category_path: string, assignee?: string) =>
-      (await t.call({ method: "POST", url: "/api/p/shop/items", cookie: admin, payload: { type: "task", title, category_path, ...(assignee ? { assignee } : {}) } })).json().id;
+      (
+        await t.call({
+          method: "POST",
+          url: "/api/p/shop/items",
+          cookie: admin,
+          payload: { type: "task", title, category_path, ...(assignee ? { assignee } : {}) },
+        })
+      ).json().id;
     const feTask = await mk("Fix the cart button", "frontend");
     const beTask = await mk("Speed up checkout API", "backend");
     const ownTask = await mk("Write the invoice export", "backend", own.id);
 
-    const titles = async (cookie: string) => (await t.call({ url: "/api/p/shop/items", cookie })).json().items.map((i: { title: string }) => i.title).sort();
+    const titles = async (cookie: string) =>
+      (await t.call({ url: "/api/p/shop/items", cookie }))
+        .json()
+        .items.map((i: { title: string }) => i.title)
+        .sort();
     assert.deepEqual(await titles(fe.cookie), ["Fix the cart button"]);
     assert.deepEqual(await titles(own.cookie), ["Write the invoice export"]);
     assert.equal((await titles(admin)).length, 3);
@@ -156,13 +179,23 @@ test("hub visibility: 'own' scope and branch limits hide the rest of the project
 
     // Branch limits apply to the tree, nodes and search.
     const tree = (await t.call({ url: "/api/p/shop/tree?depth=1", cookie: fe.cookie })).json();
-    assert.deepEqual(tree.node.children.map((c: { path: string }) => c.path), ["frontend"]);
+    assert.deepEqual(
+      tree.node.children.map((c: { path: string }) => c.path),
+      ["frontend"],
+    );
     assert.equal((await t.call({ url: "/api/p/shop/node/backend", cookie: fe.cookie })).statusCode, 404);
     const found = (await t.call({ url: "/api/p/shop/search?q=checkout", cookie: fe.cookie })).json().results;
     assert.equal(found.length, 0);
     const adminFound = (await t.call({ url: "/api/p/shop/search?q=checkout", cookie: admin })).json().results;
-    assert.ok(adminFound.some((h: { id?: string }) => h.id === beTask), "the item is there; the branch limit hides it");
-    assert.equal((await t.call({ method: "POST", url: "/api/p/shop/items", cookie: fe.cookie, payload: { type: "task", title: "x", category_path: "backend" } })).statusCode, 404);
+    assert.ok(
+      adminFound.some((h: { id?: string }) => h.id === beTask),
+      "the item is there; the branch limit hides it",
+    );
+    assert.equal(
+      (await t.call({ method: "POST", url: "/api/p/shop/items", cookie: fe.cookie, payload: { type: "task", title: "x", category_path: "backend" } }))
+        .statusCode,
+      404,
+    );
 
     // Partial views get no project-wide report.
     assert.equal((await t.call({ url: "/api/p/shop/report", cookie: fe.cookie })).statusCode, 403);
@@ -192,7 +225,11 @@ test("hub AI agents: tokens, reader / contributor / trusted, never approve", asy
     const node = { title: "Queue", summary: "Redis queue, 3 retries." };
     const draft = await t.call({ method: "PUT", url: "/api/p/shop/node/backend/queue", token: contributor, payload: node });
     assert.equal(draft.statusCode, 202, "contributor knowledge writes become drafts");
-    assert.equal((await t.call({ method: "PUT", url: "/api/p/shop/node/backend/cache", token: trusted, payload: { title: "Cache", summary: "5 min." } })).statusCode, 200, "trusted writes directly");
+    assert.equal(
+      (await t.call({ method: "PUT", url: "/api/p/shop/node/backend/cache", token: trusted, payload: { title: "Cache", summary: "5 min." } })).statusCode,
+      200,
+      "trusted writes directly",
+    );
 
     // An AI can never approve, whatever its role.
     assert.equal((await t.call({ method: "POST", url: `/api/p/shop/approvals/${draft.json().draft_id}/approve`, token: trusted })).statusCode, 403);
@@ -217,7 +254,12 @@ test("hub projects: register a folder, create .cortex on request, unregister wit
     const folder = join(t.root, "new-app");
     (await import("node:fs")).mkdirSync(folder);
     assert.equal((await t.call({ method: "POST", url: "/api/admin/projects", cookie: admin, payload: { path: folder } })).statusCode, 400, "needs init: true");
-    const r = await t.call({ method: "POST", url: "/api/admin/projects", cookie: admin, payload: { path: folder, name: "New App", init: true, language: "tr" } });
+    const r = await t.call({
+      method: "POST",
+      url: "/api/admin/projects",
+      cookie: admin,
+      payload: { path: folder, name: "New App", init: true, language: "tr" },
+    });
     assert.equal(r.statusCode, 201, r.body);
     assert.equal(r.json().project.id, "new-app");
     const brief = (await t.call({ url: "/api/p/new-app/brief", cookie: admin })).json();
@@ -293,13 +335,17 @@ test("MCP over HTTP: an AI that is not on this machine gets the same tools and t
   const clients: { close: () => Promise<void> }[] = [];
   try {
     const admin = await t.login("ada@example.com", "correct-horse-1");
-    const token = (await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id: "remote-bot", projects: [{ id: "shop", role: "contributor" }] } })).json().token;
+    const token = (
+      await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id: "remote-bot", projects: [{ id: "shop", role: "contributor" }] } })
+    ).json().token;
     await t.app.listen({ port: 0, host: "127.0.0.1" });
     const url = `http://127.0.0.1:${(t.app.server.address() as { port: number }).port}`;
 
     const connect = async (tok: string, project = "shop") => {
       const client = new Client({ name: "remote", version: "1" });
-      await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp/p/${project}`), { requestInit: { headers: { authorization: `Bearer ${tok}` } } }));
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(`${url}/mcp/p/${project}`), { requestInit: { headers: { authorization: `Bearer ${tok}` } } }),
+      );
       clients.push(client);
       return client;
     };
@@ -333,28 +379,53 @@ test("a project's owner can invite people and create agent tokens, without becom
     const worker = await invite(t, admin, "dev@example.com", "Geliştirici", [{ id: "shop", role: "member" }]);
 
     // A member cannot; the owner can.
-    assert.equal((await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: worker.cookie, payload: { email: "x@example.com", name: "X" } })).statusCode, 403);
-    const r = await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: lead.cookie, payload: { email: "yeni@example.com", name: "Yeni Kişi", role: "member", scope: "own" } });
+    assert.equal(
+      (await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: worker.cookie, payload: { email: "x@example.com", name: "X" } })).statusCode,
+      403,
+    );
+    const r = await t.call({
+      method: "POST",
+      url: "/api/p/shop/members/invite",
+      cookie: lead.cookie,
+      payload: { email: "yeni@example.com", name: "Yeni Kişi", role: "member", scope: "own" },
+    });
     assert.equal(r.statusCode, 201, r.body);
     assert.match(r.json().invite_url, /\/invite\/inv_/);
     const created = t.store.userByEmail("yeni@example.com")!;
     assert.equal(created.org_admin, false, "a project owner never hands out organization admin");
-    assert.deepEqual(t.store.memberships(created.id).map((m) => m.project_id), ["shop"], "only the project they run");
+    assert.deepEqual(
+      t.store.memberships(created.id).map((m) => m.project_id),
+      ["shop"],
+      "only the project they run",
+    );
     assert.equal(t.store.member("shop", created.id)!.scope, "own");
     assert.equal((await t.call({ url: "/api/admin/users", cookie: lead.cookie })).statusCode, 403, "still not an org admin");
 
     // Inviting someone who already has an account just adds them; no new password link.
-    const again = await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: lead.cookie, payload: { email: "dev@example.com", name: "Geliştirici", role: "viewer" } });
+    const again = await t.call({
+      method: "POST",
+      url: "/api/p/shop/members/invite",
+      cookie: lead.cookie,
+      payload: { email: "dev@example.com", name: "Geliştirici", role: "viewer" },
+    });
     assert.equal(again.json().invite_url, undefined);
     assert.equal(t.store.member("shop", worker.id)!.role, "viewer");
 
     // Agents: created, listed and rotated by the project owner, scoped to this project.
-    const agent = await t.call({ method: "POST", url: "/api/p/shop/agents", cookie: lead.cookie, payload: { id: "shop-bot", name: "Shop Bot", role: "contributor" } });
+    const agent = await t.call({
+      method: "POST",
+      url: "/api/p/shop/agents",
+      cookie: lead.cookie,
+      payload: { id: "shop-bot", name: "Shop Bot", role: "contributor" },
+    });
     assert.equal(agent.statusCode, 201, agent.body);
     const token = agent.json().token;
     assert.equal((await t.call({ url: "/api/p/shop/brief", token })).statusCode, 200);
     assert.equal((await t.call({ url: "/api/p/blog/brief", token })).statusCode, 403, "the new agent sees only this project");
-    assert.deepEqual((await t.call({ url: "/api/p/shop/agents", cookie: lead.cookie })).json().agents.map((a: { id: string }) => a.id), ["shop-bot"]);
+    assert.deepEqual(
+      (await t.call({ url: "/api/p/shop/agents", cookie: lead.cookie })).json().agents.map((a: { id: string }) => a.id),
+      ["shop-bot"],
+    );
 
     const rotated = (await t.call({ method: "POST", url: "/api/p/shop/agents/shop-bot/token", cookie: lead.cookie })).json().token;
     assert.equal((await t.call({ url: "/api/p/shop/brief", token })).statusCode, 401, "the old token stopped working");
@@ -378,19 +449,36 @@ test("members/candidates never leaks the whole hub roster to a non-org-admin pro
     // Not an org admin, and administers no other project yet: sees nobody unrelated to "shop".
     const before = await t.call({ url: "/api/p/shop/members/candidates", cookie: lead.cookie });
     assert.equal(before.statusCode, 200);
-    assert.equal(before.json().candidates.some((c: { id: string }) => c.id === blogger.id), false, "a stranger from another project must not appear");
+    assert.equal(
+      before.json().candidates.some((c: { id: string }) => c.id === blogger.id),
+      false,
+      "a stranger from another project must not appear",
+    );
 
     // An org admin still sees the full roster.
     const asAdmin = await t.call({ url: "/api/p/shop/members/candidates", cookie: admin });
-    assert.equal(asAdmin.json().candidates.some((c: { id: string }) => c.id === blogger.id), true, "org admins keep seeing everyone (regression)");
+    assert.equal(
+      asAdmin.json().candidates.some((c: { id: string }) => c.id === blogger.id),
+      true,
+      "org admins keep seeing everyone (regression)",
+    );
 
     // Once lead also administers "blog", blog's people become visible as candidates for "shop" too.
     await t.call({ method: "PUT", url: `/api/p/blog/members/${lead.id}`, cookie: admin, payload: { role: "owner" } });
     const after = await t.call({ url: "/api/p/shop/members/candidates", cookie: lead.cookie });
-    assert.equal(after.json().candidates.some((c: { id: string }) => c.id === blogger.id), true, "known through a project lead also administers");
+    assert.equal(
+      after.json().candidates.some((c: { id: string }) => c.id === blogger.id),
+      true,
+      "known through a project lead also administers",
+    );
 
     // Inviting a genuinely new person by email never depended on the candidates list.
-    const fresh = await t.call({ method: "POST", url: "/api/p/shop/members/invite", cookie: lead.cookie, payload: { email: "brand-new@example.com", name: "Yeni" } });
+    const fresh = await t.call({
+      method: "POST",
+      url: "/api/p/shop/members/invite",
+      cookie: lead.cookie,
+      payload: { email: "brand-new@example.com", name: "Yeni" },
+    });
     assert.equal(fresh.statusCode, 201, fresh.body);
   } finally {
     await t.cleanup();
@@ -404,7 +492,9 @@ test("usage meter: counts each call once, per person and per agent, and stays ou
   const clients: { close: () => Promise<void> }[] = [];
   try {
     const admin = await t.login("ada@example.com", "correct-horse-1");
-    const token = (await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id: "meter-bot", projects: [{ id: "shop", role: "contributor" }] } })).json().token;
+    const token = (
+      await t.call({ method: "POST", url: "/api/admin/agents", cookie: admin, payload: { id: "meter-bot", projects: [{ id: "shop", role: "contributor" }] } })
+    ).json().token;
     await t.app.listen({ port: 0, host: "127.0.0.1" });
     const url = `http://127.0.0.1:${(t.app.server.address() as { port: number }).port}`;
 
@@ -424,7 +514,10 @@ test("usage meter: counts each call once, per person and per agent, and stays ou
     assert.equal(bot.kind, "ai");
     assert.ok(bot.tokens > 0 && bot.tokens === Math.round(bot.bytes / 4));
     assert.equal(person.calls, 2, "people are metered too");
-    assert.ok(usage.by_route.some((r: { route: string }) => r.route.startsWith("MCP GET /brief")), "the route says which tool it was");
+    assert.ok(
+      usage.by_route.some((r: { route: string }) => r.route.startsWith("MCP GET /brief")),
+      "the route says which tool it was",
+    );
     assert.equal(usage.totals.calls, 4);
     assert.equal(usage.daily.at(-1).ai + usage.daily.at(-1).human, 4, "today's row carries the calls");
     assert.ok(usage.daily.length >= 7, "quiet days are on the chart too, not skipped");
@@ -439,7 +532,13 @@ test("usage meter: counts each call once, per person and per agent, and stays ou
     await t.call({ method: "PUT", url: `/api/p/shop/members/${eve.id}`, cookie: admin, payload: { role: "member", scope: "own" } });
     assert.equal((await t.call({ url: "/api/p/shop/usage", cookie: eve.cookie })).statusCode, 403, "partial views get no project-wide numbers");
     assert.equal((await t.call({ url: "/api/admin/usage", cookie: eve.cookie })).statusCode, 403);
-    assert.equal(t.hub.cortex("shop").index.queryActivity({ includeSystem: true, limit: 100 }).filter((a) => a.summary.includes("usage")).length, 0);
+    assert.equal(
+      t.hub
+        .cortex("shop")
+        .index.queryActivity({ includeSystem: true, limit: 100 })
+        .filter((a) => a.summary.includes("usage")).length,
+      0,
+    );
   } finally {
     for (const c of clients) await c.close();
     await t.cleanup();

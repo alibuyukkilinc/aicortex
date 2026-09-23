@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Cortex } from "./cortex.js";
-import type { CommitInfo, FileChange} from "../git/git.js";
+import type { CommitInfo, FileChange } from "../git/git.js";
 import { Git } from "../git/git.js";
 
 // high: the knowledge is probably wrong now (linked lines rewritten, file deleted or moved).
@@ -235,10 +235,12 @@ function worst(changes: StaleChange[]): Severity {
 
 // What a snooze was given for: the changed files, how they changed, and the newest commit on each.
 function fingerprint(s: StaleInfo): string {
-  return s.changes
-    .map((c) => `${c.file}:${c.status}:${c.last?.hash ?? ""}`)
-    .sort()
-    .join("|") || s.reason;
+  return (
+    s.changes
+      .map((c) => `${c.file}:${c.status}:${c.last?.hash ?? ""}`)
+      .sort()
+      .join("|") || s.reason
+  );
 }
 
 // Re-read when the file changes on disk, so an MCP process and the board see each other's snoozes.

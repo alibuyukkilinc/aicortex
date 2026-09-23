@@ -12,7 +12,14 @@ test("login codes are signed, scoped to one actor and expire", () => {
   const tokens = { owner: "ctx_a", other: "ctx_b" };
   const code = createLoginCode("owner", tokens.owner);
   assert.equal(verifyLoginCode(code, tokens), "owner");
-  assert.equal(verifyLoginCode(code.replace(/.$/, (c) => (c === "A" ? "B" : "A")), tokens), null, "tampered");
+  assert.equal(
+    verifyLoginCode(
+      code.replace(/.$/, (c) => (c === "A" ? "B" : "A")),
+      tokens,
+    ),
+    null,
+    "tampered",
+  );
   assert.equal(verifyLoginCode(code.replace(/^owner/, "other"), tokens), null, "moved to another actor");
   assert.equal(verifyLoginCode(code, tokens, Date.now() + 11 * 60 * 1000), null, "expired");
   assert.equal(verifyLoginCode("garbage", tokens), null);
@@ -89,9 +96,15 @@ test("rules: humans edit YAML, invalid rules are refused, AIs cannot edit", asyn
     const issues: string[] = broken.json().error.hint.issues;
     assert.ok(issues.some((i) => i.startsWith("initial")));
     assert.ok(issues.some((i) => i.startsWith("fields.severity.type")));
-    assert.equal((await app.inject({ method: "PUT", url: "/api/rules/issue/source", headers: as("owner"), payload: { source: "a: [" } })).json().error.code, "invalid_rules");
+    assert.equal(
+      (await app.inject({ method: "PUT", url: "/api/rules/issue/source", headers: as("owner"), payload: { source: "a: [" } })).json().error.code,
+      "invalid_rules",
+    );
 
-    const edited = src.json().source.replace("severity: { type: enum", "severity: { type: enum").replace(/required: true\n/, "required: false\n");
+    const edited = src
+      .json()
+      .source.replace("severity: { type: enum", "severity: { type: enum")
+      .replace(/required: true\n/, "required: false\n");
     const aiTry = await app.inject({ method: "PUT", url: "/api/rules/issue/source", headers: as("ai-agent"), payload: { source: edited } });
     assert.equal(aiTry.statusCode, 403);
 
@@ -194,10 +207,13 @@ test("live streams: 15 open boards do not trip Node's leak warning, and the cap 
   const open: ClientRequest[] = [];
   const connect = (port: number) =>
     new Promise<number>((resolve, reject) => {
-      const req = httpGet({ host: "127.0.0.1", port, path: "/api/events", headers: { host: "localhost", authorization: `Bearer ${t.init.tokens.owner}` } }, (res) => {
-        resolve(res.statusCode ?? 0);
-        if (res.statusCode !== 200) res.resume();
-      });
+      const req = httpGet(
+        { host: "127.0.0.1", port, path: "/api/events", headers: { host: "localhost", authorization: `Bearer ${t.init.tokens.owner}` } },
+        (res) => {
+          resolve(res.statusCode ?? 0);
+          if (res.statusCode !== 200) res.resume();
+        },
+      );
       req.on("error", reject);
       open.push(req);
     });
@@ -206,7 +222,10 @@ test("live streams: 15 open boards do not trip Node's leak warning, and the cap 
     const port = (app.server.address() as { port: number }).port;
     for (let i = 0; i < 15; i++) assert.equal(await connect(port), 200);
     await new Promise((r) => setTimeout(r, 50)); // warnings are emitted on the next tick
-    assert.deepEqual(warnings.filter((w) => w === "MaxListenersExceededWarning"), []);
+    assert.deepEqual(
+      warnings.filter((w) => w === "MaxListenersExceededWarning"),
+      [],
+    );
 
     process.env.CORTEX_SSE_LIMIT = "16";
     assert.equal(await connect(port), 200, "the 16th fits");

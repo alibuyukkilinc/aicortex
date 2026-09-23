@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { EventEmitter } from "node:events";
-import type { FSWatcher} from "node:fs";
+import type { FSWatcher } from "node:fs";
 import { existsSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import YAML from "yaml";
@@ -12,20 +12,20 @@ import { DraftStore } from "../store/drafts.js";
 import { ItemStore } from "../store/items.js";
 import { TreeStore, normalizePath } from "../store/tree.js";
 import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
-import type { Embedder} from "../search/embedder.js";
+import type { Embedder } from "../search/embedder.js";
 import { TransformersEmbedder } from "../search/embedder.js";
 import { semanticEnabled } from "../search/runtime.js";
 import { SemanticIndex } from "../search/semantic.js";
 import { ActivityService } from "./activity.js";
-import type { StaleChange, StaleInfo} from "./staleness.js";
+import type { StaleChange, StaleInfo } from "./staleness.js";
 import { StalenessService, actionable } from "./staleness.js";
 import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
 import type { SyncStats } from "./sync.js";
 import { SyncService } from "./sync.js";
-import type { Project} from "./project.js";
+import type { Project } from "./project.js";
 import { loadTokens, paths, rulesVersion } from "./project.js";
-import type { ItemSchema} from "./schema.js";
+import type { ItemSchema } from "./schema.js";
 import { DEFAULT_SCHEMAS, describeSchema, isOpenWork, loadActivitySchema, loadSchema } from "./schema.js";
 import type { Actor, Draft, KnowledgeNode, NodeSummary } from "./types.js";
 import { CortexError } from "./types.js";
@@ -311,9 +311,15 @@ export class Cortex {
       // Says out loud that this brief was shortened (cortex_tree has the full text), in as few tokens as it costs.
       ...(chars < 300 ? { trimmed: true } : {}),
       attention: {
-        inbox: { count: inbox.count, top: inbox.items.slice(0, rows).map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })) },
+        inbox: {
+          count: inbox.count,
+          top: inbox.items.slice(0, rows).map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })),
+        },
         // Count + a few: after a bootstrap there can be dozens, and the brief must stay small.
-        pending_approvals: { count: mine.length, top: mine.slice(0, rows).map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })) },
+        pending_approvals: {
+          count: mine.length,
+          top: mine.slice(0, rows).map((d) => ({ draft_id: d.id, kind: d.kind, target: d.target, proposed_by: d.proposed_by })),
+        },
         // Knowledge whose code changed since it was verified: fix it or verify it when you touch that area.
         // Only high and medium count; formatting-only and snoozed ones are left out of the brief.
         ...(stale.length
@@ -336,7 +342,7 @@ export class Cortex {
         "cortex_search(q) before changing anything you don't fully understand",
         "cortex_tree(path) / cortex_node(path) to drill down; cortex_log_activity after each change",
       ],
-      });
+    });
     // Steps tried in order until the brief fits: shorter branch summaries, then fewer rows.
     const steps: [number, number, number][] = [
       [300, 5, 3], // full summaries
@@ -426,7 +432,10 @@ export class Cortex {
       if (l.kind === "node") {
         const n = this.index.getNode(l.ref);
         if (!n) continue;
-        const cur = (nodes.get(l.ref) ?? { path: n.path, title: n.title, summary: n.summary, files: [] as string[] }) as { files: string[] } & Record<string, unknown>;
+        const cur = (nodes.get(l.ref) ?? { path: n.path, title: n.title, summary: n.summary, files: [] as string[] }) as { files: string[] } & Record<
+          string,
+          unknown
+        >;
         cur.files.push(l.lines ? `${l.file}:${l.lines}` : l.file);
         if (this.isStale(n.path)) cur.stale = true;
         nodes.set(l.ref, cur);
@@ -459,7 +468,8 @@ export class Cortex {
   }
 
   verifyMany(actor: Actor, paths: string[]) {
-    if (!Array.isArray(paths) || !paths.length) throw new CortexError("invalid_request", "Pass the node paths to verify.", 400, { example: { paths: ["backend/auth"] } });
+    if (!Array.isArray(paths) || !paths.length)
+      throw new CortexError("invalid_request", "Pass the node paths to verify.", 400, { example: { paths: ["backend/auth"] } });
     const done: WriteResult[] = [];
     const failed: { path: string; code: string; message: string }[] = [];
     for (const p of new Set(paths)) {
@@ -470,7 +480,12 @@ export class Cortex {
         failed.push({ path: p, code: err.code, message: err.message });
       }
     }
-    return { done: done.map((r) => r.path!), drafts: done.filter((r) => !r.applied).length, failed, message: `${done.length} verified${failed.length ? `, ${failed.length} failed` : ""}.` };
+    return {
+      done: done.map((r) => r.path!),
+      drafts: done.filter((r) => !r.applied).length,
+      failed,
+      message: `${done.length} verified${failed.length ? `, ${failed.length} failed` : ""}.`,
+    };
   }
 
   node(path: string): KnowledgeNode {
@@ -528,8 +543,14 @@ export class Cortex {
       const d = this.drafts.get(ref);
       if (!d || d.kind !== "node") return null;
       return {
-        kind: "node", path: d.target, title: d.data.title, summary: d.data.summary, status: "draft",
-        draft_id: d.id, proposed_by: d.proposed_by, score,
+        kind: "node",
+        path: d.target,
+        title: d.data.title,
+        summary: d.data.summary,
+        status: "draft",
+        draft_id: d.id,
+        proposed_by: d.proposed_by,
+        score,
         note: "Not approved yet: may be wrong or change.",
       };
     }
@@ -542,9 +563,14 @@ export class Cortex {
       const full = i && this.itemStore.read(ref);
       return (
         i && {
-          kind, id: i.id, type: i.type, title: i.title, status: i.status,
+          kind,
+          id: i.id,
+          type: i.type,
+          title: i.title,
+          status: i.status,
           ...(i.category_path ? { category_path: i.category_path } : {}),
-          summary: snippet(full?.body ?? ""), score,
+          summary: snippet(full?.body ?? ""),
+          score,
         }
       );
     }
@@ -638,7 +664,8 @@ export class Cortex {
     if (p === "") throw new CortexError("invalid_request", "The project root cannot be deleted.", 400);
     this.node(p); // 404 with suggestions
     const children = this.index.children(p).map((c) => c.path);
-    if (children.length) throw new CortexError("has_children", `"${p}" still has ${children.length} child node(s). Delete or move them first.`, 409, { children });
+    if (children.length)
+      throw new CortexError("has_children", `"${p}" still has ${children.length} child node(s). Delete or move them first.`, 409, { children });
     const open = this.index.queryItems({ under: p, open: true, limit: 20, offset: 0 }).items;
     if (open.length) {
       throw new CortexError("has_open_items", `${open.length} open item(s) are filed under "${p}". Close them or move them to another branch first.`, 409, {
@@ -662,7 +689,13 @@ export class Cortex {
     const draft = { ...d, id: ulid(), proposed_at: nowIso() } as Draft;
     this.drafts.save(draft);
     this.index.upsertDraft(draft);
-    this.activity.system(d.proposed_by, "draft.proposed", `Proposed a change to ${d.kind} "${d.kind === "node" ? d.target || "(root)" : d.data.title}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
+    this.activity.system(
+      d.proposed_by,
+      "draft.proposed",
+      `Proposed a change to ${d.kind} "${d.kind === "node" ? d.target || "(root)" : d.data.title}"`,
+      [d.target],
+      { kind: d.kind, proposed_by: d.proposed_by },
+    );
     return draft.id;
   }
 
@@ -689,7 +722,10 @@ export class Cortex {
       this.items.applyDraft({ ...d.data, updated_at: nowIso() });
     }
     this.removeDraft(d.id);
-    this.activity.system(actor.id, "draft.approved", `Approved ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
+    this.activity.system(actor.id, "draft.approved", `Approved ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"`, [d.target], {
+      kind: d.kind,
+      proposed_by: d.proposed_by,
+    });
     return {
       applied: true,
       ...(d.kind === "node" ? { path: d.target } : { id: d.target }),
@@ -723,7 +759,13 @@ export class Cortex {
     this.requireHuman(actor);
     const d = this.draftOr404(draftId);
     this.removeDraft(d.id);
-    this.activity.system(actor.id, "draft.rejected", `Rejected ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"${reason ? `: ${reason}` : ""}`, [d.target], { kind: d.kind, proposed_by: d.proposed_by });
+    this.activity.system(
+      actor.id,
+      "draft.rejected",
+      `Rejected ${d.proposed_by}'s change to ${d.kind} "${d.target || "(root)"}"${reason ? `: ${reason}` : ""}`,
+      [d.target],
+      { kind: d.kind, proposed_by: d.proposed_by },
+    );
     return { applied: false, ...(d.kind === "node" ? { path: d.target } : { id: d.target }), message: "Draft rejected." };
   }
 
@@ -845,7 +887,8 @@ export class Cortex {
 
   private rulesFile(name: string): string {
     if (name === "_global") return "_global.yaml";
-    if (!/^[a-z][a-z0-9-]{0,39}$/.test(name)) throw new CortexError("invalid_rules", `Invalid rules name "${name}". Use lowercase letters, digits and dashes.`, 400);
+    if (!/^[a-z][a-z0-9-]{0,39}$/.test(name))
+      throw new CortexError("invalid_rules", `Invalid rules name "${name}". Use lowercase letters, digits and dashes.`, 400);
     return `${name}.schema.yaml`;
   }
 
@@ -888,7 +931,8 @@ function validateFieldSpecs(prefix: string, fields: unknown, issues: string[]) {
     }
     if (!FIELD_TYPES.includes(spec.type as string)) issues.push(`${prefix}.${k}.type: must be one of ${FIELD_TYPES.join(", ")}`);
     if (spec.type === "enum" && !(isStrList(spec.values) && spec.values.length)) issues.push(`${prefix}.${k}.values: an enum needs a non-empty list of values`);
-    if (spec.type === "list" && spec.of !== undefined && (!FIELD_TYPES.includes(spec.of as string) || spec.of === "list")) issues.push(`${prefix}.${k}.of: invalid element type`);
+    if (spec.type === "list" && spec.of !== undefined && (!FIELD_TYPES.includes(spec.of as string) || spec.of === "list"))
+      issues.push(`${prefix}.${k}.of: invalid element type`);
   }
 }
 
@@ -933,7 +977,8 @@ export function validateRulesDoc(name: string, doc: unknown): string[] {
     validateFieldSpecs("reply.fields", reply.fields, issues);
     for (const [i, r] of ((reply.on_reply as Record<string, unknown>[] | undefined) ?? []).entries()) {
       if (!inStatuses(r.from) || !inStatuses(r.to)) issues.push(`reply.on_reply[${i}]: from and to must be statuses`);
-      if (!["assignee", "not_author", "author", "anyone"].includes(r.by as string)) issues.push(`reply.on_reply[${i}].by: assignee | not_author | author | anyone`);
+      if (!["assignee", "not_author", "author", "anyone"].includes(r.by as string))
+        issues.push(`reply.on_reply[${i}].by: assignee | not_author | author | anyone`);
     }
   }
   return issues;

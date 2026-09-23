@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Cortex } from "./cortex.js";
 import { nowIso, ulid } from "../util/text.js";
-import type { Actor, Activity} from "./types.js";
+import type { Actor, Activity } from "./types.js";
 import { CortexError } from "./types.js";
 
 export const ActivityInput = z
@@ -10,7 +10,10 @@ export const ActivityInput = z
     summary: z.string().min(1).max(200),
     why: z.string().max(2000).optional(),
     files: z.array(z.string().max(300)).max(100).optional(),
-    commit: z.string().regex(/^[0-9a-f]{7,40}$/i, "must be a git commit hash").optional(),
+    commit: z
+      .string()
+      .regex(/^[0-9a-f]{7,40}$/i, "must be a git commit hash")
+      .optional(),
     refs: z.array(z.string()).max(20).optional(),
   })
   .strict();

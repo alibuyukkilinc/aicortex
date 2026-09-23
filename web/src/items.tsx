@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import type { ApiError} from "./api";
+import type { ApiError } from "./api";
 import { api, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
 import { SchemaForm } from "./SchemaForm";
@@ -131,7 +131,9 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       }
     >
       <div className="row" style={{ marginBottom: 16 }}>
-        <label className="muted" style={{ fontSize: 12.5 }}>{t("item.status")}</label>
+        <label className="muted" style={{ fontSize: 12.5 }}>
+          {t("item.status")}
+        </label>
         <select className="select" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && void move(e.target.value)}>
           <option value="">{label.status(item.status)} →</option>
           {next.map((s) => (
@@ -141,7 +143,9 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
             </option>
           ))}
         </select>
-        <label className="muted" style={{ fontSize: 12.5 }}>{t("item.assignee")}</label>
+        <label className="muted" style={{ fontSize: 12.5 }}>
+          {t("item.assignee")}
+        </label>
         <select className="select" style={{ width: "auto" }} value={item.assignee ?? ""} onChange={(e) => void assign(e.target.value)}>
           <option value="">{t("common.unassigned")}</option>
           <option value="@humans">@humans</option>
@@ -159,7 +163,9 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       </div>
 
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <label className="muted" style={{ fontSize: 12.5 }}>{t("item.claim")}</label>
+        <label className="muted" style={{ fontSize: 12.5 }}>
+          {t("item.claim")}
+        </label>
         {item.claimed_by ? (
           <>
             <ActorChip id={item.claimed_by} actors={actors} />
@@ -333,7 +339,7 @@ function FieldRow({ name, value }: { name: string; value: unknown }) {
         ? new Date(`${value}T00:00:00`).toLocaleDateString(lang, { day: "numeric", month: "long", year: "numeric" })
         : typeof value === "string"
           ? label.value(value)
-        : String(value ?? "");
+          : String(value ?? "");
   return (
     <>
       <dt>{label.field(name)}</dt>
@@ -403,7 +409,11 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
           </select>
         </div>
       </div>
-      {schema?.description && <p className="muted" style={{ marginTop: 0 }}>{label.description(kind, schema.description)}</p>}
+      {schema?.description && (
+        <p className="muted" style={{ marginTop: 0 }}>
+          {label.description(kind, schema.description)}
+        </p>
+      )}
       <div className="field">
         <label>
           {t("item.title")} <span className="req">*</span>

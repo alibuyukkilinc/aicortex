@@ -41,7 +41,12 @@ test("paging as a member who sees a third of the project", async () => {
     const visible = new Set<string>();
     for (let i = 0; i < 60; i++) {
       const path = i % 3 === 0 ? "front" : i % 3 === 1 ? "backend" : "frontx";
-      const r = await app.inject({ method: "POST", url: "/api/p/shop/items", headers: as(adminCookie), payload: { type: "task", title: `Task ${i}`, category_path: path, ...(i < 6 ? { assignee: "@humans" } : {}) } });
+      const r = await app.inject({
+        method: "POST",
+        url: "/api/p/shop/items",
+        headers: as(adminCookie),
+        payload: { type: "task", title: `Task ${i}`, category_path: path, ...(i < 6 ? { assignee: "@humans" } : {}) },
+      });
       assert.equal(r.statusCode, 201, r.body);
       if (path === "front" || i < 6) visible.add(r.json().id);
     }

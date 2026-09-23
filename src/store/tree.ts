@@ -19,10 +19,7 @@ export function normalizePath(path: string): string {
   const segs = p.split("/");
   for (const s of segs) {
     if (!SEGMENT.test(s)) {
-      throw new CortexError(
-        "invalid_path",
-        `Invalid path segment "${s}". Use lowercase letters, digits and dashes, e.g. "backend/auth/jwt-refresh".`,
-      );
+      throw new CortexError("invalid_path", `Invalid path segment "${s}". Use lowercase letters, digits and dashes, e.g. "backend/auth/jwt-refresh".`);
     }
   }
   return segs.join("/");
@@ -60,12 +57,9 @@ export class TreeStore {
   write(node: KnowledgeNode): void {
     const parent = parentPath(node.path);
     if (parent !== null && !this.exists(parent)) {
-      throw new CortexError(
-        "parent_missing",
-        `Parent "${parent}" does not exist. Create the parent branch first so every level has a summary.`,
-        400,
-        { create_first: parent },
-      );
+      throw new CortexError("parent_missing", `Parent "${parent}" does not exist. Create the parent branch first so every level has a summary.`, 400, {
+        create_first: parent,
+      });
     }
     if (parent !== null && parent !== "") this.promoteToBranch(parent);
 

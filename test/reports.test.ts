@@ -16,9 +16,21 @@ test("periods: relative, absolute and invalid", () => {
   const now = Date.parse("2026-09-22T12:00:00Z");
   assert.equal(parsePeriod("7d", undefined, now).since, "2026-09-16T00:00:00.000Z");
   assert.equal(parsePeriod("2w", undefined, now).days, 14);
-  assert.deepEqual(parsePeriod("2026-09-01", "2026-09-08", now), { since: "2026-09-01T00:00:00.000Z", until: "2026-09-08T00:00:00.000Z", days: 7, timezone: "UTC" });
-  for (const [s, u] of [["yesterday", undefined], ["2026-09-10", "2026-09-01"], ["400d", undefined]] as const) {
-    assert.throws(() => parsePeriod(s, u, now), (e: CortexError) => e.code === "invalid_period");
+  assert.deepEqual(parsePeriod("2026-09-01", "2026-09-08", now), {
+    since: "2026-09-01T00:00:00.000Z",
+    until: "2026-09-08T00:00:00.000Z",
+    days: 7,
+    timezone: "UTC",
+  });
+  for (const [s, u] of [
+    ["yesterday", undefined],
+    ["2026-09-10", "2026-09-01"],
+    ["400d", undefined],
+  ] as const) {
+    assert.throws(
+      () => parsePeriod(s, u, now),
+      (e: CortexError) => e.code === "invalid_period",
+    );
   }
 });
 
@@ -90,8 +102,14 @@ test("the report counts what happened, what waits, and how far to trust each AI"
     assert.equal(r.knowledge.undocumented, 8, "root + 7 default branches still carry the placeholder");
     assert.equal(r.knowledge.updated_in_period, 1, "the approved node draft");
     assert.equal(r.daily.length, 7, "today plus the six days before it");
-    assert.equal(r.daily.reduce((s, d) => s + d.ai + d.human, 0), T.activity.logged.total);
-    assert.equal(r.daily.reduce((s, d) => s + d.system, 0), T.activity.system.total);
+    assert.equal(
+      r.daily.reduce((s, d) => s + d.ai + d.human, 0),
+      T.activity.logged.total,
+    );
+    assert.equal(
+      r.daily.reduce((s, d) => s + d.system, 0),
+      T.activity.system.total,
+    );
   } finally {
     t.cleanup();
   }
@@ -134,8 +152,24 @@ test("old audit entries without structured meta are still understood", () => {
     const dir = join(t.root, ".cortex/activity", at.slice(0, 10));
     mkdirSync(dir, { recursive: true });
     const lines = [
-      { id: "01M0000000000000000000000A", at, actor: "owner", action: "item.updated", summary: 'Updated issue "Legacy bug" (review → closed)', refs: ["01M0000000000000000000000Z"], system: true },
-      { id: "01M0000000000000000000000B", at, actor: "owner", action: "draft.rejected", summary: 'Rejected ai-agent\'s change to node "backend"', refs: ["backend"], system: true },
+      {
+        id: "01M0000000000000000000000A",
+        at,
+        actor: "owner",
+        action: "item.updated",
+        summary: 'Updated issue "Legacy bug" (review → closed)',
+        refs: ["01M0000000000000000000000Z"],
+        system: true,
+      },
+      {
+        id: "01M0000000000000000000000B",
+        at,
+        actor: "owner",
+        action: "draft.rejected",
+        summary: 'Rejected ai-agent\'s change to node "backend"',
+        refs: ["backend"],
+        system: true,
+      },
     ];
     appendFileSync(join(dir, "owner.jsonl"), lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
     // The item file is gone, so the type comes from nowhere: the close cannot be attributed, the rejection can.
@@ -177,7 +211,9 @@ test("markdown in both languages, over REST and MCP", async () => {
 
     const server = buildMcpServer(await localApi(t.cortex, t.ai));
     await Promise.all([server.connect(a), client.connect(b)]);
-    const res = (await client.callTool({ name: "cortex_report", arguments: { since: "7d", format: "markdown", lang: "en" } })) as { content: { text: string }[] };
+    const res = (await client.callTool({ name: "cortex_report", arguments: { since: "7d", format: "markdown", lang: "en" } })) as {
+      content: { text: string }[];
+    };
     assert.match(JSON.parse(res.content[0].text).markdown, /# Cortex report/);
   } finally {
     await client.close();

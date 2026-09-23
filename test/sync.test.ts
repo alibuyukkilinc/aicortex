@@ -76,13 +76,13 @@ test("sync picks up an item's new reply and forgets a deleted item", async () =>
     const folder = readdirSync(items).find((n) => n.startsWith(id))!;
     const dir = join(items, folder);
     mkdirSync(join(dir, "replies"), { recursive: true });
-    writeFileSync(
-      join(dir, "replies", "01SYNC00000000000000000002.md"),
-      "---\nauthor: owner\ncreated_at: 2026-09-23T12:00:00Z\n---\n\nRabbitMQ denendi.\n",
-    );
+    writeFileSync(join(dir, "replies", "01SYNC00000000000000000002.md"), "---\nauthor: owner\ncreated_at: 2026-09-23T12:00:00Z\n---\n\nRabbitMQ denendi.\n");
     t.cortex.sync([`items/${folder}/replies/01SYNC00000000000000000002.md`]);
     assert.equal(t.cortex.index.getItem(id)?.reply_count, 1);
-    assert.ok((await t.cortex.search("rabbitmq")).results.some((r) => r.id === id), "the reply body is searchable");
+    assert.ok(
+      (await t.cortex.search("rabbitmq")).results.some((r) => r.id === id),
+      "the reply body is searchable",
+    );
 
     rmSync(dir, { recursive: true, force: true });
     t.cortex.sync([`items/${folder}/item.md`]);

@@ -116,7 +116,13 @@ test("brief stays small after a bootstrap with dozens of drafts", async () => {
 test("approving a draft pins it to HEAD when its files did not change since it was proposed", () => {
   const p = gitProject();
   try {
-    const draft = p.cortex.putNode(p.ai, { path: "backend/auth", title: "Auth", summary: "Tokens.", reason: "doc", links: { code: [{ file: "src/auth/token.ts" }] } });
+    const draft = p.cortex.putNode(p.ai, {
+      path: "backend/auth",
+      title: "Auth",
+      summary: "Tokens.",
+      reason: "doc",
+      links: { code: [{ file: "src/auth/token.ts" }] },
+    });
     p.write("README.md", "# demo\nunrelated\n");
     const head = p.commit("unrelated work while the draft waited");
 
@@ -133,7 +139,8 @@ test("approving a draft pins it to HEAD when its files did not change since it w
 test("approving a draft whose files changed keeps the old pin and says so, unless the approver vouches for HEAD", () => {
   const p = gitProject();
   try {
-    const put = (path: string) => p.cortex.putNode(p.ai, { path, title: path, summary: "ttl is 15.", reason: "doc", links: { code: [{ file: "src/auth/token.ts" }] } });
+    const put = (path: string) =>
+      p.cortex.putNode(p.ai, { path, title: path, summary: "ttl is 15.", reason: "doc", links: { code: [{ file: "src/auth/token.ts" }] } });
     const a = put("backend/auth");
     const b = put("backend/token");
     p.write("src/auth/token.ts", "export const ttl = 60;\n");

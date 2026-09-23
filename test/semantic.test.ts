@@ -16,7 +16,11 @@ function withFake() {
 test("semantic search finds meaning across languages without shared words", async () => {
   const t = withFake();
   try {
-    t.cortex.putNode(t.human, { path: "frontend/perf", title: "Sayfa yavaş açılıyordu", summary: "Görseller lazy-load yapıldı, ilk yükleme 3.2 sn'den 1.1 sn'ye indi." });
+    t.cortex.putNode(t.human, {
+      path: "frontend/perf",
+      title: "Sayfa yavaş açılıyordu",
+      summary: "Görseller lazy-load yapıldı, ilk yükleme 3.2 sn'den 1.1 sn'ye indi.",
+    });
     t.cortex.putNode(t.human, { path: "backend/odeme", title: "Ödeme", summary: "iyzico ile kart tahsilatı." });
     t.cortex.putNode(t.human, { path: "security/secrets", title: "Gizli anahtarlar", summary: "Üretimde Vault." });
     t.cortex.semantic.sync();
@@ -25,7 +29,11 @@ test("semantic search finds meaning across languages without shared words", asyn
     assert.equal(st.state, "ready");
     assert.equal(st.indexed, st.total);
 
-    t.cortex.putNode(t.human, { path: "backend/siparis", title: "Sipariş iki kez onaylanıyordu", summary: "Webhook tekrarı aynı kaydı ikinci kez işliyordu; artık tekil." });
+    t.cortex.putNode(t.human, {
+      path: "backend/siparis",
+      title: "Sipariş iki kez onaylanıyordu",
+      summary: "Webhook tekrarı aynı kaydı ikinci kez işliyordu; artık tekil.",
+    });
     t.cortex.semantic.sync();
     await t.cortex.semantic.idle();
 
@@ -53,7 +61,10 @@ test("hybrid ranking puts documents found by both keyword and meaning first", as
     const r = await t.cortex.search("ödeme akışı");
     assert.equal(r.results[0]?.path, "backend/odeme");
     assert.equal(r.results[0]?.match, "both");
-    assert.ok(r.results.some((x) => x.path === "backend/kart" && x.match === "semantic"), "meaning-only matches are still listed");
+    assert.ok(
+      r.results.some((x) => x.path === "backend/kart" && x.match === "semantic"),
+      "meaning-only matches are still listed",
+    );
   } finally {
     t.cleanup();
   }
@@ -69,7 +80,10 @@ test("filters apply to semantic hits too", async () => {
     await t.cortex.semantic.idle();
 
     const items = await t.cortex.search("tahsilat", { kinds: ["item"] });
-    assert.deepEqual(items.results.map((x) => x.kind), ["item"]);
+    assert.deepEqual(
+      items.results.map((x) => x.kind),
+      ["item"],
+    );
     const underFront = await t.cortex.search("tahsilat", { under: "frontend" });
     assert.equal(underFront.results.length, 0);
     const decisions = await t.cortex.search("tahsilat", { type: "decision" });

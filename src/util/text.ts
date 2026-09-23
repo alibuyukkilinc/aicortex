@@ -3,8 +3,19 @@ import { randomBytes, createHash } from "node:crypto";
 // Turkish-aware folding so "kullanici" matches "Kullanıcı" in keyword search.
 // FTS5's remove_diacritics handles most accents, but not ı/İ, so we fold before indexing and querying.
 const FOLD: Record<string, string> = {
-  ı: "i", İ: "i", I: "i", ş: "s", Ş: "s", ğ: "g", Ğ: "g",
-  ç: "c", Ç: "c", ö: "o", Ö: "o", ü: "u", Ü: "u",
+  ı: "i",
+  İ: "i",
+  I: "i",
+  ş: "s",
+  Ş: "s",
+  ğ: "g",
+  Ğ: "g",
+  ç: "c",
+  Ç: "c",
+  ö: "o",
+  Ö: "o",
+  ü: "u",
+  Ü: "u",
 };
 
 export function fold(text: string): string {

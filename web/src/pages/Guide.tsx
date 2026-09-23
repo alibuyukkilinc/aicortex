@@ -1,4 +1,4 @@
-import type { ReactNode} from "react";
+import type { ReactNode } from "react";
 import { useContext } from "react";
 import { currentProject, useApi } from "../api";
 import { GLOSSARY, LangContext, useLabels, useT } from "../i18n";
@@ -67,11 +67,7 @@ export function Guide() {
           {t("guide.aiBody")} <Term w="MCP" />
         </p>
         <Copy text={mcpCommand} />
-        {hub ? (
-          <p className="muted">{t("guide.aiHub")}</p>
-        ) : (
-          <p className="muted">{t("guide.aiLocal")}</p>
-        )}
+        {hub ? <p className="muted">{t("guide.aiHub")}</p> : <p className="muted">{t("guide.aiLocal")}</p>}
         <p>{t("guide.aiProtocol")}</p>
         <ul>
           <li>{t("guide.aiStep1")}</li>

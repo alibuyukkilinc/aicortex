@@ -7,7 +7,7 @@ import { projectRoutes } from "../api/routes.js";
 import { Cortex } from "../core/cortex.js";
 import { initProject } from "../core/init.js";
 import { loadProject } from "../core/project.js";
-import type { Actor} from "../core/types.js";
+import type { Actor } from "../core/types.js";
 import { CortexError } from "../core/types.js";
 import { buildAccess } from "./access.js";
 import { PASSWORD_MIN, hashPassword, verifyPassword } from "./crypto.js";
@@ -60,7 +60,8 @@ export class Hub {
     const id = principal.kind === "human" ? principal.user.id : principal.agent.id;
     const m = this.store.member(projectId, id);
     if (m) return m;
-    if (principal.kind === "human" && principal.user.org_admin) return { project_id: projectId, principal: id, kind: "human", role: "owner", scope: "all", branches: [] };
+    if (principal.kind === "human" && principal.user.org_admin)
+      return { project_id: projectId, principal: id, kind: "human", role: "owner", scope: "all", branches: [] };
     return null;
   }
 
@@ -69,7 +70,6 @@ export class Hub {
     this.open.clear();
   }
 }
-
 
 // "7d", "30d" or a date, like the report periods.
 function sinceIso(since?: string): string {
@@ -94,7 +94,13 @@ export function buildHubServer(hub: Hub): FastifyInstance {
   const baseUrl = () => (store.settings.public_url ?? `http://localhost:${store.settings.port}`).replace(/\/+$/, "");
   const inviteUrl = (token: string) => `${baseUrl()}/invite/${token}`;
   const setSession = (req: FastifyRequest, reply: FastifyReply, token: string) =>
-    reply.setCookie(HUB_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: secure() || req.protocol === "https", path: "/", maxAge: SESSION_DAYS * 86400 });
+    reply.setCookie(HUB_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: secure() || req.protocol === "https",
+      path: "/",
+      maxAge: SESSION_DAYS * 86400,
+    });
 
   const PUBLIC = new Set(["/api/health", "/api/auth/login"]);
 
@@ -112,7 +118,8 @@ export function buildHubServer(hub: Hub): FastifyInstance {
     // Agent tokens can only be guessed by trying: every bad one counts against the address, REST and MCP alike.
     let agent: Agent | null = null;
     if (auth.startsWith("Bearer ") && (path.startsWith("/api/") || path.startsWith("/mcp/"))) {
-      if (limits.token.blocked(req.ip)) return reply.code(429).send({ error: { code: "rate_limited", message: "Too many bad tokens. Try again in 15 minutes." } });
+      if (limits.token.blocked(req.ip))
+        return reply.code(429).send({ error: { code: "rate_limited", message: "Too many bad tokens. Try again in 15 minutes." } });
       agent = store.agentByToken(auth.slice(7));
       if (!agent) limits.token.fail(req.ip);
     }
@@ -218,7 +225,10 @@ export function buildHubServer(hub: Hub): FastifyInstance {
       .map((pr) => ({ id: pr.id, name: pr.name, role: pr.member!.role }));
     return {
       org: store.settings.org,
-      principal: p.kind === "human" ? { id, kind: "human", email: p.user.email, name: p.user.name, org_admin: p.user.org_admin } : { id, kind: "ai", name: p.agent.name },
+      principal:
+        p.kind === "human"
+          ? { id, kind: "human", email: p.user.email, name: p.user.name, org_admin: p.user.org_admin }
+          : { id, kind: "ai", name: p.agent.name },
       projects,
     };
   });
@@ -301,7 +311,12 @@ export function buildHubServer(hub: Hub): FastifyInstance {
       if (!b.init) throw new CortexError("not_initialized", "That folder has no .cortex yet. Send init: true to create one.", 400, { path });
       initProject(path, name, { language: b.language });
     }
-    const id = (b.id?.trim() || name).toLowerCase().normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^[-_]+|[-_]+$/g, "").slice(0, 40);
+    const id = (b.id?.trim() || name)
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w-]+/g, "-")
+      .replace(/^[-_]+|[-_]+$/g, "")
+      .slice(0, 40);
     const project = store.addProject({ id, name, path });
     store.setMember(project.id, admin.id, { role: "owner" });
     return reply.code(201).send({ project });
@@ -364,7 +379,10 @@ export function buildHubServer(hub: Hub): FastifyInstance {
           ? { users: store.users(), agents: store.agents() }
           : (() => {
               const otherProjects = new Set(
-                store.memberships(callerId).filter((m) => m.project_id !== projectId && (m.role === "owner" || m.role === "admin")).map((m) => m.project_id),
+                store
+                  .memberships(callerId)
+                  .filter((m) => m.project_id !== projectId && (m.role === "owner" || m.role === "admin"))
+                  .map((m) => m.project_id),
               );
               const ids = new Set([...otherProjects].flatMap((pid) => store.members(pid).map((m) => m.principal)));
               return { users: store.users().filter((u) => ids.has(u.id)), agents: store.agents().filter((a) => ids.has(a.id)) };
@@ -478,7 +496,14 @@ export function buildHubServer(hub: Hub): FastifyInstance {
           headers: { authorization: `Bearer ${token}`, [INTERNAL]: "1" },
           ...(opts.body !== undefined ? { payload: opts.body as object } : {}),
         });
-        store.record({ project, principal: agent.id, kind: "ai", route: `MCP ${method} ${path || "/"}`, bytes: Buffer.byteLength(res.body ?? ""), ms: Date.now() - started });
+        store.record({
+          project,
+          principal: agent.id,
+          kind: "ai",
+          route: `MCP ${method} ${path || "/"}`,
+          bytes: Buffer.byteLength(res.body ?? ""),
+          ms: Date.now() - started,
+        });
         if (res.statusCode >= 400) {
           const e = (res.json() as { error?: { code?: string; message?: string; hint?: unknown } }).error ?? {};
           throw new CortexError(e.code ?? "error", e.message ?? `Request failed (${res.statusCode}).`, res.statusCode, e.hint);

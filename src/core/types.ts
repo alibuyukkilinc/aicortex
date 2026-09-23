@@ -105,9 +105,7 @@ export interface CortexConfig {
   timezone?: string; // IANA zone reports count days in, e.g. "Europe/Istanbul"; default UTC
 }
 
-export type Draft =
-  | (DraftBase & { kind: "node"; data: KnowledgeNode })
-  | (DraftBase & { kind: "item"; data: Item });
+export type Draft = (DraftBase & { kind: "node"; data: KnowledgeNode }) | (DraftBase & { kind: "item"; data: Item });
 
 interface DraftBase {
   id: string;

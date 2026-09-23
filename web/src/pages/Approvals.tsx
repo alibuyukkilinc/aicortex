@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ApiError} from "../api";
+import type { ApiError } from "../api";
 import { api, useApi } from "../api";
 import { diffLines } from "../diff";
 import { useT } from "../i18n";
@@ -190,7 +190,12 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
     }
   };
 
-  if (!data) return <Drawer onClose={onClose} head={<span />}>{error ? <ErrorBox error={error} /> : <Loading />}</Drawer>;
+  if (!data)
+    return (
+      <Drawer onClose={onClose} head={<span />}>
+        {error ? <ErrorBox error={error} /> : <Loading />}
+      </Drawer>
+    );
   const { draft, current } = data;
   const proposed = draft.data;
   const what = whatChanges(current, proposed);
@@ -246,11 +251,13 @@ function DraftDrawer({ id, onClose }: { id: string; onClose: () => void }) {
           <p>{t("approvals.noChange")}</p>
         ) : (
           <div className="row" style={{ gap: 6 }}>
-            {labels.filter(([on]) => on).map(([, name]) => (
-              <span key={name} className="chip accent">
-                {name}
-              </span>
-            ))}
+            {labels
+              .filter(([on]) => on)
+              .map(([, name]) => (
+                <span key={name} className="chip accent">
+                  {name}
+                </span>
+              ))}
           </div>
         )}
       </div>

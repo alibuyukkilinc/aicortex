@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ApiError} from "../api";
+import type { ApiError } from "../api";
 import { api, qs, useApi } from "../api";
 import { useLabels, useT } from "../i18n";
 import { NewItemDialog, nextStatuses, useBranches, useSchema } from "../items";
@@ -18,9 +18,7 @@ export function Board({ type }: { type: string }) {
   const [creating, setCreating] = useState(false);
   const [dragging, setDragging] = useState<ItemSummary | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  const { data, error, loading, reload } = useApi<{ items: ItemSummary[]; total: number }>(
-    `/api/items${qs({ type, path: branch, assignee, limit: 500 })}`,
-  );
+  const { data, error, loading, reload } = useApi<{ items: ItemSummary[]; total: number }>(`/api/items${qs({ type, path: branch, assignee, limit: 500 })}`);
 
   const move = async (item: ItemSummary, status: string, force = false) => {
     if (item.status === status) return;
@@ -118,7 +116,11 @@ export function Board({ type }: { type: string }) {
                   )}
                 </div>
                 <div className="column-body">
-                  {items.length === 0 && <div className="faint" style={{ padding: "8px 4px", fontSize: 12.5 }}>{t("board.empty")}</div>}
+                  {items.length === 0 && (
+                    <div className="faint" style={{ padding: "8px 4px", fontSize: 12.5 }}>
+                      {t("board.empty")}
+                    </div>
+                  )}
                   {items.map((i) => (
                     <article
                       key={i.id}

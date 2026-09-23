@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useApi } from "../api";
-import type { Key} from "../i18n";
+import type { Key } from "../i18n";
 import { useT } from "../i18n";
 import type { Draft, ItemSummary, StaleInfo } from "../types";
 import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, TypeChip, go, useSession } from "../ui";
@@ -128,7 +128,19 @@ export function Inbox() {
   );
 }
 
-function Group({ title, why, rows, tone, action }: { title: string; why: string; rows: ReactNode[]; tone?: "warn" | "danger"; action?: { label: string; run: () => void } }) {
+function Group({
+  title,
+  why,
+  rows,
+  tone,
+  action,
+}: {
+  title: string;
+  why: string;
+  rows: ReactNode[];
+  tone?: "warn" | "danger";
+  action?: { label: string; run: () => void };
+}) {
   if (rows.length === 0) return null;
   return (
     <section className="notif-group">

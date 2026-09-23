@@ -18,7 +18,11 @@ test("an accepted decision stops counting as open work", () => {
     assert.equal(t.cortex.index.openItemsUnder(""), 0);
     assert.equal(t.cortex.index.openItemsUnder("backend"), 0);
     assert.equal(t.cortex.items.list({ open: true }).total, 0);
-    assert.deepEqual(t.cortex.items.list({ open: false }).items.map((i) => i.id), [d.id], "it is findable as settled work");
+    assert.deepEqual(
+      t.cortex.items.list({ open: false }).items.map((i) => i.id),
+      [d.id],
+      "it is findable as settled work",
+    );
     assert.equal(t.cortex.brief(t.human).branches.find((b) => b.path === "backend")?.open_items, undefined);
     assert.equal(t.cortex.items.inbox(t.human).count, 0, "no longer sits in the inbox as a decision to review");
 
@@ -58,7 +62,11 @@ test("accepted decisions still surface as the why behind linked code", () => {
     t.cortex.items.update(t.human, d.id, { status: "accepted" });
 
     const ctx = t.cortex.codeContext(["src/pay.ts"]);
-    assert.deepEqual(ctx.items.map((i) => i.id), [d.id], "an accepted decision is exactly the context an AI needs before editing");
+    assert.deepEqual(
+      ctx.items.map((i) => i.id),
+      [d.id],
+      "an accepted decision is exactly the context an AI needs before editing",
+    );
   } finally {
     t.cleanup();
   }

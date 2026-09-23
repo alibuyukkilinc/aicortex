@@ -1,4 +1,4 @@
-import type { ReactNode} from "react";
+import type { ReactNode } from "react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 // Small hand-built SVG charts. Specs follow the dataviz guide: bars <= 24px, 4px rounded data end,
@@ -104,7 +104,9 @@ export function StackedColumns({
       y: y(totals[i]) + 4,
       content: (
         <>
-          <div className="faint" style={{ marginBottom: 4 }}>{xLabel(row)}</div>
+          <div className="faint" style={{ marginBottom: 4 }}>
+            {xLabel(row)}
+          </div>
           {series.map((s) => (
             <div className={`tip-row${s.context ? " faint" : ""}`} key={s.key}>
               <span className="key" style={{ background: s.color }} />

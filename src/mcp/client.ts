@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { projectRoutes } from "../api/routes.js";
 import { setErrorHandler } from "../api/server.js";
 import type { Cortex } from "../core/cortex.js";
-import type { Actor} from "../core/types.js";
+import type { Actor } from "../core/types.js";
 import { CortexError } from "../core/types.js";
 
 // MCP tools speak the project REST API, so a local project and a hub project behave exactly the same:
@@ -44,7 +44,11 @@ export async function localApi(cortex: Cortex, actor: Actor): Promise<McpApi> {
   return {
     where: `${cortex.project.config.project.name} (${cortex.project.root})`,
     async call(method, path, opts = {}) {
-      const res = await app.inject({ method: method as "GET", url: `/api${path}${query(opts.query)}`, ...(opts.body !== undefined ? { payload: opts.body as object } : {}) });
+      const res = await app.inject({
+        method: method as "GET",
+        url: `/api${path}${query(opts.query)}`,
+        ...(opts.body !== undefined ? { payload: opts.body as object } : {}),
+      });
       if (res.statusCode >= 400) fail(res.statusCode, res.json());
       return opts.text ? res.body : res.json();
     },

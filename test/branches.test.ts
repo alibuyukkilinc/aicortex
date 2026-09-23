@@ -22,7 +22,10 @@ const code = (fn: () => unknown) => {
 test("init --branches: pick template branches, add your own, skip the rest", () => {
   assert.equal(resolveBranches().length, 7, "no choice = full template");
   const picked = resolveBranches(["backend", " Frontend ", "api-gateway", "backend", "a/b"]);
-  assert.deepEqual(picked.map(([p]) => p), ["backend", "frontend", "api-gateway"]);
+  assert.deepEqual(
+    picked.map(([p]) => p),
+    ["backend", "frontend", "api-gateway"],
+  );
   assert.deepEqual(picked[2], ["api-gateway", "Api gateway", "Knowledge about api gateway."]);
   assert.throws(() => resolveBranches(["Bad Name!"]), /Invalid path segment/);
 
@@ -31,7 +34,10 @@ test("init --branches: pick template branches, add your own, skip the rest", () 
     initProject(root, "shop", { language: "tr", branches: ["backend", "frontend"] });
     const cortex = new Cortex(loadProject(root), { embedder: null });
     try {
-      assert.deepEqual(cortex.brief(cortex.actor("ai-agent")).branches.map((b) => b.path), ["backend", "frontend"]);
+      assert.deepEqual(
+        cortex.brief(cortex.actor("ai-agent")).branches.map((b) => b.path),
+        ["backend", "frontend"],
+      );
     } finally {
       cortex.close();
     }
@@ -43,20 +49,38 @@ test("init --branches: pick template branches, add your own, skip the rest", () 
 test("humans delete knowledge that does not apply; children and open items must go first", async () => {
   const t = tempProject();
   try {
-    assert.equal(code(() => t.cortex.deleteNode(t.ai, "mobile")), "forbidden");
-    assert.equal(code(() => t.cortex.deleteNode(t.human, "")), "invalid_request");
-    assert.equal(code(() => t.cortex.deleteNode(t.human, "nope")), "not_found");
+    assert.equal(
+      code(() => t.cortex.deleteNode(t.ai, "mobile")),
+      "forbidden",
+    );
+    assert.equal(
+      code(() => t.cortex.deleteNode(t.human, "")),
+      "invalid_request",
+    );
+    assert.equal(
+      code(() => t.cortex.deleteNode(t.human, "nope")),
+      "not_found",
+    );
 
     t.cortex.putNode(t.human, { path: "backend/queue", title: "Queue", summary: "Redis queue." });
-    assert.equal(code(() => t.cortex.deleteNode(t.human, "backend")), "has_children");
+    assert.equal(
+      code(() => t.cortex.deleteNode(t.human, "backend")),
+      "has_children",
+    );
 
     const issue = t.cortex.items.create(t.human, { type: "issue", title: "Jobs retry forever", category_path: "backend/queue", fields: { severity: "low" } });
-    assert.equal(code(() => t.cortex.deleteNode(t.human, "backend/queue")), "has_open_items");
+    assert.equal(
+      code(() => t.cortex.deleteNode(t.human, "backend/queue")),
+      "has_open_items",
+    );
     t.cortex.items.update(t.human, issue.id, { status: "closed" });
 
     const r = t.cortex.deleteNode(t.human, "backend/queue", "moved to another service");
     assert.equal(r.applied, true);
-    assert.equal(code(() => t.cortex.node("backend/queue")), "not_found");
+    assert.equal(
+      code(() => t.cortex.node("backend/queue")),
+      "not_found",
+    );
     assert.equal((await t.cortex.search("redis queue", { kinds: ["node"] })).results.length, 0);
     // backend/ went back from a folder to a single file, and a reindex does not resurrect anything.
     assert.equal(existsSync(join(t.cortex.project.dir, "tree", "backend")), false);
@@ -64,10 +88,16 @@ test("humans delete knowledge that does not apply; children and open items must 
     assert.equal(t.cortex.node("backend").title, "Backend");
     t.cortex.reindex();
     assert.equal(t.cortex.treeView("backend").node.child_count, 0);
-    assert.equal(t.cortex.index.queryActivity({ includeSystem: true, limit: 5 }).some((a) => a.action === "node.deleted"), true);
+    assert.equal(
+      t.cortex.index.queryActivity({ includeSystem: true, limit: 5 }).some((a) => a.action === "node.deleted"),
+      true,
+    );
 
     t.cortex.deleteNode(t.human, "mobile");
-    assert.equal(t.cortex.brief(t.ai).branches.some((b) => b.path === "mobile"), false);
+    assert.equal(
+      t.cortex.brief(t.ai).branches.some((b) => b.path === "mobile"),
+      false,
+    );
   } finally {
     t.cleanup();
   }

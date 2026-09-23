@@ -30,7 +30,10 @@ test("a file deleted on disk leaves the index", async () => {
     rmSync(join(t.root, ".cortex/tree/seo.md"));
     await new Promise((r) => setTimeout(r, 1000));
     assert.deepEqual(errors, []);
-    assert.equal((await t.cortex.search("seo")).results.some((r) => r.path === "seo"), false);
+    assert.equal(
+      (await t.cortex.search("seo")).results.some((r) => r.path === "seo"),
+      false,
+    );
   } finally {
     t.cleanup();
   }

@@ -20,7 +20,11 @@ const npm = (args, cwd) => {
   const cli = process.env.npm_execpath;
   if (cli && /\.c?js$/.test(cli)) return execFileSync(process.execPath, [cli, ...args], opts);
   if (process.platform !== "win32") return execFileSync("npm", args, opts);
-  return execFileSync("npm", args.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)), { ...opts, shell: true });
+  return execFileSync(
+    "npm",
+    args.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)),
+    { ...opts, shell: true },
+  );
 };
 
 let server;

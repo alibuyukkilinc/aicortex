@@ -5,7 +5,7 @@ import YAML from "yaml";
 import { CortexError } from "../core/types.js";
 import { nowIso } from "../util/text.js";
 import { newToken, tokenHash } from "./crypto.js";
-import type { Role} from "./roles.js";
+import type { Role } from "./roles.js";
 import { DEFAULT_ROLE, isRoleFor } from "./roles.js";
 
 // The hub's own data: people, AI agents, projects and who may do what where. It holds password hashes and
@@ -121,13 +121,21 @@ export class HubStore {
 
   private toUser(r: Record<string, unknown>): User {
     return {
-      id: r.id as string, email: r.email as string, name: r.name as string, org_admin: r.org_admin === 1, disabled: r.disabled === 1,
-      has_password: !!r.password, created_at: r.created_at as string,
+      id: r.id as string,
+      email: r.email as string,
+      name: r.name as string,
+      org_admin: r.org_admin === 1,
+      disabled: r.disabled === 1,
+      has_password: !!r.password,
+      created_at: r.created_at as string,
     };
   }
 
   users(): User[] {
-    return this.db.prepare("SELECT * FROM users ORDER BY name COLLATE NOCASE").all().map((r) => this.toUser(r));
+    return this.db
+      .prepare("SELECT * FROM users ORDER BY name COLLATE NOCASE")
+      .all()
+      .map((r) => this.toUser(r));
   }
 
   user(id: string): User | null {
@@ -143,7 +151,13 @@ export class HubStore {
   // Handles come from the email ("ali.veli@x.com" -> "ali-veli"), unique across users and agents,
   // because they are the actor ids that appear in every project's files.
   private freeId(base: string): string {
-    const clean = base.toLowerCase().normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^[-_]+|[-_]+$/g, "").slice(0, 32) || "user";
+    const clean =
+      base
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^\w-]+/g, "-")
+        .replace(/^[-_]+|[-_]+$/g, "")
+        .slice(0, 32) || "user";
     let id = clean;
     for (let n = 2; this.idTaken(id); n++) id = `${clean}-${n}`;
     return id;
@@ -159,7 +173,9 @@ export class HubStore {
     if (!input.name?.trim()) throw new CortexError("invalid_user", "A name is required.", 400);
     if (this.userByEmail(email)) throw new CortexError("conflict", `A user with ${email} already exists.`, 409);
     const id = this.freeId(email.split("@")[0]);
-    this.db.prepare("INSERT INTO users (id, email, name, org_admin, created_at) VALUES (?, ?, ?, ?, ?)").run(id, email, input.name.trim(), input.org_admin ? 1 : 0, nowIso());
+    this.db
+      .prepare("INSERT INTO users (id, email, name, org_admin, created_at) VALUES (?, ?, ?, ?, ?)")
+      .run(id, email, input.name.trim(), input.org_admin ? 1 : 0, nowIso());
     return this.user(id)!;
   }
 
@@ -196,7 +212,8 @@ export class HubStore {
   }
 
   inviteUser(token: string): User | null {
-    const r = this.db.prepare("SELECT user_id, expires_at FROM invites WHERE token_hash = ?").get(tokenHash(token)) as { user_id: string; expires_at: string } | undefined;
+    const r = this.db.prepare("SELECT user_id, expires_at FROM invites WHERE token_hash = ?").get(tokenHash(token)) as
+      { user_id: string; expires_at: string } | undefined;
     if (!r || r.expires_at < nowIso()) return null;
     const u = this.user(r.user_id);
     return u && !u.disabled ? u : null;
@@ -209,13 +226,16 @@ export class HubStore {
   createSession(userId: string): string {
     const token = newToken("ses");
     this.db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(nowIso());
-    this.db.prepare("INSERT INTO sessions VALUES (?, ?, ?, ?)").run(tokenHash(token), userId, nowIso(), new Date(Date.now() + SESSION_DAYS * DAY).toISOString());
+    this.db
+      .prepare("INSERT INTO sessions VALUES (?, ?, ?, ?)")
+      .run(tokenHash(token), userId, nowIso(), new Date(Date.now() + SESSION_DAYS * DAY).toISOString());
     return token;
   }
 
   sessionUser(token: string | undefined): User | null {
     if (!token) return null;
-    const r = this.db.prepare("SELECT user_id, expires_at FROM sessions WHERE token_hash = ?").get(tokenHash(token)) as { user_id: string; expires_at: string } | undefined;
+    const r = this.db.prepare("SELECT user_id, expires_at FROM sessions WHERE token_hash = ?").get(tokenHash(token)) as
+      { user_id: string; expires_at: string } | undefined;
     if (!r || r.expires_at < nowIso()) return null;
     const u = this.user(r.user_id);
     return u && !u.disabled ? u : null;
@@ -228,11 +248,20 @@ export class HubStore {
   // ---- agents ---------------------------------------------------------------------------
 
   private toAgent(r: Record<string, unknown>): Agent {
-    return { id: r.id as string, name: r.name as string, disabled: r.disabled === 1, created_at: r.created_at as string, created_by: (r.created_by as string | null) ?? null };
+    return {
+      id: r.id as string,
+      name: r.name as string,
+      disabled: r.disabled === 1,
+      created_at: r.created_at as string,
+      created_by: (r.created_by as string | null) ?? null,
+    };
   }
 
   agents(): Agent[] {
-    return this.db.prepare("SELECT * FROM agents ORDER BY id").all().map((r) => this.toAgent(r));
+    return this.db
+      .prepare("SELECT * FROM agents ORDER BY id")
+      .all()
+      .map((r) => this.toAgent(r));
   }
 
   agent(id: string): Agent | null {
@@ -291,7 +320,9 @@ export class HubStore {
     if (filter.kind) (clauses.push("kind = ?"), args.push(filter.kind));
     const where = clauses.join(" AND ");
     const rows = this.db
-      .prepare(`SELECT principal, kind, project_id, COUNT(*) AS calls, SUM(bytes) AS bytes, MAX(at) AS last_at FROM usage WHERE ${where} GROUP BY principal, project_id ORDER BY bytes DESC`)
+      .prepare(
+        `SELECT principal, kind, project_id, COUNT(*) AS calls, SUM(bytes) AS bytes, MAX(at) AS last_at FROM usage WHERE ${where} GROUP BY principal, project_id ORDER BY bytes DESC`,
+      )
       .all(...args) as { principal: string; kind: string; project_id: string; calls: number; bytes: number; last_at: string }[];
     const routes = this.db
       .prepare(`SELECT principal, route, COUNT(*) AS calls, SUM(bytes) AS bytes FROM usage WHERE ${where} GROUP BY principal, route ORDER BY calls DESC`)
@@ -310,7 +341,11 @@ export class HubStore {
     return {
       since,
       // Roughly 4 characters per token, the same estimate the API uses for its budgets.
-      by_principal: rows.map((r) => ({ ...r, name: this.user(r.principal)?.name ?? this.agent(r.principal)?.name ?? r.principal, tokens: Math.round(r.bytes / 4) })),
+      by_principal: rows.map((r) => ({
+        ...r,
+        name: this.user(r.principal)?.name ?? this.agent(r.principal)?.name ?? r.principal,
+        tokens: Math.round(r.bytes / 4),
+      })),
       by_route: routes.map((r) => ({ ...r, tokens: Math.round(r.bytes / 4) })),
       daily: fillDays(since, days).map((d) => ({
         date: d.day,
@@ -350,7 +385,9 @@ export class HubStore {
   }
 
   members(projectId: string): Member[] {
-    return (this.db.prepare("SELECT * FROM members WHERE project_id = ? ORDER BY kind DESC, principal").all(projectId) as Record<string, unknown>[]).map(toMember);
+    return (this.db.prepare("SELECT * FROM members WHERE project_id = ? ORDER BY kind DESC, principal").all(projectId) as Record<string, unknown>[]).map(
+      toMember,
+    );
   }
 
   member(projectId: string, principal: string): Member | null {

@@ -63,7 +63,15 @@ export function SchemaForm({
             );
             break;
           case "number":
-            input = <input id={id} type="number" className="input" value={(v as number) ?? ""} onChange={(e) => set(name, e.target.value === "" ? "" : Number(e.target.value))} />;
+            input = (
+              <input
+                id={id}
+                type="number"
+                className="input"
+                value={(v as number) ?? ""}
+                onChange={(e) => set(name, e.target.value === "" ? "" : Number(e.target.value))}
+              />
+            );
             break;
           case "date":
             input = <input id={id} type="date" className="input" value={(v as string) ?? ""} onChange={(e) => set(name, e.target.value)} />;

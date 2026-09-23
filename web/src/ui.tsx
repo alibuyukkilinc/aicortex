@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import type { ReactNode} from "react";
+import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ApiError } from "./api";
 import { GLOSSARY, LangContext, timeAgo, useLabels, useT } from "./i18n";
@@ -60,7 +60,17 @@ const paths: Record<string, string> = {
 
 export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d={paths[name] ?? ""} />
     </svg>
   );
@@ -99,14 +109,33 @@ export function Ago({ iso }: { iso: string }) {
     const i = setInterval(() => tick((n) => n + 1), 30000);
     return () => clearInterval(i);
   }, []);
-  return <time dateTime={iso} title={new Date(iso).toLocaleString()}>{timeAgo(iso, t)}</time>;
+  return (
+    <time dateTime={iso} title={new Date(iso).toLocaleString()}>
+      {timeAgo(iso, t)}
+    </time>
+  );
 }
 
 const STATUS_TONE: Record<string, string> = {
-  open: "warn", todo: "", backlog: "", doing: "accent", in_progress: "accent", review: "accent",
-  answered: "ok", accepted: "ok", done: "ok", closed: "", resolved: "ok",
-  proposed: "warn", rejected: "danger", superseded: "", archived: "", active: "ok",
-  draft: "warn", stale: "danger", deprecated: "",
+  open: "warn",
+  todo: "",
+  backlog: "",
+  doing: "accent",
+  in_progress: "accent",
+  review: "accent",
+  answered: "ok",
+  accepted: "ok",
+  done: "ok",
+  closed: "",
+  resolved: "ok",
+  proposed: "warn",
+  rejected: "danger",
+  superseded: "",
+  archived: "",
+  active: "ok",
+  draft: "warn",
+  stale: "danger",
+  deprecated: "",
 };
 export function StatusChip({ status }: { status: string }) {
   const label = useLabels();

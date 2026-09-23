@@ -3,7 +3,7 @@ import type { Cortex } from "./cortex.js";
 import type { IndexedItem, ItemQuery, SqlFilter } from "../index/db.js";
 import { normalizePath } from "../store/tree.js";
 import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
-import type { ItemSchema, ValidationContext} from "./schema.js";
+import type { ItemSchema, ValidationContext } from "./schema.js";
 import { canTransition, describeSchema, validateFields } from "./schema.js";
 import type { Actor, Item, ItemLinks, Reply } from "./types.js";
 import { CortexError, GROUP_ASSIGNEES } from "./types.js";
@@ -13,7 +13,10 @@ const Links = z
     nodes: z.array(z.string()).max(20).optional(),
     items: z.array(z.string()).max(20).optional(),
     activity: z.array(z.string()).max(20).optional(),
-    code: z.array(z.object({ file: z.string().transform((f) => f.normalize("NFC")), lines: z.string().optional() })).max(50).optional(),
+    code: z
+      .array(z.object({ file: z.string().transform((f) => f.normalize("NFC")), lines: z.string().optional() }))
+      .max(50)
+      .optional(),
   })
   .strict();
 
@@ -125,7 +128,7 @@ export class ItemService {
 
   private checkCategory(path: string | undefined | null, schema: ItemSchema): string[] {
     if (path === undefined || path === null || path === "") {
-      return schema.category_required ? ["category_path: required for this type (a knowledge tree path, e.g. \"backend/auth\")"] : [];
+      return schema.category_required ? ['category_path: required for this type (a knowledge tree path, e.g. "backend/auth")'] : [];
     }
     return this.c.tree.exists(path) ? [] : [`category_path: no knowledge node at "${path}"`];
   }
@@ -263,7 +266,11 @@ export class ItemService {
     }
     this.save(next);
     const what = current.status !== next.status ? `${current.status} → ${next.status}` : "edited";
-    this.c.activity.system(actor.id, "item.updated", `Updated ${next.type} "${next.title}" (${what})`, [id], { type: next.type, from: current.status, to: next.status });
+    this.c.activity.system(actor.id, "item.updated", `Updated ${next.type} "${next.title}" (${what})`, [id], {
+      type: next.type,
+      from: current.status,
+      to: next.status,
+    });
     return { applied: true, id, status: next.status, message: `${next.type} updated.` };
   }
 
@@ -296,7 +303,13 @@ export class ItemService {
     this.c.itemStore.addReply(reply);
     const next: Item = { ...item, status: to ?? item.status, updated_at: reply.created_at, updated_by: actor.id };
     this.save(next);
-    this.c.activity.system(actor.id, "item.replied", `Replied on ${item.type} "${item.title}"${reply.status_change ? ` (${reply.status_change.from} → ${reply.status_change.to})` : ""}`, [id], { type: item.type, ...(reply.status_change ?? {}) });
+    this.c.activity.system(
+      actor.id,
+      "item.replied",
+      `Replied on ${item.type} "${item.title}"${reply.status_change ? ` (${reply.status_change.from} → ${reply.status_change.to})` : ""}`,
+      [id],
+      { type: item.type, ...(reply.status_change ?? {}) },
+    );
     return { applied: true, id, reply_id: reply.id, status: next.status, message: "Reply added." };
   }
 
@@ -354,10 +367,7 @@ export class ItemService {
   }
 
   // Ask about anything (an activity, an item or a knowledge node). The question goes to whoever made it.
-  ask(
-    actor: Actor,
-    input: { about: string; title: string; body?: string; assignee?: string; blocking?: boolean },
-  ): ItemWriteResult {
+  ask(actor: Actor, input: { about: string; title: string; body?: string; assignee?: string; blocking?: boolean }): ItemWriteResult {
     const about = input.about.trim();
     const links: ItemLinks = {};
     let owner: string | undefined;
@@ -406,7 +416,13 @@ export class ItemService {
   applyDraft(item: Item): void {
     const existed = this.c.itemStore.exists(item.id);
     this.save(item);
-    this.c.activity.system(item.updated_by, existed ? "item.updated" : "item.created", `${existed ? "Updated" : "Created"} ${item.type} "${item.title}" (approved draft)`, [item.id], { type: item.type, to: item.status });
+    this.c.activity.system(
+      item.updated_by,
+      existed ? "item.updated" : "item.created",
+      `${existed ? "Updated" : "Created"} ${item.type} "${item.title}" (approved draft)`,
+      [item.id],
+      { type: item.type, to: item.status },
+    );
   }
 
   // ---- reads --------------------------------------------------------------
@@ -507,4 +523,3 @@ function compact(i: IndexedItem) {
     updated_at: i.updated_at,
   };
 }
-

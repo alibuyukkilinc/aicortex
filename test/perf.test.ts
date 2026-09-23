@@ -26,7 +26,10 @@ test("a full reindex lists the items folder once, not once per item", () => {
 test("staleness asks git once per HEAD: /brief, /stale and recomputes after writes reuse the answers", () => {
   const p = gitProject();
   try {
-    for (const [path, file] of [["backend/auth", "src/auth/token.ts"], ["backend/pay", "src/pay/iyzico.ts"]]) {
+    for (const [path, file] of [
+      ["backend/auth", "src/auth/token.ts"],
+      ["backend/pay", "src/pay/iyzico.ts"],
+    ]) {
       p.cortex.putNode(p.human, { path, title: path, summary: "x", links: { code: [{ file }] } });
     }
     p.write("src/auth/token.ts", "export const ttl = 30;\n");

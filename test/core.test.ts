@@ -26,7 +26,10 @@ test("init creates the layout, default branches and git-ignored secrets", () => 
       assert.ok(existsSync(join(dir, p)), `missing ${p}`);
     }
     assert.match(readFileSync(join(dir, ".gitignore"), "utf8"), /\.secrets\.yaml/);
-    assert.equal(code(() => initProject(t.root)), "already_initialized");
+    assert.equal(
+      code(() => initProject(t.root)),
+      "already_initialized",
+    );
   } finally {
     t.cleanup();
   }
@@ -75,10 +78,16 @@ test("AI writes become drafts that only humans can approve", () => {
     const r = t.cortex.putNode(t.ai, { path: "backend/payments", title: "Payments", summary: "Stripe checkout.", reason: "found in code" });
     assert.equal(r.applied, false);
     assert.ok(r.draft_id);
-    assert.equal(code(() => t.cortex.node("backend/payments")), "not_found");
+    assert.equal(
+      code(() => t.cortex.node("backend/payments")),
+      "not_found",
+    );
     assert.equal(t.cortex.brief(t.ai).attention.pending_approvals.count, 1);
 
-    assert.equal(code(() => t.cortex.approve(t.ai, r.draft_id!)), "forbidden");
+    assert.equal(
+      code(() => t.cortex.approve(t.ai, r.draft_id!)),
+      "forbidden",
+    );
     t.cortex.approve(t.human, r.draft_id!);
     const n = t.cortex.node("backend/payments");
     assert.equal(n.status, "active");
@@ -94,7 +103,10 @@ test("approving a draft over a node that changed meanwhile needs force", () => {
   try {
     const d = t.cortex.putNode(t.ai, { path: "backend", title: "Backend", summary: "AI version." });
     t.cortex.putNode(t.human, { path: "backend", title: "Backend", summary: "Human edited in the meantime." });
-    assert.equal(code(() => t.cortex.approve(t.human, d.draft_id!)), "conflict");
+    assert.equal(
+      code(() => t.cortex.approve(t.human, d.draft_id!)),
+      "conflict",
+    );
     t.cortex.approve(t.human, d.draft_id!, true);
     assert.equal(t.cortex.node("backend").summary, "AI version.");
   } finally {
@@ -115,10 +127,22 @@ test("invalid writes explain the rule and show an example", () => {
       assert.ok(hint.issues.some((i) => i.startsWith("summary")));
       assert.ok(hint.example);
     }
-    assert.equal(code(() => t.cortex.putNode(t.human, { path: "nope/child", title: "a", summary: "b" })), "parent_missing");
-    assert.equal(code(() => t.cortex.putNode(t.ai, { path: "nope/child", title: "a", summary: "b" })), "parent_missing");
-    assert.equal(code(() => t.cortex.node("../../etc/passwd")), "invalid_path");
-    assert.equal(code(() => t.cortex.putNode(t.human, { path: "Backend/..", title: "a", summary: "b" })), "invalid_path");
+    assert.equal(
+      code(() => t.cortex.putNode(t.human, { path: "nope/child", title: "a", summary: "b" })),
+      "parent_missing",
+    );
+    assert.equal(
+      code(() => t.cortex.putNode(t.ai, { path: "nope/child", title: "a", summary: "b" })),
+      "parent_missing",
+    );
+    assert.equal(
+      code(() => t.cortex.node("../../etc/passwd")),
+      "invalid_path",
+    );
+    assert.equal(
+      code(() => t.cortex.putNode(t.human, { path: "Backend/..", title: "a", summary: "b" })),
+      "invalid_path",
+    );
   } finally {
     t.cleanup();
   }
@@ -135,7 +159,10 @@ test("search folds Turkish characters and ranks titles first", async () => {
     assert.equal((await t.cortex.search("sifre")).results[0]?.path, "backend/auth");
     assert.equal((await t.cortex.search("guvenlik")).results[0]?.path, "backend/auth");
     assert.equal((await t.cortex.search("login")).results[0]?.path, "frontend/login-page");
-    assert.deepEqual((await t.cortex.search("auth", { under: "frontend" })).results.map((r) => r.path), ["frontend/login-page"]);
+    assert.deepEqual(
+      (await t.cortex.search("auth", { under: "frontend" })).results.map((r) => r.path),
+      ["frontend/login-page"],
+    );
     // Falls back to OR when no node has every term.
     assert.ok((await t.cortex.search("kullanici xyzzy")).results.length > 0);
     assert.equal("body" in (await t.cortex.search("login")).results[0], false);
@@ -188,7 +215,11 @@ test("brief fits its token budget: summaries shrink, branches and rules stay", a
   try {
     // A project like a real one: many branches with full-length summaries.
     for (let i = 0; i < 12; i++) {
-      t.cortex.putNode(t.human, { path: `branch-${i}`, title: `Branch ${i}`, summary: `${"Bu dal projenin bir parçasını anlatır ve özeti uzundur. ".repeat(5)}`.slice(0, 300) });
+      t.cortex.putNode(t.human, {
+        path: `branch-${i}`,
+        title: `Branch ${i}`,
+        summary: `${"Bu dal projenin bir parçasını anlatır ve özeti uzundur. ".repeat(5)}`.slice(0, 300),
+      });
       t.cortex.items.create(t.human, { type: "question", title: `Soru ${i}`, assignee: "@ai", fields: { blocking: true } });
     }
     const brief = t.cortex.brief(t.ai);
@@ -202,7 +233,10 @@ test("brief fits its token budget: summaries shrink, branches and rules stay", a
     // A caller that can afford more gets more.
     const big = t.cortex.brief(t.ai, 4000);
     assert.ok(estimateTokens(big) > size);
-    assert.ok(big.branches.every((b) => !b.summary.endsWith("…")), "with room, summaries are complete");
+    assert.ok(
+      big.branches.every((b) => !b.summary.endsWith("…")),
+      "with room, summaries are complete",
+    );
   } finally {
     t.cleanup();
   }

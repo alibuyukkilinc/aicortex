@@ -6,7 +6,7 @@ import type { FastifyInstance } from "fastify";
 import Fastify from "fastify";
 import type { Cortex } from "../core/cortex.js";
 import { loadTokens } from "../core/project.js";
-import type { Actor} from "../core/types.js";
+import type { Actor } from "../core/types.js";
 import { CortexError } from "../core/types.js";
 import { CSRF_HEADER, SESSION_COOKIE, verifyLoginCode } from "./auth.js";
 import { projectRoutes } from "./routes.js";
@@ -40,7 +40,9 @@ export const page = (title: string, body: string) =>
 export function setErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof CortexError) {
-      return reply.code(err.status).send({ error: { code: err.code, message: err.message, hint: err.hint }, ...(req.cortex ? { _meta: req.cortex.meta() } : {}) });
+      return reply
+        .code(err.status)
+        .send({ error: { code: err.code, message: err.message, hint: err.hint }, ...(req.cortex ? { _meta: req.cortex.meta() } : {}) });
     }
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     return reply.code(status).send({ error: { code: status === 500 ? "internal" : "bad_request", message: (err as Error).message } });
@@ -102,7 +104,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
     let actor = bearer ? cortex.actorByToken(bearer) : null;
     if (fromCookie) {
       const id = sessions.resolve(fromCookie);
-      actor = id ? cortex.project.config.actors.find((a) => a.id === id && a.kind === "human") ?? null : null;
+      actor = id ? (cortex.project.config.actors.find((a) => a.id === id && a.kind === "human") ?? null) : null;
       if (!actor) {
         // Boards logged in before sessions existed carry the raw API token as their cookie. Accept it this
         // once and swap it for a session, so nobody is logged out by the upgrade. (Remove after 0.2.x.)

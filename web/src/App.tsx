@@ -1,9 +1,9 @@
-import type { FormEvent} from "react";
+import type { FormEvent } from "react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { ApiError} from "./api";
+import type { ApiError } from "./api";
 import { LiveContext, api, apiPath, currentProject, useApi } from "./api";
 import { AdminPage, HubFrame, HubHome, HubLogin, InvitePage, MembersPage, ProjectSwitcher, UserMenu, useHubMe } from "./hub";
-import type { Key, Lang} from "./i18n";
+import type { Key, Lang } from "./i18n";
 import { LangContext, initialLang, timeAgo, useT } from "./i18n";
 import { AskDialog, ItemDrawer } from "./items";
 import { Activity } from "./pages/Activity";
@@ -116,7 +116,9 @@ function LoginScreen() {
         </div>
         <h1 style={{ marginBottom: 8 }}>{t("login.title")}</h1>
         <p className="muted">{t("login.body")}</p>
-        <pre className="card" style={{ padding: "10px 12px", margin: "12px 0" }}>npx aicortex login</pre>
+        <pre className="card" style={{ padding: "10px 12px", margin: "12px 0" }}>
+          npx aicortex login
+        </pre>
         <p className="muted">{t("login.after")}</p>
       </div>
     </div>
@@ -323,23 +325,22 @@ function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
       {NAV.filter((n) => n.route !== "reports" || !me.restricted)
         .concat(hubMe ? [{ key: "nav.members", route: "members", icon: "user" }] : [])
         .map((n) => (
-        <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`}>
-          <Icon name={n.icon} />
-          {t(n.key)}
-          {counts[n.route] ? <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`}>{counts[n.route]}</span> : null}
-        </a>
-      ))}
+          <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`}>
+            <Icon name={n.icon} />
+            {t(n.key)}
+            {counts[n.route] ? <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`}>{counts[n.route]}</span> : null}
+          </a>
+        ))}
       {!hubMe && (
-      <div className="sidebar-foot">
-        <button className="btn ghost sm" onClick={() => setLang(lang === "tr" ? "en" : "tr")}>
-          <Icon name="globe" size={14} /> {t("lang.toggle")}
-        </button>
-        <button className="btn ghost sm" onClick={() => void logout()}>
-          <Icon name="logout" size={14} /> {t("logout")}
-        </button>
-      </div>
+        <div className="sidebar-foot">
+          <button className="btn ghost sm" onClick={() => setLang(lang === "tr" ? "en" : "tr")}>
+            <Icon name="globe" size={14} /> {t("lang.toggle")}
+          </button>
+          <button className="btn ghost sm" onClick={() => void logout()}>
+            <Icon name="logout" size={14} /> {t("logout")}
+          </button>
+        </div>
       )}
     </nav>
   );
 }
-

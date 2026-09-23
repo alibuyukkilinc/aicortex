@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api, useApi } from "../api";
-import type { Key} from "../i18n";
+import type { Key } from "../i18n";
 import { useT } from "../i18n";
 import type { Severity, StaleInfo } from "../types";
 import { ErrorBox, Loading, go, useSession, useToast } from "../ui";

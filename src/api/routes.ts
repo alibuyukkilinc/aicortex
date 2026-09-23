@@ -5,7 +5,7 @@ import type { Activity, NodeSummary } from "../core/types.js";
 import { CortexError } from "../core/types.js";
 import { actionable } from "../core/staleness.js";
 import type { DocKind } from "../index/db.js";
-import type { Access, ItemRef} from "./access.js";
+import type { Access, ItemRef } from "./access.js";
 import { hidden, need } from "./access.js";
 
 declare module "fastify" {
@@ -18,12 +18,21 @@ declare module "fastify" {
 type Q = Record<string, string | undefined>;
 const num = (v: string | undefined) => (v === undefined || v === "" ? undefined : Number(v));
 const bool = (v: string | undefined) => (v === "true" ? true : v === "false" ? false : undefined);
-const list = (v: string | undefined) => (v ? v.split(",").map((x) => x.trim()).filter(Boolean) : undefined);
+const list = (v: string | undefined) =>
+  v
+    ? v
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean)
+    : undefined;
 
 // Every response carries _meta so AIs notice rule changes without re-reading the rules.
 const ok = (req: FastifyRequest, data: object) => ({ ...data, _meta: req.cortex.meta() });
 
-const itemOf = (c: Cortex) => (id: string): ItemRef | null => c.index.getItem(id);
+const itemOf =
+  (c: Cortex) =>
+  (id: string): ItemRef | null =>
+    c.index.getItem(id);
 
 // Visibility helpers: with no access object (single-project mode) everything is visible.
 const seesNode = (req: FastifyRequest, path: string) => !req.access || req.access.seesNode(path);
@@ -64,7 +73,10 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     const sseLimit = sseLimitOf();
     const open = streams.get(c) ?? 0;
     if (open >= sseLimit) {
-      return reply.code(503).header("retry-after", "30").send({ error: { code: "too_many_streams", message: `At most ${sseLimit} live connections per project. Retry shortly.` } });
+      return reply
+        .code(503)
+        .header("retry-after", "30")
+        .send({ error: { code: "too_many_streams", message: `At most ${sseLimit} live connections per project. Retry shortly.` } });
     }
     streams.set(c, open + 1);
     // Our own listeners count too; without this Node warns about a "leak" at the 11th open board.
@@ -337,7 +349,11 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     const b = (req.body ?? {}) as { about?: string; title?: string; body?: string; assignee?: string; blocking?: boolean };
     if (!b.about || !b.title) {
       throw new CortexError("invalid_request", "Send { about, title }.", 400, {
-        example: { about: "01J9Z... (activity id) | 01J9Y... (item id) | backend/auth (node path)", title: "Why did you disable the cache here?", blocking: false },
+        example: {
+          about: "01J9Z... (activity id) | 01J9Y... (item id) | backend/auth (node path)",
+          title: "Why did you disable the cache here?",
+          blocking: false,
+        },
       });
     }
     const r = req.cortex.items.ask(req.actor, { about: b.about, title: b.title, body: b.body, assignee: b.assignee, blocking: b.blocking });
@@ -363,5 +379,14 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
 }
 
 export const PERMS = [
-  "read", "ask", "write_items", "write_knowledge", "delete_knowledge", "approve", "edit_rules", "manage_members", "reports", "log_activity",
+  "read",
+  "ask",
+  "write_items",
+  "write_knowledge",
+  "delete_knowledge",
+  "approve",
+  "edit_rules",
+  "manage_members",
+  "reports",
+  "log_activity",
 ] as const;

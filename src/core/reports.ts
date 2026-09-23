@@ -136,8 +136,17 @@ export class ReportService {
           if (terminal(type, to)) {
             closed[type] = (closed[type] ?? 0) + 1;
             if (type === "issue" && item) {
-              const resolution = this.c.itemStore.replies(item.id).reverse().find((r) => r.fields?.resolution)?.fields?.resolution as string | undefined;
-              closedIssues.push({ id: item.id, title: item.title, days_open: Math.round((Date.parse(e.at) - Date.parse(item.created_at)) / DAY * 10) / 10, by: e.actor, ...(resolution ? { resolution } : {}) });
+              const resolution = this.c.itemStore
+                .replies(item.id)
+                .reverse()
+                .find((r) => r.fields?.resolution)?.fields?.resolution as string | undefined;
+              closedIssues.push({
+                id: item.id,
+                title: item.title,
+                days_open: Math.round(((Date.parse(e.at) - Date.parse(item.created_at)) / DAY) * 10) / 10,
+                by: e.actor,
+                ...(resolution ? { resolution } : {}),
+              });
             }
           }
           if (type === "decision" && (to === "accepted" || to === "rejected") && item) {
@@ -214,7 +223,15 @@ export class ReportService {
       .filter((e) => !e.system && kindOf(e.actor) === "ai")
       .reverse()
       .slice(0, LIST)
-      .map((e) => ({ id: e.id, at: e.at, actor: e.actor, action: e.action, summary: e.summary, ...(e.why ? { why: e.why } : {}), ...(e.files?.length ? { files: e.files } : {}) }));
+      .map((e) => ({
+        id: e.id,
+        at: e.at,
+        actor: e.actor,
+        action: e.action,
+        summary: e.summary,
+        ...(e.why ? { why: e.why } : {}),
+        ...(e.files?.length ? { files: e.files } : {}),
+      }));
     const aiWithoutWhy = events.filter((e) => !e.system && kindOf(e.actor) === "ai" && !e.why).length;
 
     const actorRows = [...actors.values()]

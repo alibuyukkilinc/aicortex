@@ -95,7 +95,10 @@ export class FakeEmbedder implements Embedder {
     const HASHED = 64;
     return texts.map((text) => {
       const v = new Float32Array(CONCEPTS.length + HASHED);
-      const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+      const words = text
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean);
       for (const w of words) {
         const concept = CONCEPTS.findIndex((c) => c.some((x) => w.startsWith(x)));
         if (concept >= 0) v[concept] += 1;
