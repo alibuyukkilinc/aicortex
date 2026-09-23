@@ -126,10 +126,12 @@ export class StalenessService {
     return this.evaluate(commit, changed, links, caches);
   }
 
-  refresh(force = false): void {
+  // `force` recomputes even at the same HEAD. `checkHead` skips the throttle but recomputes only if HEAD
+  // moved: for callers that just saw a commit happen (an AI logging its change right after committing).
+  refresh(force = false, checkHead = false): void {
     if (!this.git.available()) return;
     const now = Date.now();
-    if (!force && !this.dirty && now - this.checkedAt < THROTTLE_MS) return;
+    if (!force && !checkHead && !this.dirty && now - this.checkedAt < THROTTLE_MS) return;
     this.checkedAt = now;
     const head = this.git.head();
     if (!force && !this.dirty && head === this.head) return;

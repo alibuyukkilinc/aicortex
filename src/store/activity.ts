@@ -3,7 +3,9 @@ import { join } from "node:path";
 import type { Activity } from "../core/types.js";
 
 // Append-only log, one file per actor per day: activity/2026-09-22/claude-code.jsonl
-// Different actors never touch the same file, so parallel work merges cleanly in git.
+// Different actors never touch the same file. The same actor on two machines does (one AI id on two
+// laptops), so .cortex/.gitattributes merges these files by union: every line is an independent entry
+// with a unique id, and readers sort by id, so keeping both sides' lines is the correct merge.
 export class ActivityStore {
   constructor(private root: string) {}
 

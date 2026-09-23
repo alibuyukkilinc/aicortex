@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
 import type { CortexConfig } from "./types.js";
@@ -38,12 +38,33 @@ export function findProjectRoot(start = process.cwd()): string | null {
   }
 }
 
+// Same bytes on every OS, so diffs do not flip with core.autocrlf. And the activity log merges by
+// union: two machines appending to the same actor's file on the same day (the same AI actor on two
+// laptops, or one person on two) would otherwise conflict on every pull. Its lines are independent
+// entries with unique ids, and the index sorts them, so keeping both sides' lines is the right merge.
+export const MERGE_RULE = "activity/**/*.jsonl merge=union";
+export const GITATTRIBUTES = `* text=auto eol=lf\n${MERGE_RULE}\n`;
+
+// Projects created before the merge rule get it added once. It is Cortex's own file in its own folder;
+// without it, the first parallel day ends in a conflict nobody can resolve by hand without tooling.
+function ensureMergeRule(dir: string): void {
+  const file = join(dir, ".gitattributes");
+  try {
+    const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+    if (text.split(/\r?\n/).includes(MERGE_RULE)) return;
+    writeFileSync(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${MERGE_RULE}\n`, "utf8");
+  } catch {
+    // read-only checkout: merges there are someone else's concern
+  }
+}
+
 export function loadProject(start?: string): Project {
   const root = findProjectRoot(start);
   if (!root) {
     throw new CortexError("not_initialized", "No .cortex folder found. Run `npx aicortex init` first.", 404);
   }
   const dir = join(root, CORTEX_DIR);
+  ensureMergeRule(dir);
   const config = YAML.parse(readFileSync(paths(dir).config, "utf8")) as CortexConfig;
   config.port ??= 4747;
   config.actors ??= [];

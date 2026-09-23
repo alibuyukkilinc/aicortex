@@ -56,6 +56,8 @@ export class ActivityService {
     this.c.index.addActivity(entry);
     this.c.events.emit("change", { type: "activity", entry });
     // Close the loop: knowledge describing the files you just changed may now be wrong.
+    // Usually logged seconds after the commit: look at HEAD now, not at what the throttle last saw.
+    if (entry.files?.length) this.c.staleness.refresh(false, true);
     const related = entry.files?.length ? this.c.codeContext(entry.files).knowledge : [];
     const rows = related.map((n) => {
       const s = this.c.staleness.get(n.path as string);

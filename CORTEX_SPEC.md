@@ -312,8 +312,8 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (
 - [x] `review` türündeki AI yazımları onaysız aktif olmuyorsa
 - [x] Bağlı dosya değiştiğinde düğüm `stale` işaretleniyorsa — *gerçek git deposunda gerçek commit'lerle test ediliyor*
 - [x] `.index/` silinip `reindex` çalıştırıldığında hiçbir veri kaybolmuyorsa
-- [ ] Claude Code MCP üzerinden, Bölüm 14'teki protokolü baştan sona uygulayabiliyorsa — *Cortex kendi reposunda bu protokolle geliştiriliyor; otomatik test yok*
-- [ ] İki geliştirici `.cortex/` üzerinde paralel çalışıp git merge yaptığında veri bozulmuyorsa — *dosya düzeni buna göre tasarlandı (kayıt başına dosya, aktör başına günlük); otomatik test yok*
+- [x] Claude Code MCP üzerinden, Bölüm 14'teki protokolü baştan sona uygulayabiliyorsa — *`test/protocol.test.ts`: yalnızca MCP araçlarıyla brief → gelen kutusu → arama → kod bağlamı → değişiklik → aktivite → güncelle/doğrula → onay, gerçek git deposunda*
+- [x] İki geliştirici `.cortex/` üzerinde paralel çalışıp git merge yaptığında veri bozulmuyorsa — *`test/parallel-merge.test.ts`: iki klon aynı gün, aynı aktörlerle yazıyor, `git merge` çakışmasız, yeniden kurulan indeks iki tarafı da içeriyor. Test ilk yazıldığında kırmızıydı: aynı aktörün aynı günkü günlüğü add/add çakışması veriyordu; `.cortex/.gitattributes`'a `activity/**/*.jsonl merge=union` eklendi*
 
 ## 19. Açık sorular
 
