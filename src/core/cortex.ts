@@ -3,7 +3,7 @@ import { FSWatcher, existsSync, readFileSync, readdirSync, watch, writeFileSync 
 import { join } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
-import { DocKind, Index, IndexedNode } from "../index/db.js";
+import { DocKind, Index, IndexedNode, ItemFlags } from "../index/db.js";
 import { ActivityStore } from "../store/activity.js";
 import { DraftStore } from "../store/drafts.js";
 import { ItemStore } from "../store/items.js";
@@ -18,7 +18,7 @@ import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
 import { SyncService, SyncStats } from "./sync.js";
 import { Project, loadTokens, paths, rulesVersion } from "./project.js";
-import { DEFAULT_SCHEMAS, ItemSchema, describeSchema, loadActivitySchema, loadSchema } from "./schema.js";
+import { DEFAULT_SCHEMAS, ItemSchema, describeSchema, isOpenWork, loadActivitySchema, loadSchema } from "./schema.js";
 import { Actor, CortexError, Draft, KnowledgeNode, NodeSummary } from "./types.js";
 import { LANG_CODE, languageRule } from "./language.js";
 
@@ -201,12 +201,18 @@ export class Cortex {
     const items = this.itemStore.allIds().flatMap((id) => {
       const item = this.itemStore.read(id);
       if (!item) return [];
-      return [{ item, replies: this.itemStore.replies(id), terminal: schemaOf(item.type)?.terminal.includes(item.status) ?? false }];
+      return [{ item, replies: this.itemStore.replies(id), flags: this.itemFlags(item.type, item.status, schemaOf(item.type)) }];
     });
     const activity = this.activityStore.all();
     this.index.reindex({ nodes, items, activity, drafts: this.drafts.list() });
     this.events.emit("change", { type: "reindex" });
     return { nodes: nodes.length, items: items.length, activity: activity.length };
+  }
+
+  // Single source for "is this finished / is it still waiting", used by reindex, the item service and sync.
+  itemFlags(type: string, status: string, schema = this.schema(type)): ItemFlags {
+    if (!schema) return { terminal: false, open: true };
+    return { terminal: schema.terminal.includes(status), open: isOpenWork(schema, status) };
   }
 
   meta() {
@@ -391,7 +397,7 @@ export class Cortex {
     // Open items and decisions filed under the matched knowledge also concern these files.
     for (const path of nodes.keys()) {
       for (const i of this.index.queryItems({ under: path, limit: 20, offset: 0 }).items) {
-        if (!items.has(i.id) && (!i.terminal || i.type === "decision")) items.set(i.id, { id: i.id, type: i.type, title: i.title, status: i.status, via: path });
+        if (!items.has(i.id) && (i.open || i.type === "decision")) items.set(i.id, { id: i.id, type: i.type, title: i.title, status: i.status, via: path });
       }
     }
     return {
@@ -817,7 +823,7 @@ export function validateRulesDoc(name: string, doc: unknown): string[] {
   if (!statuses.length) issues.push("statuses: must be a non-empty list of strings");
   const inStatuses = (s: unknown) => typeof s === "string" && statuses.includes(s);
   if (!inStatuses(d.initial)) issues.push("initial: must be one of statuses");
-  for (const key of ["terminal", "human_only_statuses"]) {
+  for (const key of ["terminal", "resolved", "human_only_statuses"]) {
     if (d[key] !== undefined && !(isStrList(d[key]) && (d[key] as string[]).every(inStatuses))) issues.push(`${key}: must list statuses`);
   }
   if (d.transitions !== undefined && d.transitions !== "any") {

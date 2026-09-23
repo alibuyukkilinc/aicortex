@@ -156,10 +156,6 @@ export class ItemService {
     }
   }
 
-  private isTerminal(item: { type: string; status: string }): boolean {
-    return this.c.schema(item.type)?.terminal.includes(item.status) ?? false;
-  }
-
   private policyGate(actor: Actor, type: string): "direct" | "draft" {
     const policy = actor.policy?.[type] ?? this.c.project.config.approval[type] ?? "auto";
     if (actor.kind !== "ai" || policy === "auto") return "direct";
@@ -402,7 +398,7 @@ export class ItemService {
 
   private save(item: Item): void {
     this.c.itemStore.write(item);
-    this.c.index.upsertItem(item, this.c.itemStore.replies(item.id), this.isTerminal(item));
+    this.c.index.upsertItem(item, this.c.itemStore.replies(item.id), this.c.itemFlags(item.type, item.status));
   }
 
   applyDraft(item: Item): void {

@@ -17,12 +17,19 @@ export interface IndexedNode {
   updated_by: string;
 }
 
+// Both come from the rules, not from the item file: a rules edit changes them without any file changing.
+export interface ItemFlags {
+  terminal: boolean;
+  open: boolean;
+}
+
 export interface IndexedItem {
   id: string;
   type: string;
   title: string;
   status: string;
-  terminal: boolean;
+  terminal: boolean; // no transition leads out of this status
+  open: boolean; // still waiting for someone (see isOpenWork)
   category_path: string | null;
   author: string;
   assignee: string | null;
@@ -84,7 +91,7 @@ const STOPWORDS = new Set(
 );
 
 // Bump when the table layout changes; an old cache is simply dropped and rebuilt from files.
-const INDEX_VERSION = 5;
+const INDEX_VERSION = 6;
 
 // The index is a disposable cache: everything here can be rebuilt from the files with reindex().
 export class Index {
@@ -115,12 +122,12 @@ export class Index {
       CREATE INDEX IF NOT EXISTS nodes_parent ON nodes(parent);
       CREATE TABLE IF NOT EXISTS items (
         id TEXT PRIMARY KEY, type TEXT NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL,
-        terminal INTEGER NOT NULL, category_path TEXT, author TEXT NOT NULL, assignee TEXT,
+        terminal INTEGER NOT NULL, open_work INTEGER NOT NULL, category_path TEXT, author TEXT NOT NULL, assignee TEXT,
         claimed_by TEXT, claimed_at TEXT,
         blocking INTEGER NOT NULL, created_at TEXT, updated_at TEXT,
         reply_count INTEGER NOT NULL, last_reply_by TEXT
       );
-      CREATE INDEX IF NOT EXISTS items_assignee ON items(assignee, terminal);
+      CREATE INDEX IF NOT EXISTS items_assignee ON items(assignee, open_work);
       CREATE INDEX IF NOT EXISTS items_category ON items(category_path);
       CREATE TABLE IF NOT EXISTS activity (
         id TEXT PRIMARY KEY, at TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL,
@@ -165,14 +172,14 @@ export class Index {
 
   reindex(data: {
     nodes: KnowledgeNode[];
-    items: { item: Item; replies: Reply[]; terminal: boolean }[];
+    items: { item: Item; replies: Reply[]; flags: ItemFlags }[];
     activity: Activity[];
     drafts?: Draft[];
   }): void {
     this.tx(() => {
       this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text; DELETE FROM code_links;");
       for (const n of data.nodes) this.insertNode(n);
-      for (const i of data.items) this.insertItem(i.item, i.replies, i.terminal);
+      for (const i of data.items) this.insertItem(i.item, i.replies, i.flags);
       for (const a of data.activity) this.insertActivity(a);
       for (const d of data.drafts ?? []) this.insertDraft(d);
     });
@@ -244,30 +251,30 @@ export class Index {
   openItemsUnder(path: string): number {
     const sql =
       path === ""
-        ? "SELECT COUNT(*) AS c FROM items WHERE terminal = 0"
-        : "SELECT COUNT(*) AS c FROM items WHERE terminal = 0 AND (category_path = ? OR category_path LIKE ?)";
+        ? "SELECT COUNT(*) AS c FROM items WHERE open_work = 1"
+        : "SELECT COUNT(*) AS c FROM items WHERE open_work = 1 AND (category_path = ? OR category_path LIKE ?)";
     const args = path === "" ? [] : [path, `${path}/%`];
     return (this.db.prepare(sql).get(...args) as { c: number }).c;
   }
 
   // ---- items --------------------------------------------------------------
 
-  upsertItem(item: Item, replies: Reply[], terminal: boolean): void {
+  upsertItem(item: Item, replies: Reply[], flags: ItemFlags): void {
     this.tx(() => {
       this.db.prepare("DELETE FROM items WHERE id = ?").run(item.id);
       this.db.prepare("DELETE FROM code_links WHERE kind = 'item' AND ref = ?").run(item.id);
       this.deleteDoc("item", item.id);
-      this.insertItem(item, replies, terminal);
+      this.insertItem(item, replies, flags);
     });
   }
 
-  private insertItem(i: Item, replies: Reply[], terminal: boolean): void {
+  private insertItem(i: Item, replies: Reply[], flags: ItemFlags): void {
     this.insertCodeLinks("item", i.id, i.links?.code);
     const last = replies[replies.length - 1];
     this.db
-      .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(
-        i.id, i.type, i.title, i.status, terminal ? 1 : 0, i.category_path ?? null, i.author, i.assignee ?? null,
+        i.id, i.type, i.title, i.status, flags.terminal ? 1 : 0, flags.open ? 1 : 0, i.category_path ?? null, i.author, i.assignee ?? null,
         i.claimed_by ?? null, i.claimed_at ?? null,
         i.fields?.blocking === true ? 1 : 0, i.created_at, i.updated_at, replies.length, last?.author ?? null,
       );
@@ -286,14 +293,17 @@ export class Index {
 
   // Whether a status counts as finished comes from the rules, not from the item file, so a rules
   // edit changes it without any file changing. Recomputing the flag beats re-reading every item.
-  retermItems(isTerminal: (type: string, status: string) => boolean): number {
+  retermItems(flagsOf: (type: string, status: string) => ItemFlags): number {
     const pairs = this.db.prepare("SELECT DISTINCT type, status FROM items").all() as { type: string; status: string }[];
     let changed = 0;
     this.tx(() => {
-      const stmt = this.db.prepare("UPDATE items SET terminal = ? WHERE type = ? AND status = ? AND terminal != ?");
+      const stmt = this.db.prepare(
+        "UPDATE items SET terminal = ?, open_work = ? WHERE type = ? AND status = ? AND (terminal != ? OR open_work != ?)",
+      );
       for (const p of pairs) {
-        const t = isTerminal(p.type, p.status) ? 1 : 0;
-        changed += stmt.run(t, p.type, p.status, t).changes as number;
+        const f = flagsOf(p.type, p.status);
+        const [t, o] = [f.terminal ? 1 : 0, f.open ? 1 : 0];
+        changed += stmt.run(t, o, p.type, p.status, t, o).changes as number;
       }
     });
     return changed;
@@ -310,7 +320,7 @@ export class Index {
     if (q.type) (where.push("type = ?"), args.push(q.type));
     if (q.status) (where.push("status = ?"), args.push(q.status));
     if (q.author) (where.push("author = ?"), args.push(q.author));
-    if (q.open !== undefined) (where.push("terminal = ?"), args.push(q.open ? 0 : 1));
+    if (q.open !== undefined) (where.push("open_work = ?"), args.push(q.open ? 1 : 0));
     if (q.assignee?.length) (where.push(`assignee IN (${q.assignee.map(() => "?").join(",")})`), args.push(...q.assignee));
     if (q.under) (where.push("(category_path = ? OR category_path LIKE ?)"), args.push(q.under, `${q.under}/%`));
     const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -498,6 +508,7 @@ function toItem(r: Record<string, unknown>): IndexedItem {
     title: r.title as string,
     status: r.status as string,
     terminal: r.terminal === 1,
+    open: r.open_work === 1,
     category_path: (r.category_path as string | null) ?? null,
     author: r.author as string,
     assignee: (r.assignee as string | null) ?? null,

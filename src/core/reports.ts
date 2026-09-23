@@ -76,7 +76,8 @@ export class ReportService {
       return item ? [item] : [];
     });
     const byId = new Map(items.map((i) => [i.id, i]));
-    const terminal = (type: string, status: string) => this.c.schema(type)?.terminal.includes(status) ?? false;
+    const terminal = (type: string, status: string) => this.c.itemFlags(type, status).terminal;
+    const openWork = (type: string, status: string) => this.c.itemFlags(type, status).open;
 
     // ---- daily volume, by who did it --------------------------------------------
     const daily = new Map<string, { date: string; ai: number; human: number }>();
@@ -174,7 +175,7 @@ export class ReportService {
     }
 
     // ---- what is waiting right now ----------------------------------------------------
-    const openIssues = items.filter((i) => i.type === "issue" && !terminal(i.type, i.status));
+    const openIssues = items.filter((i) => i.type === "issue" && openWork(i.type, i.status));
     const aging = AGING_BUCKETS.map(([bucket, lo, hi]) => {
       const inBucket = openIssues.filter((i) => {
         const age = (Date.now() - Date.parse(i.created_at)) / DAY;

@@ -120,7 +120,7 @@ export class SyncService {
         stats.errors.push({ target: JSON.stringify(t), error });
       }
     }
-    if (rules) stats.reterm = this.c.index.retermItems((type, status) => this.c.schema(type)?.terminal.includes(status) ?? false);
+    if (rules) stats.reterm = this.c.index.retermItems((type, status) => this.c.itemFlags(type, status));
     return stats;
   }
 
@@ -138,8 +138,7 @@ export class SyncService {
           this.c.index.deleteItem(t.id);
           return { kind: "items", n: 1 };
         }
-        const terminal = this.c.schema(item.type)?.terminal.includes(item.status) ?? false;
-        this.c.index.upsertItem(item, this.c.itemStore.replies(t.id), terminal);
+        this.c.index.upsertItem(item, this.c.itemStore.replies(t.id), this.c.itemFlags(item.type, item.status));
         return { kind: "items", n: 1 };
       }
       case "draft": {

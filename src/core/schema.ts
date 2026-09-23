@@ -35,7 +35,11 @@ export interface ItemSchema {
   description?: string;
   statuses: string[];
   initial: string;
+  // "terminal" means no transition leads out of it. "resolved" means the work is finished even though
+  // the item can still move: an accepted decision stands until something supersedes it, and it must not
+  // be counted as work waiting for someone.
   terminal: string[];
+  resolved?: string[];
   transitions: Record<string, string[]> | "any";
   human_only_statuses?: string[];
   category_required?: boolean;
@@ -144,6 +148,7 @@ export const DEFAULT_SCHEMAS: Record<string, ItemSchema> = {
     statuses: ["proposed", "accepted", "rejected", "superseded"],
     initial: "proposed",
     terminal: ["rejected", "superseded"],
+    resolved: ["accepted"],
     transitions: { proposed: ["accepted", "rejected"], accepted: ["superseded"], rejected: ["proposed"], superseded: [] },
     human_only_statuses: ["accepted", "rejected"],
     fields: {
@@ -173,9 +178,22 @@ export function loadSchema(rulesDir: string, type: string): ItemSchema | null {
   const file = join(rulesDir, `${type}.schema.yaml`);
   if (existsSync(file)) {
     const s = YAML.parse(readFileSync(file, "utf8")) as ItemSchema;
-    return { ...s, fields: s.fields ?? {}, terminal: s.terminal ?? [], transitions: s.transitions ?? "any" };
+    return {
+      ...s,
+      fields: s.fields ?? {},
+      terminal: s.terminal ?? [],
+      // Schema files are written to disk at init, so projects created before "resolved" existed have no
+      // such key. Falling back to the built-in default fixes them on upgrade without touching their files.
+      resolved: s.resolved ?? DEFAULT_SCHEMAS[type]?.resolved ?? [],
+      transitions: s.transitions ?? "any",
+    };
   }
   return DEFAULT_SCHEMAS[type] ?? null;
+}
+
+// Work that still waits for someone: not finished by transition (terminal) and not settled (resolved).
+export function isOpenWork(schema: ItemSchema, status: string): boolean {
+  return !schema.terminal.includes(status) && !(schema.resolved ?? []).includes(status);
 }
 
 export function loadActivitySchema(rulesDir: string): typeof ACTIVITY_SCHEMA {
@@ -278,6 +296,7 @@ export function describeSchema(schema: ItemSchema) {
     description: schema.description,
     statuses: schema.statuses,
     initial: schema.initial,
+    resolved: schema.resolved ?? [],
     transitions: schema.transitions,
     human_only_statuses: schema.human_only_statuses ?? [],
     category_required: !!schema.category_required,
