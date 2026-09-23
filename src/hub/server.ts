@@ -11,7 +11,8 @@ import { Actor, CortexError } from "../core/types.js";
 import { buildAccess } from "./access.js";
 import { PASSWORD_MIN, hashPassword, verifyPassword } from "./crypto.js";
 import { ROLE_POLICY } from "./roles.js";
-import { HubStore, Member, Principal, SESSION_DAYS, User } from "./store.js";
+import { Agent, HubStore, Member, Principal, SESSION_DAYS, User } from "./store.js";
+import { RateLimiter } from "./limiter.js";
 import { registerMcpHttp } from "./mcpHttp.js";
 import type { McpApi } from "../mcp/client.js";
 
@@ -67,23 +68,6 @@ export class Hub {
   }
 }
 
-// Brute-force brake: 10 failed logins per address and email in 15 minutes.
-class LoginLimiter {
-  private hits = new Map<string, { n: number; since: number }>();
-  blocked(key: string): boolean {
-    const h = this.hits.get(key);
-    if (!h || Date.now() - h.since > 15 * 60_000) return false;
-    return h.n >= 10;
-  }
-  fail(key: string): void {
-    const h = this.hits.get(key);
-    if (!h || Date.now() - h.since > 15 * 60_000) this.hits.set(key, { n: 1, since: Date.now() });
-    else h.n++;
-  }
-  clear(key: string): void {
-    this.hits.delete(key);
-  }
-}
 
 // "7d", "30d" or a date, like the report periods.
 function sinceIso(since?: string): string {
@@ -93,15 +77,22 @@ function sinceIso(since?: string): string {
   return isNaN(t) ? new Date(Date.now() - 7 * 86400_000).toISOString() : new Date(t).toISOString();
 }
 
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+const WINDOW = 15 * 60_000;
+
 export function buildHubServer(hub: Hub): FastifyInstance {
-  const app = baseServer();
   const store = hub.store;
-  const limiter = new LoginLimiter();
-  const secure = () => (store.settings.public_url ?? "").startsWith("https://");
+  const app = baseServer({ trustProxy: store.settings.trust_proxy === true });
+  // Per 15 minutes: 10 wrong passwords per address+email, 10 bad agent tokens or 20 dead invite links per address.
+  const limits = { login: new RateLimiter(10, WINDOW), token: new RateLimiter(10, WINDOW), invite: new RateLimiter(20, WINDOW) };
+  app.addHook("onClose", async () => Object.values(limits).forEach((l) => l.stop()));
+  // An explicit setting wins. Otherwise Secure unless the hub only listens on this machine: guessing from
+  // public_url missed hubs reached over plain LAN addresses, where a session cookie must not travel in clear.
+  const secure = () => store.settings.cookie_secure ?? !LOOPBACK.has(store.settings.host);
   const baseUrl = () => (store.settings.public_url ?? `http://localhost:${store.settings.port}`).replace(/\/+$/, "");
   const inviteUrl = (token: string) => `${baseUrl()}/invite/${token}`;
-  const setSession = (reply: FastifyReply, token: string) =>
-    reply.setCookie(HUB_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: secure(), path: "/", maxAge: SESSION_DAYS * 86400 });
+  const setSession = (req: FastifyRequest, reply: FastifyReply, token: string) =>
+    reply.setCookie(HUB_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: secure() || req.protocol === "https", path: "/", maxAge: SESSION_DAYS * 86400 });
 
   const PUBLIC = new Set(["/api/health", "/api/auth/login"]);
 
@@ -109,16 +100,23 @@ export function buildHubServer(hub: Hub): FastifyInstance {
     const allowed = store.settings.allowed_hosts;
     if (allowed?.length) {
       const host = (req.headers.host ?? "").replace(/:\d+$/, "");
-      if (!allowed.includes(host) && host !== "localhost" && host !== "127.0.0.1") {
+      // No silent localhost exception: behind a proxy any request can claim "Host: localhost".
+      if (!allowed.includes(host)) {
         return reply.code(403).send({ error: { code: "forbidden_host", message: "Unknown host." } });
       }
     }
     const path = req.url.split("?")[0];
+    const auth = req.headers.authorization ?? "";
+    // Agent tokens can only be guessed by trying: every bad one counts against the address, REST and MCP alike.
+    let agent: Agent | null = null;
+    if (auth.startsWith("Bearer ") && (path.startsWith("/api/") || path.startsWith("/mcp/"))) {
+      if (limits.token.blocked(req.ip)) return reply.code(429).send({ error: { code: "rate_limited", message: "Too many bad tokens. Try again in 15 minutes." } });
+      agent = store.agentByToken(auth.slice(7));
+      if (!agent) limits.token.fail(req.ip);
+    }
     if (!path.startsWith("/api/") || PUBLIC.has(path) || path.startsWith("/api/auth/invite/")) return;
 
-    const auth = req.headers.authorization ?? "";
     if (auth.startsWith("Bearer ")) {
-      const agent = store.agentByToken(auth.slice(7));
       if (agent) req.principal = { kind: "ai", agent };
     } else {
       const user = store.sessionUser(req.cookies[HUB_COOKIE]);
@@ -163,15 +161,15 @@ export function buildHubServer(hub: Hub): FastifyInstance {
   app.post("/api/auth/login", async (req, reply) => {
     const { email = "", password = "" } = (req.body ?? {}) as { email?: string; password?: string };
     const key = `${req.ip}|${email.trim().toLowerCase()}`;
-    if (limiter.blocked(key)) throw new CortexError("rate_limited", "Too many attempts. Try again in 15 minutes.", 429);
+    if (limits.login.blocked(key)) throw new CortexError("rate_limited", "Too many attempts. Try again in 15 minutes.", 429);
     const user = store.userByEmail(email);
     const good = await verifyPassword(password, user?.password ?? null);
     if (!user || !good || user.disabled) {
-      limiter.fail(key);
+      limits.login.fail(key);
       throw new CortexError("invalid_login", "Email or password is not correct.", 401);
     }
-    limiter.clear(key);
-    setSession(reply, store.createSession(user.id));
+    limits.login.clear(key);
+    setSession(req, reply, store.createSession(user.id));
     return { ok: true };
   });
 
@@ -181,21 +179,30 @@ export function buildHubServer(hub: Hub): FastifyInstance {
   });
 
   // Invite links set the first password, and later serve as password resets.
-  app.get("/api/auth/invite/:token", async (req) => {
+  // Invite tokens are random, but a door that answers "no" forever invites guessing: dead links count per address.
+  const inviteFor = (req: FastifyRequest) => {
+    if (limits.invite.blocked(req.ip)) throw new CortexError("rate_limited", "Too many invalid links. Try again in 15 minutes.", 429);
     const u = store.inviteUser((req.params as Q).token!);
-    if (!u) throw new CortexError("invalid_invite", "This link has expired or was already used. Ask an admin for a new one.", 404);
+    if (!u) {
+      limits.invite.fail(req.ip);
+      throw new CortexError("invalid_invite", "This link has expired or was already used. Ask an admin for a new one.", 404);
+    }
+    return u;
+  };
+
+  app.get("/api/auth/invite/:token", async (req) => {
+    const u = inviteFor(req);
     return { email: u.email, name: u.name, org: store.settings.org };
   });
 
   app.post("/api/auth/invite/:token", async (req, reply) => {
     const token = (req.params as Q).token!;
-    const u = store.inviteUser(token);
-    if (!u) throw new CortexError("invalid_invite", "This link has expired or was already used. Ask an admin for a new one.", 404);
+    const u = inviteFor(req);
     const { password = "" } = (req.body ?? {}) as { password?: string };
     if (password.length < PASSWORD_MIN) throw new CortexError("weak_password", `Use at least ${PASSWORD_MIN} characters.`, 400);
     store.setPassword(u.id, await hashPassword(password));
     store.useInvite(token);
-    setSession(reply, store.createSession(u.id));
+    setSession(req, reply, store.createSession(u.id));
     return { ok: true };
   });
 

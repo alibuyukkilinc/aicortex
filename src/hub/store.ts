@@ -15,7 +15,9 @@ export interface HubSettings {
   public_url?: string; // e.g. https://cortex.example.com; used for invite links and secure cookies
   host: string;
   port: number;
-  allowed_hosts?: string[]; // optional Host header allowlist when exposed on a network
+  allowed_hosts?: string[]; // optional Host header allowlist when exposed on a network; when set, it is the whole list (add localhost yourself)
+  cookie_secure?: boolean; // Secure flag on the session cookie; default: on unless the hub listens on loopback only
+  trust_proxy?: boolean; // behind a reverse proxy: take the client address and https from X-Forwarded-* headers
 }
 
 export interface User {
@@ -58,7 +60,7 @@ const ID = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DAY = 86_400_000;
 export const SESSION_DAYS = 30;
-export const INVITE_DAYS = 7;
+export const INVITE_DAYS = 2; // an invite is a password: short-lived
 
 export class HubStore {
   readonly db: DatabaseSync;

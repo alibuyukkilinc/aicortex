@@ -46,8 +46,9 @@ export function setErrorHandler(app: FastifyInstance): void {
 }
 
 // Errors, the built board and client-side routes: shared by single-project mode and the hub.
-export function baseServer(): FastifyInstance {
-  const app = Fastify({ logger: false });
+// trustProxy: believe X-Forwarded-For/-Proto (only behind a reverse proxy you run; otherwise clients could lie).
+export function baseServer(opts: { trustProxy?: boolean } = {}): FastifyInstance {
+  const app = Fastify({ logger: false, trustProxy: opts.trustProxy ?? false });
   app.decorateRequest("actor", null as unknown as Actor);
   app.decorateRequest("cortex", null as unknown as Cortex);
   app.register(cookie);

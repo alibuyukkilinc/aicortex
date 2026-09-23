@@ -7,12 +7,13 @@ import type { FastifyInstance, InjectOptions } from "fastify";
 import { initProject } from "../src/core/init.js";
 import { hashPassword } from "../src/hub/crypto.js";
 import { Hub, HUB_COOKIE, buildHubServer } from "../src/hub/server.js";
-import { HubStore } from "../src/hub/store.js";
+import { RateLimiter } from "../src/hub/limiter.js";
+import { HubSettings, HubStore, INVITE_DAYS } from "../src/hub/store.js";
 
 // A hub with two projects and an organization admin (ada@example.com / correct-horse-1).
-async function setup() {
+async function setup(settings: Partial<HubSettings> = {}) {
   const root = mkdtempSync(join(tmpdir(), "cortex-hub-"));
-  const store = HubStore.init(join(root, "hub"), { org: "Acme", host: "127.0.0.1", port: 4747 });
+  const store = HubStore.init(join(root, "hub"), { org: "Acme", host: "127.0.0.1", port: 4747, ...settings });
   const admin = store.createUser({ email: "ada@example.com", name: "Ada", org_admin: true });
   store.setPassword(admin.id, await hashPassword("correct-horse-1"));
   for (const id of ["shop", "blog"]) {
@@ -442,4 +443,98 @@ test("usage meter: counts each call once, per person and per agent, and stays ou
     for (const c of clients) await c.close();
     await t.cleanup();
   }
+});
+
+test("hub hardening: a Host allowlist has no localhost back door", async () => {
+  const t = await setup({ allowed_hosts: ["cortex.acme.com"] });
+  try {
+    assert.equal((await t.call({ url: "/api/health", headers: { host: "localhost" } })).statusCode, 403, "a proxy can forward anything as localhost");
+    assert.equal((await t.call({ url: "/api/health", headers: { host: "127.0.0.1:4747" } })).statusCode, 403);
+    assert.equal((await t.call({ url: "/api/health", headers: { host: "cortex.acme.com" } })).statusCode, 200);
+  } finally {
+    await t.cleanup();
+  }
+  const open = await setup(); // no list: no Host check at all
+  try {
+    assert.equal((await open.call({ url: "/api/health", headers: { host: "anything.example" } })).statusCode, 200);
+  } finally {
+    await open.cleanup();
+  }
+});
+
+test("hub hardening: guessing agent tokens is braked per address, over REST and MCP", async () => {
+  const t = await setup();
+  try {
+    const { token } = t.store.createAgent({ id: "bot" }, t.admin.id);
+    t.store.setMember("shop", "bot", { role: "contributor" });
+    for (let i = 0; i < 5; i++) assert.equal((await t.call({ url: "/api/p/shop/brief", token: `ctx_guess_${i}` })).statusCode, 401);
+    for (let i = 5; i < 10; i++) await t.call({ method: "POST", url: "/mcp/p/shop", token: `ctx_guess_${i}`, payload: {} });
+    const eleventh = await t.call({ url: "/api/p/shop/brief", token: "ctx_guess_10" });
+    assert.equal(eleventh.statusCode, 429);
+    assert.equal((await t.call({ method: "POST", url: "/mcp/p/shop", token: "ctx_guess_11", payload: {} })).statusCode, 429);
+    // Another address is not affected, and a good token works from there.
+    assert.equal((await t.call({ url: "/api/p/shop/brief", token, remoteAddress: "10.0.0.9" })).statusCode, 200);
+  } finally {
+    await t.cleanup();
+  }
+});
+
+test("hub hardening: the limiter's memory stays bounded", () => {
+  const l = new RateLimiter(3, 1000, 100);
+  try {
+    for (let i = 0; i < 1000; i++) l.fail(`ip-${i}`, 0);
+    assert.ok(l.size <= 100, `size ${l.size}`);
+    for (let i = 0; i < 3; i++) l.fail("attacker", 10);
+    assert.equal(l.blocked("attacker", 10), true, "a fresh key still counts after old ones were dropped");
+    l.sweep(5000);
+    assert.equal(l.size, 0, "everything expired is swept");
+    assert.equal(l.blocked("attacker", 5000), false);
+  } finally {
+    l.stop();
+  }
+});
+
+test("hub hardening: invites live 48 hours, work once, and dead links are braked", async () => {
+  const t = await setup();
+  try {
+    assert.equal(INVITE_DAYS, 2);
+    const cookie = await t.login("ada@example.com", "correct-horse-1");
+    const r = await t.call({ method: "POST", url: "/api/admin/users", cookie, payload: { email: "eve@example.com", name: "Eve" } });
+    const token = r.json().invite_url.split("/invite/")[1] as string;
+    const eve = t.store.userByEmail("eve@example.com")!;
+
+    // Expired: pushed past its deadline directly in the store.
+    (t.store as unknown as { db: { prepare(sql: string): { run(...a: unknown[]): void } } }).db
+      .prepare("UPDATE invites SET expires_at = ? WHERE user_id = ?")
+      .run(new Date(Date.now() - 1000).toISOString(), eve.id);
+    assert.equal((await t.call({ url: `/api/auth/invite/${token}` })).statusCode, 404);
+
+    // A fresh one works once.
+    const again = (await t.call({ method: "POST", url: `/api/admin/users/${eve.id}/invite`, cookie })).json().invite_url.split("/invite/")[1];
+    assert.equal((await t.call({ method: "POST", url: `/api/auth/invite/${again}`, payload: { password: "long-enough-pw" } })).statusCode, 200);
+    assert.equal((await t.call({ url: `/api/auth/invite/${again}` })).statusCode, 404, "used");
+
+    for (let i = 0; i < 18; i++) await t.call({ url: `/api/auth/invite/nope-${i}` });
+    assert.equal((await t.call({ url: "/api/auth/invite/nope-last" })).statusCode, 429);
+  } finally {
+    await t.cleanup();
+  }
+});
+
+test("hub hardening: the session cookie's Secure flag follows the setting, the listen address and the proxy", async () => {
+  const secureFlag = async (settings: Partial<HubSettings>, headers: Record<string, string> = {}) => {
+    const t = await setup(settings);
+    try {
+      const r = await t.call({ method: "POST", url: "/api/auth/login", headers, payload: { email: "ada@example.com", password: "correct-horse-1" } });
+      assert.equal(r.statusCode, 200);
+      return /;\s*Secure/i.test(String(r.headers["set-cookie"]));
+    } finally {
+      await t.cleanup();
+    }
+  };
+  assert.equal(await secureFlag({}), false, "loopback only: plain http is fine");
+  assert.equal(await secureFlag({ host: "0.0.0.0" }), true, "on the network: Secure by default");
+  assert.equal(await secureFlag({ host: "0.0.0.0", cookie_secure: false }), false, "an explicit choice wins");
+  assert.equal(await secureFlag({ trust_proxy: true }, { "x-forwarded-proto": "https" }), true, "https behind a trusted proxy");
+  assert.equal(await secureFlag({}, { "x-forwarded-proto": "https" }), false, "an untrusted header is ignored");
 });

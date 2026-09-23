@@ -267,7 +267,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
     store.close();
     console.log(`✔ Hub created in ${dir} (keep this folder private: it holds password hashes)\n`);
     console.log(`Start it:            aicortex hub start`);
-    console.log(`Then set your password (link valid 7 days):\n  ${url}\n`);
+    console.log(`Then set your password (link valid 48 hours):\n  ${url}\n`);
     console.log(`Add a project:       aicortex hub add-project <folder>   (or from the board: Organization → Projects)`);
     return;
   }
@@ -280,11 +280,13 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       const port = Number(str("port") ?? store.settings.port ?? 4747);
       if (str("public-url")) store.settings.public_url = str("public-url")!.replace(/\/+$/, "");
       store.settings.port = port;
+      store.settings.host = host; // the cookie's Secure default depends on where it really listens
       const app = buildHubServer(new Hub(store));
       await app.listen({ host, port });
       console.log(`Cortex hub "${store.settings.org}" running at http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
       if (host !== "127.0.0.1" && host !== "localhost" && !(store.settings.public_url ?? "").startsWith("https://")) {
         console.log("⚠ Listening on the network without HTTPS. Put it behind a reverse proxy with TLS and set public_url to the https address.");
+        console.log("  Session cookies are Secure here, so plain-http sign-in will not stick (cookie_secure: false in hub.yaml turns that off, knowingly).");
       }
       return; // keep running
     }
@@ -306,7 +308,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       const u = arg ? store.userByEmail(arg) : null;
       if (!u) throw new Error("Usage: aicortex hub invite <email of an existing user>");
       console.log(`${(store.settings.public_url ?? `http://localhost:${store.settings.port}`)}/invite/${store.createInvite(u.id)}`);
-      console.log("Valid 7 days, once. Setting a password ends that user's other sessions.");
+      console.log("Valid 48 hours, once. Setting a password ends that user's other sessions.");
       store.close();
       return;
     }
