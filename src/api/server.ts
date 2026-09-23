@@ -8,6 +8,7 @@ import { loadTokens } from "../core/project.js";
 import { Actor, CortexError } from "../core/types.js";
 import { CSRF_HEADER, SESSION_COOKIE, verifyLoginCode } from "./auth.js";
 import { projectRoutes } from "./routes.js";
+import { SESSION_TTL_MS, SessionStore } from "./sessions.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -74,6 +75,9 @@ export function baseServer(): FastifyInstance {
 // Single project, localhost only (`cortex start`): actor tokens from .cortex/.secrets.yaml, board login by signed link.
 export function buildServer(cortex: Cortex): FastifyInstance {
   const app = baseServer();
+  const sessions = new SessionStore(cortex.project.dir);
+  const legacySwaps = new Map<string, string>(); // old token cookie -> the session it was swapped for
+  const cookieOpts = { httpOnly: true, sameSite: "strict" as const, path: "/", maxAge: SESSION_TTL_MS / 1000 };
 
   app.addHook("onRequest", async (req, reply) => {
     // Block DNS-rebinding: a malicious page must not reach the local API through a foreign hostname.
@@ -92,7 +96,24 @@ export function buildServer(cortex: Cortex): FastifyInstance {
     if (fromCookie && !SAFE_METHODS.has(req.method) && req.headers[CSRF_HEADER] !== "1") {
       return reply.code(403).send({ error: { code: "csrf", message: `Missing ${CSRF_HEADER} header.` } });
     }
-    const actor = cortex.actorByToken(bearer ?? fromCookie);
+    let actor = bearer ? cortex.actorByToken(bearer) : null;
+    if (fromCookie) {
+      const id = sessions.resolve(fromCookie);
+      actor = id ? cortex.project.config.actors.find((a) => a.id === id && a.kind === "human") ?? null : null;
+      if (!actor) {
+        // Boards logged in before sessions existed carry the raw API token as their cookie. Accept it this
+        // once and swap it for a session, so nobody is logged out by the upgrade. (Remove after 0.2.x.)
+        const legacy = cortex.actorByToken(fromCookie);
+        if (legacy?.kind === "human") {
+          actor = legacy;
+          // A board fires several requests at once with the same old cookie: hand them all the same session.
+          const swapped = legacySwaps.get(fromCookie);
+          const key = swapped && sessions.resolve(swapped) ? swapped : sessions.create(legacy.id);
+          legacySwaps.set(fromCookie, key);
+          reply.setCookie(SESSION_COOKIE, key, cookieOpts);
+        }
+      }
+    }
     if (!actor) {
       return reply.code(401).send({
         error: {
@@ -114,10 +135,14 @@ export function buildServer(cortex: Cortex): FastifyInstance {
         .type("text/html")
         .send(page("Login link expired or invalid", "Run <code>npx aicortex login</code> in your project for a fresh link."));
     }
-    reply.setCookie(SESSION_COOKIE, tokens[actor.id], { httpOnly: true, sameSite: "strict", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    // The cookie is a session key, never the API token: logging out (or `cortex logout`) really ends it.
+    reply.setCookie(SESSION_COOKIE, sessions.create(actor.id), cookieOpts);
     return reply.redirect("/");
   });
-  app.post("/api/logout", async (_req, reply) => reply.clearCookie(SESSION_COOKIE, { path: "/" }).send({ ok: true }));
+  app.post("/api/logout", async (req, reply) => {
+    sessions.revoke(req.cookies[SESSION_COOKIE]);
+    return reply.clearCookie(SESSION_COOKIE, { path: "/" }).send({ ok: true });
+  });
   app.get("/api/health", async () => ({ ok: true, mode: "project", project: cortex.project.config.project.name, ...cortex.meta() }));
 
   app.register(projectRoutes, { prefix: "/api" });

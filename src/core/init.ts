@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "nod
 import { basename, join, relative } from "node:path";
 import { randomBytes } from "node:crypto";
 import YAML from "yaml";
-import { CORTEX_DIR, paths } from "./project.js";
+import { CORTEX_DIR, paths, secureSecretsFile } from "./project.js";
 import { CortexConfig, CortexError, KnowledgeNode } from "./types.js";
 import { TreeStore, normalizePath } from "../store/tree.js";
 import { nowIso, ulid } from "../util/text.js";
@@ -104,8 +104,10 @@ export function initProject(root: string, name = basename(root), opts: { languag
   );
 
   const tokens = { owner: token(), "ai-agent": token() };
-  writeFileSync(p.secrets, "# Actor tokens. NEVER commit this file.\n" + YAML.stringify({ tokens }), "utf8");
-  writeFileSync(join(dir, ".gitignore"), ".index/\n.secrets.yaml\n", "utf8");
+  // Owner-only from the first byte: these are API keys. (mode is ignored on Windows, where the profile's ACLs apply.)
+  writeFileSync(p.secrets, "# Actor tokens. NEVER commit this file.\n" + YAML.stringify({ tokens }), { encoding: "utf8", mode: 0o600 });
+  secureSecretsFile(p.secrets); // `mode` only applies when the file is created
+  writeFileSync(join(dir, ".gitignore"), ".index/\n.secrets.yaml\n.sessions.json\n", "utf8");
   // Same bytes on every OS, so diffs do not flip with core.autocrlf.
   writeFileSync(join(dir, ".gitattributes"), "* text=auto eol=lf\n", "utf8");
 

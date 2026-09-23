@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
 import { CortexConfig, CortexError } from "./types.js";
@@ -59,10 +59,37 @@ export function loadProject(start?: string): Project {
   return { root, dir, config };
 }
 
+// Every API request resolves a token, so the file is parsed once and re-read only when it changes on disk
+// (a hand-edited or rotated token is picked up on the next request, no restart).
+const tokenCache = new Map<string, { stamp: string; tokens: Record<string, string> }>();
+
 export function loadTokens(dir: string): Record<string, string> {
   const file = paths(dir).secrets;
-  if (!existsSync(file)) return {};
-  return (YAML.parse(readFileSync(file, "utf8"))?.tokens ?? {}) as Record<string, string>;
+  let stamp: string;
+  try {
+    const st = statSync(file);
+    stamp = `${st.mtimeMs}:${st.size}`;
+  } catch {
+    tokenCache.delete(file);
+    return {};
+  }
+  const hit = tokenCache.get(file);
+  if (hit?.stamp === stamp) return hit.tokens;
+  secureSecretsFile(file);
+  const tokens = (YAML.parse(readFileSync(file, "utf8"))?.tokens ?? {}) as Record<string, string>;
+  tokenCache.set(file, { stamp, tokens });
+  return tokens;
+}
+
+// The secrets file holds API keys: owner read/write only. Files written before this rule get fixed on first read.
+// Windows has no POSIX modes; there the user profile's ACLs already keep other accounts out.
+export function secureSecretsFile(file: string): void {
+  if (process.platform === "win32") return;
+  try {
+    if (statSync(file).mode & 0o077) chmodSync(file, 0o600);
+  } catch {
+    // not ours to change (read-only mount, other owner): reading still works
+  }
 }
 
 // Rules version = hash of every file under rules/. AIs re-fetch rules only when this changes.

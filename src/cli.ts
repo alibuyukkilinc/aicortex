@@ -21,6 +21,7 @@ Usage: cortex <command> [options]
                                      --branches = top-level knowledge branches (asked when run in a terminal)
   start [--port <n>]                 Start the API and the web board on localhost
   login [--actor <id>]               Print a 10-minute login link for the board (default: first human)
+  logout [--actor <id>] [--all]      End that person's board sessions on every browser (--all: everyone's)
   mcp [--actor <id>]                 Run as an MCP server over stdio for the project in this folder
   mcp --hub <url> --project <id> --token <t>
                                      Same tools against a project on a team server (env: CORTEX_HUB_URL, CORTEX_PROJECT, CORTEX_TOKEN)
@@ -60,6 +61,7 @@ async function main() {
       dir: { type: "string" },
       id: { type: "string" },
       init: { type: "boolean" },
+      all: { type: "boolean" },
       hub: { type: "string" },
       project: { type: "string" },
       token: { type: "string" },
@@ -118,6 +120,19 @@ Next steps:
       if (!found || found.kind !== "human") throw new Error(`"${actor ?? ""}" is not a human actor in cortex.config.yaml.`);
       const port = values.port ? Number(values.port) : project.config.port;
       console.log(loginLink(project, found.id, port));
+      break;
+    }
+
+    case "logout": {
+      const { SessionStore } = await import("./api/sessions.js");
+      const project = loadProject();
+      const actor = values.all ? undefined : (values.actor ?? project.config.actors.find((a) => a.kind === "human")?.id);
+      if (!values.all && !project.config.actors.some((a) => a.id === actor && a.kind === "human")) {
+        throw new Error(`"${actor ?? ""}" is not a human actor in cortex.config.yaml.`);
+      }
+      // A running server re-reads the session file, so this takes effect without a restart.
+      const ended = new SessionStore(project.dir).revokeAll(actor);
+      console.log(`✔ Ended ${ended} board session(s)${actor ? ` for ${actor}` : ""}. Open the board again with \`cortex login\`.`);
       break;
     }
 

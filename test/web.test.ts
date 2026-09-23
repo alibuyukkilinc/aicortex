@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildServer } from "../src/api/server.js";
 import { CSRF_HEADER, SESSION_COOKIE, createLoginCode, verifyLoginCode } from "../src/api/auth.js";
+import { SessionStore } from "../src/api/sessions.js";
 import { tempProject } from "./helpers.js";
 
 test("login codes are signed, scoped to one actor and expire", () => {
@@ -30,7 +33,9 @@ test("board login sets an HttpOnly cookie; cookie writes need the CSRF header", 
     const set = String(login.headers["set-cookie"]);
     assert.match(set, /HttpOnly/i);
     assert.match(set, /SameSite=Strict/i);
-    const cookie = { ...host, cookie: `${SESSION_COOKIE}=${t.init.tokens.owner}` };
+    const key = new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(set)![1];
+    assert.ok(!Object.values(t.init.tokens).includes(key), "the cookie is a session key, never an API token");
+    const cookie = { ...host, cookie: `${SESSION_COOKIE}=${key}` };
 
     const me = await app.inject({ url: "/api/me", headers: cookie });
     assert.equal(me.json().actor.id, "owner");
@@ -49,6 +54,7 @@ test("board login sets an HttpOnly cookie; cookie writes need the CSRF header", 
 
     const out = await app.inject({ method: "POST", url: "/api/logout", headers: { ...cookie, [CSRF_HEADER]: "1" } });
     assert.match(String(out.headers["set-cookie"]), new RegExp(`${SESSION_COOKIE}=;`));
+    assert.equal((await app.inject({ url: "/api/me", headers: cookie })).statusCode, 401, "a copied cookie dies with the logout");
 
     // Unknown client routes fall back to the board page; unknown API routes stay JSON 404s.
     const page = await app.inject({ url: "/some/client/route", headers: host });
@@ -123,6 +129,55 @@ test("events stream pushes a message when something changes", async () => {
     }
     assert.match(text, /"type":"activity"/);
     ctrl.abort();
+  } finally {
+    await app.close();
+    t.cleanup();
+  }
+});
+
+test("a board still holding the old token cookie is let in once and moved to a session", async () => {
+  const t = tempProject();
+  const app = buildServer(t.cortex);
+  const host = { host: "localhost:4747" };
+  try {
+    const old = { ...host, cookie: `${SESSION_COOKIE}=${t.init.tokens.owner}` };
+    const [first, second] = await Promise.all([app.inject({ url: "/api/me", headers: old }), app.inject({ url: "/api/inbox", headers: old })]);
+    assert.equal(first.statusCode, 200, "nobody is logged out by the upgrade");
+    const key = new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(String(first.headers["set-cookie"]))![1];
+    assert.equal(new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(String(second.headers["set-cookie"]))![1], key, "parallel requests share one new session");
+    assert.equal(new SessionStore(t.init.dir).count("owner"), 1);
+    assert.notEqual(key, t.init.tokens.owner);
+    assert.equal((await app.inject({ url: "/api/me", headers: { ...host, cookie: `${SESSION_COOKIE}=${key}` } })).json().actor.id, "owner");
+
+    // An AI token in a cookie is not a board session.
+    const ai = await app.inject({ url: "/api/me", headers: { ...host, cookie: `${SESSION_COOKIE}=${t.init.tokens["ai-agent"]}` } });
+    assert.equal(ai.statusCode, 401);
+    // The Bearer path is unchanged.
+    const bearer = await app.inject({ url: "/api/me", headers: { ...host, authorization: `Bearer ${t.init.tokens["ai-agent"]}` } });
+    assert.equal(bearer.json().actor.id, "ai-agent");
+  } finally {
+    await app.close();
+    t.cleanup();
+  }
+});
+
+test("cortex logout ends sessions on a running server; only hashes are stored", async () => {
+  const t = tempProject();
+  const app = buildServer(t.cortex);
+  const host = { host: "localhost:4747" };
+  try {
+    const login = await app.inject({ url: `/login?code=${createLoginCode("owner", t.init.tokens.owner)}`, headers: host });
+    const key = new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(String(login.headers["set-cookie"]))![1];
+    const cookie = { ...host, cookie: `${SESSION_COOKIE}=${key}` };
+    assert.equal((await app.inject({ url: "/api/me", headers: cookie })).statusCode, 200);
+
+    const file = readFileSync(join(t.init.dir, ".sessions.json"), "utf8");
+    assert.ok(!file.includes(key), "the session key itself is never written down");
+    assert.match(readFileSync(join(t.init.dir, ".gitignore"), "utf8"), /^\.sessions\.json$/m);
+
+    // What the CLI does, from another process's point of view: a fresh store on the same folder.
+    assert.equal(new SessionStore(t.init.dir).revokeAll("owner"), 1);
+    assert.equal((await app.inject({ url: "/api/me", headers: cookie })).statusCode, 401);
   } finally {
     await app.close();
     t.cleanup();

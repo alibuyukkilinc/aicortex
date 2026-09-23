@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { FSWatcher, existsSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -148,7 +149,7 @@ export class Cortex {
       if (file == null) this.pendingAll = true;
       else {
         const f = String(file).replace(/\\/g, "/");
-        if (f.startsWith(".index") || f === ".secrets.yaml") return;
+        if (f.startsWith(".index") || f === ".secrets.yaml" || f === ".sessions.json") return;
         this.pending.add(f);
       }
       clearTimeout(this.watchTimer);
@@ -233,10 +234,15 @@ export class Cortex {
     return a;
   }
 
+  // Compares hashes in constant time and checks every entry, so response time says nothing about how
+  // much of a guessed token was right, or which actor it was close to.
   actorByToken(token: string | undefined): Actor | null {
     if (!token) return null;
-    const tokens = loadTokens(this.project.dir);
-    const id = Object.entries(tokens).find(([, t]) => t === token)?.[0];
+    const want = createHash("sha256").update(token).digest();
+    let id: string | undefined;
+    for (const [actor, t] of Object.entries(loadTokens(this.project.dir))) {
+      if (typeof t === "string" && timingSafeEqual(createHash("sha256").update(t).digest(), want)) id = actor;
+    }
     return id ? this.actor(id) : null;
   }
 
