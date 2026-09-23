@@ -80,13 +80,15 @@ export class ReportService {
     const openWork = (type: string, status: string) => this.c.itemFlags(type, status).open;
 
     // ---- daily volume, by who did it --------------------------------------------
-    const daily = new Map<string, { date: string; ai: number; human: number }>();
+    // ai/human count logged entries (what + why) only. Cortex's own audit trail is a separate series:
+    // one AI turn can write a dozen audit entries, so mixing them in would measure writes, not work.
+    const daily = new Map<string, { date: string; ai: number; human: number; system: number }>();
     for (let d = dayKey(Date.parse(p.since), tz); startOfDay(d, tz) < Date.parse(p.until); d = addDays(d, 1)) {
-      daily.set(d, { date: d, ai: 0, human: 0 });
+      daily.set(d, { date: d, ai: 0, human: 0, system: 0 });
     }
     for (const e of events) {
       const day = daily.get(dayKey(Date.parse(e.at), tz));
-      if (day) day[kindOf(e.actor)]++;
+      if (day) day[e.system ? "system" : kindOf(e.actor)]++;
     }
 
     // ---- per actor ---------------------------------------------------------------------
@@ -220,11 +222,17 @@ export class ReportService {
       .sort((a, b) => b.logged + b.writes - (a.logged + a.writes));
 
     const sum = (xs: Record<string, number>) => Object.values(xs).reduce((s, x) => s + x, 0);
+    const split = (es: Activity[]) => ({
+      total: es.length,
+      ai: es.filter((e) => kindOf(e.actor) === "ai").length,
+      human: es.filter((e) => kindOf(e.actor) === "human").length,
+    });
     return {
       period: p,
       generated_at: now,
       totals: {
-        activity: { total: events.length, ai: events.filter((e) => kindOf(e.actor) === "ai").length, human: events.filter((e) => kindOf(e.actor) === "human").length },
+        // logged: entries someone wrote to say what they did and why. system: the audit trail of writes.
+        activity: { logged: split(events.filter((e) => !e.system)), system: split(events.filter((e) => e.system)) },
         ai_logged_changes: events.filter((e) => !e.system && kindOf(e.actor) === "ai").length,
         ai_changes_without_why: aiWithoutWhy,
         items_created: { total: sum(created), by_type: created },

@@ -8,7 +8,7 @@ import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, useSession, useToa
 interface Report {
   period: { since: string; until: string; days: number };
   totals: {
-    activity: { total: number; ai: number; human: number };
+    activity: { logged: { total: number; ai: number; human: number }; system: { total: number } };
     ai_logged_changes: number;
     ai_changes_without_why: number;
     items_created: { total: number };
@@ -17,7 +17,7 @@ interface Report {
     decisions: { proposed: number; accepted: number; rejected: number };
     approvals: { proposed: number; approved: number; rejected: number; pending: number };
   };
-  daily: { date: string; ai: number; human: number }[];
+  daily: { date: string; ai: number; human: number; system: number }[];
   actors: { id: string; kind: string; logged: number; writes: number; drafts: { approved: number; rejected: number }; approval_rate: number | null }[];
   highlights: {
     ai_changes: { id: string; at: string; actor: string; action: string; summary: string; why?: string; files?: string[] }[];
@@ -149,11 +149,15 @@ export function Reports() {
                 <div className="legend" aria-hidden>
                   <span>
                     <i style={{ background: "var(--viz-ai)" }} />
-                    {t("rep.ai")} {r.totals.activity.ai}
+                    {t("rep.ai")} {r.totals.activity.logged.ai}
                   </span>
                   <span>
                     <i style={{ background: "var(--viz-human)" }} />
-                    {t("rep.humans")} {r.totals.activity.human}
+                    {t("rep.humans")} {r.totals.activity.logged.human}
+                  </span>
+                  <span className="faint">
+                    <i style={{ background: "var(--viz-system)" }} />
+                    {t("rep.system")} {r.totals.activity.system.total}
                   </span>
                 </div>
                 <span className="spacer" />
@@ -169,6 +173,7 @@ export function Reports() {
                         <th>{t("rep.date")}</th>
                         <th className="num">{t("rep.ai")}</th>
                         <th className="num">{t("rep.humans")}</th>
+                        <th className="num faint">{t("rep.system")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -177,6 +182,7 @@ export function Reports() {
                           <td>{d.date}</td>
                           <td className="num">{d.ai}</td>
                           <td className="num">{d.human}</td>
+                          <td className="num faint">{d.system}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -188,6 +194,8 @@ export function Reports() {
                   series={[
                     { key: "ai", label: t("rep.ai"), color: "var(--viz-ai)" },
                     { key: "human", label: t("rep.humans"), color: "var(--viz-human)" },
+                    // Audit entries run ten to thirty per logged change; drawn, they would flatten the work into the axis.
+                    { key: "system", label: t("rep.system"), color: "var(--viz-system)", context: true },
                   ]}
                   xLabel={dayLabel}
                   ariaLabel={t("rep.daily")}

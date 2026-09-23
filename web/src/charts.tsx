@@ -62,6 +62,9 @@ export interface Series {
   key: string;
   label: string;
   color: string; // CSS color, normally var(--viz-*)
+  // Context only: listed in the tooltip and the accessible label, never drawn and never part of the scale.
+  // For a count that would dwarf the series the chart is about (audit entries next to logged work).
+  context?: boolean;
 }
 
 export function StackedColumns({
@@ -83,7 +86,8 @@ export function StackedColumns({
   const pad = { top: 8, right: 8, bottom: 22, left: 38 };
   const innerW = Math.max(0, width - pad.left - pad.right);
   const innerH = height - pad.top - pad.bottom;
-  const totals = data.map((d) => series.reduce((s, x) => s + Number(d[x.key] ?? 0), 0));
+  const drawn = series.filter((s) => !s.context);
+  const totals = data.map((d) => drawn.reduce((s, x) => s + Number(d[x.key] ?? 0), 0));
   const ticks = niceTicks(Math.max(...totals, 0));
   const top = ticks[ticks.length - 1] || 1;
   const band = data.length ? innerW / data.length : 0;
@@ -101,7 +105,7 @@ export function StackedColumns({
         <>
           <div className="faint" style={{ marginBottom: 4 }}>{xLabel(row)}</div>
           {series.map((s) => (
-            <div className="tip-row" key={s.key}>
+            <div className={`tip-row${s.context ? " faint" : ""}`} key={s.key}>
               <span className="key" style={{ background: s.color }} />
               <b>{Number(row[s.key] ?? 0)}</b>
               <span className="muted">{s.label}</span>
@@ -131,7 +135,7 @@ export function StackedColumns({
           {data.map((row, i) => {
             const cx = pad.left + band * i + band / 2;
             let acc = 0;
-            const visible = series.filter((s) => Number(row[s.key] ?? 0) > 0);
+            const visible = drawn.filter((s) => Number(row[s.key] ?? 0) > 0);
             return (
               <g
                 key={i}

@@ -90,7 +90,26 @@ test("the report counts what happened, what waits, and how far to trust each AI"
     assert.equal(r.knowledge.undocumented, 8, "root + 7 default branches still carry the placeholder");
     assert.equal(r.knowledge.updated_in_period, 1, "the approved node draft");
     assert.equal(r.daily.length, 7, "today plus the six days before it");
-    assert.equal(r.daily.reduce((s, d) => s + d.ai + d.human, 0), T.activity.total);
+    assert.equal(r.daily.reduce((s, d) => s + d.ai + d.human, 0), T.activity.logged.total);
+    assert.equal(r.daily.reduce((s, d) => s + d.system, 0), T.activity.system.total);
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("the headline counts logged work, not the audit trail behind it", () => {
+  const t = tempProject();
+  const { cortex: c, human, ai } = t;
+  try {
+    c.activity.log(ai, { action: "fix", summary: "Fixed the callback", why: "Charged twice" });
+    c.activity.log(human, { action: "config", summary: "Raised the queue limit", why: "Backlog" });
+    for (let i = 0; i < 10; i++) c.items.create(ai, { type: "note", title: `Note ${i}` }); // 10 audit entries
+    const r = c.reports.build({ since: "7d" });
+    assert.deepEqual(r.totals.activity.logged, { total: 2, ai: 1, human: 1 });
+    assert.equal(r.totals.activity.system.total, 10);
+    const today = r.daily.at(-1)!;
+    assert.deepEqual({ ai: today.ai, human: today.human, system: today.system }, { ai: 1, human: 1, system: 10 });
+    assert.match(reportToMarkdown(r, "en"), /\| Logged activity \| 2 \(by AI 1 · by humans 1\) · 10 audit entries \|/);
   } finally {
     t.cleanup();
   }
@@ -100,7 +119,7 @@ test("events outside the period are left out", () => {
   const t = busyWeek();
   try {
     const r = t.cortex.reports.build({ since: "2020-01-01", until: "2020-01-08" });
-    assert.equal(r.totals.activity.total, 0);
+    assert.equal(r.totals.activity.logged.total + r.totals.activity.system.total, 0);
     assert.equal(r.totals.questions.answered, 0);
     assert.equal(r.attention.open_issues, 1, "what is waiting is always as of now");
   } finally {

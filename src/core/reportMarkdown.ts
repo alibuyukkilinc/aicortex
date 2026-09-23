@@ -9,7 +9,8 @@ const L = {
     period: "Period",
     days: "days",
     atAGlance: "At a glance",
-    activity: "Activity",
+    activity: "Logged activity",
+    auditEntries: "audit entries",
     byAi: "by AI",
     byHumans: "by humans",
     aiChanges: "Changes logged by AI",
@@ -62,7 +63,8 @@ const L = {
     period: "Dönem",
     days: "gün",
     atAGlance: "Özet",
-    activity: "Aktivite",
+    activity: "Kaydedilen aktivite",
+    auditEntries: "denetim kaydı",
     byAi: "AI",
     byHumans: "insan",
     aiChanges: "AI'ın kaydettiği değişiklikler",
@@ -127,7 +129,8 @@ export function reportToMarkdown(r: Report, lang: Lang = "en"): string {
 
   out.push(`## ${t.atAGlance}`, "");
   out.push(`| | |`, `|---|---|`);
-  out.push(`| ${t.activity} | ${T.activity.total} (${t.byAi} ${T.activity.ai} · ${t.byHumans} ${T.activity.human}) |`);
+  const A = T.activity.logged;
+  out.push(`| ${t.activity} | ${A.total} (${t.byAi} ${A.ai} · ${t.byHumans} ${A.human}) · ${T.activity.system.total} ${t.auditEntries} |`);
   out.push(`| ${t.aiChanges} | ${T.ai_logged_changes}${T.ai_changes_without_why ? ` (${T.ai_changes_without_why} ${t.withoutWhy})` : ""} |`);
   out.push(`| ${t.created} | ${T.items_created.total}${fmtTypes(T.items_created.by_type)} |`);
   out.push(`| ${t.closed} | ${T.items_closed.total}${fmtTypes(T.items_closed.by_type)} |`);
