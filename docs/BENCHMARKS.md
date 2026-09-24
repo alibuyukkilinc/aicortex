@@ -1,8 +1,9 @@
 # Benchmarks: does Cortex help an AI agent?
 
-These are A/B runs of AI coding agents on this repository, which runs on its own Cortex knowledge
-(`.cortex/`). Each run is recorded as it happened, so later changes can be measured against it.
-Numbers are not polished: where a result went against Cortex, it is written down as such.
+These are A/B runs of AI coding agents. Rounds 1-5 run on this repository, which runs on its own Cortex
+knowledge (`.cortex/`); round 6 runs on a larger private codebase with a weaker model. Each run is
+recorded as it happened, so later changes can be measured against it. Numbers are not polished: where a
+result went against Cortex, it is written down as such.
 
 ## How a run works
 
@@ -29,6 +30,10 @@ Numbers are not polished: where a result went against Cortex, it is written down
 | 3 | 2026-09-24 | Round 2 again, after tool changes (`be7ccd7`) | 3 (B only) | 2.5 → **4.97** | **62.5K** → 69.4K | 7 → 12 | 41 s → **35 s** |
 | 4 | 2026-09-24 | One large design task (outgoing webhooks) | 3+3 | 11.5 → 11.6 / 12 | **88.1K** → 90.1K | 9 → 27 | **82 s** → 91 s |
 | 5 | 2026-09-24 | Search only: keyword vs. hybrid (semantic on) | 2+2 | 6 → 6 / 6 | 68.2K → 66.3K | 11.5 → 11 | 19 s → 19 s |
+| 6 | 2026-09-24 | One real question on a larger codebase, weaker model | 1+1 | 14.5 → **23.5** / 26 | 55.5K* → **3.9K** | 8 files → 7 | — |
+
+\* Round 6 measures retrieved context, not an agent's whole budget: the bytes Cortex served, against the
+size of the files the control run cited. Not the same unit as rounds 1-5 (see the round).
 
 Accuracy per 1K tokens, rounds 2–3: A 0.040, B 0.072 (+80%); in other words about 24.7K tokens per
 correct answer without Cortex and 14.0K with it.
@@ -171,6 +176,79 @@ tried too (at most three letters dropped, never below five). Measured on 20 quer
 Using stems from the start, or in the "any word" fallback, was tried first and measured worse (it
 widened matches that were already right), so stems are only a middle step.
 
+## Round 6: a larger codebase, a weaker model, one real question
+
+The open question from "next runs": what happens on a bigger, less commented codebase, where reading the
+code costs more. Run on a private product backend (NestJS + Prisma, a marketplace with listings, EAV
+attributes and a map), not on this repository, and with a small free-tier model instead of the Claude
+sub-agents of rounds 1-5.
+
+- **Question** (one sentence, identical in both runs, the way a developer would ask it): how to add a
+  boolean filter to listings, sort the results by price per square metre and show them on the map.
+- **Control (A).** That repository, full filesystem access, no Cortex.
+- **Cortex (B).** The same repository *and* Cortex over the hub (MCP), so every call is metered in bytes.
+- **Answer key:** 10 items, weighted, 26 points. Half are in the code, half only in Cortex (decisions,
+  rules, traps). Every code-level claim in both answers was verified against the source.
+
+| | A (no Cortex) | B (Cortex) |
+|---|---|---|
+| Accuracy | 14.5 / 26 (56%) | **23.5 / 26 (90%)** |
+| Retrieved context | 8 files cited, 222 KB ≈ 55.5K tokens if read whole | **7 calls, 15.8 KB ≈ 3.9K tokens** |
+| Per correct point | ≈ 1,276 tokens (at a third of that read) | **≈ 168 tokens** |
+| Wrong claims | none | none |
+| Against a recorded decision | **yes** | no |
+
+```
+Accuracy (of 26)        0         7        14       21   26
+  A  no Cortex          ██████████████░░░░░░░░░░░░  14.5
+  B  Cortex             ███████████████████████░░░  23.5
+
+Retrieved context (tokens; A is an upper bound)
+  A  8 files, 222 KB    ████████████████████████████████████  55.5K
+  B  7 calls, 15.8 KB   ██▌                                     3.9K
+
+Tokens per correct point
+  A                     ████████████████████████████████████  ~1,276
+  B                     ████▊                                     ~168
+```
+
+Item by item (● = weight):
+
+| Item | Where the answer lives | A | B |
+|---|---|---|---|
+| ●●● Features are EAV rows, not new columns | decision only | ✗ recommends the rejected option | ✓ |
+| ●●●● A new filter goes in four places or it is silently dropped on one path | four functions, far apart | ◐ two of four | ✓ |
+| ●● Add it to the DTO whitelist or the request 400s | code | ✓ | ✓ |
+| ●●● Denormalised price column: field priority, NULLS LAST, backfill script | code + rule | ◐ no backfill | ✓ |
+| ●●● Map endpoints, clustering thresholds, 60 s cache | code | ✓ | ✓ |
+| ●● Haversine and a bbox, deliberately not PostGIS | decision only | ✗ | ✓ |
+| ●●●● Globally cached endpoints apply visibility regardless of role | code + rule | ✓ | ✓ |
+| ●● The list endpoint returns no coordinates (mobile contract) | contract only | ✗ | ✓ |
+| ●● Every query needs the tenant filter | decision only | ✗ | ✗ |
+| ● Cache is cleared by an event, not by TTL alone | code | ◐ | ◐ |
+
+What the numbers do not show, and matters more than them:
+
+- **The control's answer was not wrong; it was against the architecture.** It recommended adding a column
+  and a migration as "the right way". That is the alternative the team had weighed and rejected, with the
+  reason recorded: hundreds of empty columns and a migration for every new feature. A rejected
+  alternative leaves no trace in the code, so no amount of reading finds it. A plan that compiles and
+  passes review can still be the wrong turn.
+- **The control found a real gap that Cortex did not.** Boolean EAV attributes cannot be filtered at all:
+  the query builders look at the text, option and number columns, never at the boolean one. True,
+  verified, and missing from Cortex because nobody had written it down. Cortex is only as good as what is
+  in it; the answer is to record the finding, which is what happened.
+- **Neither run invented anything.** Both said plainly when something did not exist ("no such filter
+  yet"), which is the failure mode that costs most with a weak model.
+- **The gap the earlier rounds did not show, shows here.** On this repository (8.3k lines, heavily
+  commented) reading the code was as good and slightly cheaper (rounds 1 and 4). Where the relevant files
+  alone are 222 KB, the same question was answered from a fraction of the context, and the half of the
+  answer that is not in the code was only answered by the Cortex run.
+
+Caveats: one question, one run per side (n=1), a different model from rounds 1-5, and the two context
+figures are measured differently (metered bytes against the size of the files the control cited). A
+direction, not a coefficient.
+
 ## What we learned so far
 
 1. Cortex pays off where the answer is not in the code: why something was decided, by whom, what was
@@ -182,7 +260,11 @@ widened matches that were already right), so stems are only a middle step.
    change; that is the next thing to measure.
 5. The larger design task (round 4) did not widen the gap: on a codebase this size, reading the code
    gives an agent the architecture. Cortex's edge stays with what the code cannot say.
-6. Semantic search, as built today, gave no measurable gain to agents and lost one keyword hit in
+6. Size changes the arithmetic (round 6). Where the files holding the answer were 222 KB, a weaker model
+   answered the same question at 90% against 56%, from a fourteenth of the context. The most expensive
+   mistake there was not a wrong fact but a recommendation against a decision the team had already made
+   and written down.
+7. Semantic search, as built today, gave no measurable gain to agents and lost one keyword hit in
    hybrid ranking. It stays optional and off; keyword search got stem matching instead.
 
 ## Next runs
@@ -190,6 +272,7 @@ widened matches that were already right), so stems are only a middle step.
 - Search: English questions against Turkish knowledge are still the gap keyword search cannot close.
   Agents close it themselves by rewriting the query, so it matters mostly for people using the board.
 
-- A larger, less commented codebase, where reading the code costs more.
+- More rounds like 6: several questions, several runs per side, and a runtime that reports tokens on
+  both sides, so the two context figures are one unit.
 - A real implementation task with tests as the grader, not a written plan.
 - The same rounds on each release, to follow the trend.
