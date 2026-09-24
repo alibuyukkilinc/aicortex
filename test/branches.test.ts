@@ -46,6 +46,32 @@ test("init --branches: pick template branches, add your own, skip the rest", () 
   }
 });
 
+test("init --lang tr: a Turkish project opens on a Turkish tree, and reports still see the placeholders", () => {
+  assert.deepEqual(resolveBranches(["backend", "api-gateway"], "tr"), [
+    ["backend", "Arka uç", "API'ler, iş mantığı, veri erişimi ve arka plan işleri."],
+    ["api-gateway", "Api gateway", "api gateway hakkında bilgi."],
+  ]);
+  assert.equal(resolveBranches(["backend"], "de")[0][1], "Backend", "a language with no seed falls back to English");
+  assert.equal(resolveBranches(["backend"])[0][1], "Backend", "no language given is English, never the machine's locale");
+
+  const root = mkdtempSync(join(tmpdir(), "cortex-lang-"));
+  try {
+    initProject(root, "Kargo", { language: "tr", branches: ["backend", "mobile"], timezone: "UTC" });
+    const cortex = new Cortex(loadProject(root), { embedder: null });
+    try {
+      assert.equal(cortex.node("backend").title, "Arka uç");
+      assert.match(cortex.node("backend").summary, /arka plan işleri\. \(henüz belgelenmedi\)$/);
+      assert.match(cortex.node("").summary, /^Kargo: proje özeti henüz yazılmadı/);
+      // Turkish seed text still counts as "not documented yet": root + the two branches.
+      assert.equal(cortex.reports.build({ since: "1d" }).knowledge.undocumented, 3);
+    } finally {
+      cortex.close();
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("humans delete knowledge that does not apply; children and open items must go first", async () => {
   const t = tempProject();
   try {

@@ -11,15 +11,71 @@ import { ACTIVITY_SCHEMA, DEFAULT_SCHEMAS } from "./schema.js";
 import { languageRule } from "./language.js";
 import { systemTimeZone } from "../util/time.js";
 
-export const DEFAULT_BRANCHES: [string, string, string][] = [
-  ["backend", "Backend", "APIs, business logic, data access and background jobs."],
-  ["frontend", "Frontend", "Web UI: pages, components, state and styling."],
-  ["server", "Server & Infrastructure", "Hosting, deployment, environments, CI/CD and monitoring."],
-  ["mobile", "Mobile", "Mobile apps: platforms, builds and store releases."],
-  ["security", "Security", "Auth, permissions, secrets handling and threat notes."],
-  ["seo", "SEO", "Metadata, sitemaps, performance and indexing rules."],
-  ["code-structure", "Code Structure", "Folder layout, conventions, patterns and shared libraries."],
-];
+export type Branch = [path: string, title: string, summary: string];
+
+// The text init writes into a brand new tree. A project that writes in Turkish should not open on an
+// English board, so the seed follows the project's language; a language we have no seed for gets the
+// English one, and the bootstrap task rewrites all of it anyway.
+interface SeedText {
+  branches: Record<string, [title: string, summary: string]>;
+  custom: (name: string) => string; // a branch the template does not know
+  pending: string; // appended to every seeded branch summary
+  root: (project: string) => string;
+  rootMark: string; // the part of `root` that says the summary is still unwritten
+}
+
+export const BRANCH_PATHS = ["backend", "frontend", "server", "mobile", "security", "seo", "code-structure"];
+
+const SEED: Record<string, SeedText> = {
+  en: {
+    branches: {
+      backend: ["Backend", "APIs, business logic, data access and background jobs."],
+      frontend: ["Frontend", "Web UI: pages, components, state and styling."],
+      server: ["Server & Infrastructure", "Hosting, deployment, environments, CI/CD and monitoring."],
+      mobile: ["Mobile", "Mobile apps: platforms, builds and store releases."],
+      security: ["Security", "Auth, permissions, secrets handling and threat notes."],
+      seo: ["SEO", "Metadata, sitemaps, performance and indexing rules."],
+      "code-structure": ["Code Structure", "Folder layout, conventions, patterns and shared libraries."],
+    },
+    custom: (name) => `Knowledge about ${name}.`,
+    pending: "(not documented yet)",
+    root: (project) => `${project}: project summary not written yet. Run the bootstrap task to fill this in.`,
+    rootMark: "summary not written yet",
+  },
+  tr: {
+    branches: {
+      backend: ["Arka uç", "API'ler, iş mantığı, veri erişimi ve arka plan işleri."],
+      frontend: ["Ön yüz", "Web arayüzü: sayfalar, bileşenler, durum yönetimi ve stiller."],
+      server: ["Sunucu ve altyapı", "Barındırma, dağıtım, ortamlar, CI/CD ve izleme."],
+      mobile: ["Mobil", "Mobil uygulamalar: platformlar, derlemeler ve mağaza yayınları."],
+      security: ["Güvenlik", "Kimlik doğrulama, yetkiler, gizli bilgiler ve tehdit notları."],
+      seo: ["SEO", "Meta veriler, site haritaları, performans ve dizine ekleme kuralları."],
+      "code-structure": ["Kod yapısı", "Klasör düzeni, adlandırma kuralları, kalıplar ve ortak kütüphaneler."],
+    },
+    custom: (name) => `${name} hakkında bilgi.`,
+    pending: "(henüz belgelenmedi)",
+    root: (project) => `${project}: proje özeti henüz yazılmadı. Doldurmak için bootstrap görevini çalıştır.`,
+    rootMark: "özeti henüz yazılmadı",
+  },
+};
+
+// No language given means English: callers that have one (init, the CLI prompt) pass it explicitly,
+// so nothing silently depends on the machine's locale.
+export function seedText(language?: string | null): SeedText {
+  return SEED[(language ?? "en").split("-")[0].toLowerCase()] ?? SEED.en;
+}
+
+// Reports count a branch as undocumented while it still carries the seeded summary, in any language.
+const PLACEHOLDERS = Object.values(SEED).flatMap((s) => [s.pending, s.rootMark]);
+
+export function isPlaceholder(summary: string): boolean {
+  return PLACEHOLDERS.some((t) => summary.includes(t));
+}
+
+export function defaultBranches(language?: string | null): Branch[] {
+  const seed = seedText(language);
+  return BRANCH_PATHS.map((path) => [path, ...seed.branches[path]] as Branch);
+}
 
 const GLOBAL_RULES = {
   rules: [
@@ -64,14 +120,17 @@ export function systemLanguage(): string {
 }
 
 // Branch names from --branches: template names keep their description, anything else gets a generic one.
-export function resolveBranches(names?: string[]): [string, string, string][] {
-  if (!names) return DEFAULT_BRANCHES;
-  const out: [string, string, string][] = [];
+export function resolveBranches(names?: string[], language?: string | null): Branch[] {
+  const template = defaultBranches(language);
+  if (!names) return template;
+  const seed = seedText(language);
+  const out: Branch[] = [];
   for (const raw of names) {
     const path = normalizePath(raw.trim().toLowerCase());
     if (!path || path.includes("/") || out.some(([p]) => p === path)) continue;
-    const known = DEFAULT_BRANCHES.find(([p]) => p === path);
-    out.push(known ?? [path, path.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()), `Knowledge about ${path.replace(/-/g, " ")}.`]);
+    const known = template.find(([p]) => p === path);
+    const words = path.replace(/-/g, " ");
+    out.push(known ?? [path, words.replace(/^./, (c) => c.toUpperCase()), seed.custom(words)]);
   }
   return out;
 }
@@ -82,6 +141,8 @@ export function initProject(root: string, name = basename(root), opts: { languag
     throw new CortexError("already_initialized", `Cortex is already initialized in ${dir}.`, 409);
   }
   const p = paths(dir);
+  const language = opts.language ?? systemLanguage();
+  const seed = seedText(language);
   for (const d of [p.rules, p.tree, p.items, p.activity, p.drafts]) mkdirSync(d, { recursive: true });
 
   const config: CortexConfig = {
@@ -116,7 +177,7 @@ export function initProject(root: string, name = basename(root), opts: { languag
     join(p.rules, "_global.yaml"),
     "# Rules every AI receives in cortex_brief. Edited by humans only.\n" +
       "# language: the language AIs must write in (knowledge, items, replies, activity), e.g. tr or en.\n" +
-      YAML.stringify({ language: opts.language ?? systemLanguage(), ...GLOBAL_RULES }),
+      YAML.stringify({ language, ...GLOBAL_RULES }),
     "utf8",
   );
   writeFileSync(join(p.rules, "node.schema.yaml"), YAML.stringify(NODE_SCHEMA), "utf8");
@@ -138,8 +199,8 @@ export function initProject(root: string, name = basename(root), opts: { languag
     updated_by: "owner",
     updated_at: nowIso(),
   });
-  tree.write(make("", name, `${name}: project summary not written yet. Run the bootstrap task to fill this in.`));
-  for (const [path, title, summary] of resolveBranches(opts.branches)) tree.write(make(path, title, `${summary} (not documented yet)`));
+  tree.write(make("", name, seed.root(name)));
+  for (const [path, title, summary] of resolveBranches(opts.branches, language)) tree.write(make(path, title, `${summary} ${seed.pending}`));
 
   return { dir, tokens, markdownCandidates: findMarkdown(root) };
 }

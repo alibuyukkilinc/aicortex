@@ -3,6 +3,7 @@ import type { Activity, ActorKind, Item } from "./types.js";
 import { CortexError } from "./types.js";
 import { actionable } from "./staleness.js";
 import { addDays, dayKey, startOfDay } from "../util/time.js";
+import { isPlaceholder } from "./init.js";
 
 // Reports answer "what happened, what is waiting, can we trust it" from the files and the activity log.
 // No LLM involved: every number is counted, so it costs nothing and is the same every time.
@@ -14,7 +15,6 @@ const AGING_BUCKETS: [string, number, number][] = [
   ["7-30d", 7, 30],
   ["30d+", 30, Infinity],
 ];
-const PLACEHOLDER = /\(not documented yet\)|summary not written yet/;
 const LIST = 10;
 
 export interface Period {
@@ -218,7 +218,7 @@ export class ReportService {
     const linked = new Set(this.c.index.nodeCodeLinks().map((l) => l.path));
     const allStale = this.c.staleness.list();
     const stale = allStale.filter(actionable); // formatting-only and snoozed ones are reported apart, as information
-    const undocumented = nodes.filter((n) => PLACEHOLDER.test(n.summary)).map((n) => n.path || "(root)");
+    const undocumented = nodes.filter((n) => isPlaceholder(n.summary)).map((n) => n.path || "(root)");
 
     // ---- highlights -------------------------------------------------------------------
     const aiChanges = events

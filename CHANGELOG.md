@@ -5,6 +5,13 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Fixed
+
+- **A Turkish project no longer opens on an English tree.** `init --lang tr` now seeds the branch
+  titles and summaries, and the root node's placeholder, in Turkish; a language with no seed still
+  gets English, and the bootstrap task rewrites all of it anyway. Reports keep counting a seeded
+  branch as undocumented in every language (the check reads the seed table, not one hard-coded phrase).
+
 ## [0.2.1] - 2026-09-24
 
 ### Changed

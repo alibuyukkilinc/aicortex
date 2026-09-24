@@ -84,14 +84,14 @@ async function main() {
 
   switch (cmd) {
     case "init": {
-      const { initProject, AGENT_HINT, DEFAULT_BRANCHES } = await import("./core/init.js");
+      const { initProject, AGENT_HINT, defaultBranches, systemLanguage } = await import("./core/init.js");
       const { resolve } = await import("node:path");
       const root = projectDir ? resolve(projectDir) : process.cwd();
       let branches = values.branches
         ?.split(",")
         .map((b) => b.trim())
         .filter(Boolean);
-      if (!branches && process.stdin.isTTY && process.stdout.isTTY) branches = await askBranches(DEFAULT_BRANCHES);
+      if (!branches && process.stdin.isTTY && process.stdout.isTTY) branches = await askBranches(defaultBranches(values.lang ?? systemLanguage()));
       const r = initProject(root, values.name, { language: values.lang, branches });
       console.log(`✔ Cortex initialized in ${r.dir}\n`);
       console.log("Actor tokens (stored in .cortex/.secrets.yaml, git-ignored):");

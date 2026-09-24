@@ -50,7 +50,7 @@ export function gitProject() {
   write("src/pay/iyzico.ts", "export const provider = 'iyzico';\n");
   write("src/pay/refund_v2.ts", "export {};\n");
   write("README.md", "# demo\n");
-  const init = initProject(root, "demo");
+  const init = initProject(root, "demo", { language: "en" }); // fixed, like tempProject: the seed text follows the language
   const first = commit("initial");
   const cortex = new Cortex(loadProject(root), { embedder: null });
   return {
