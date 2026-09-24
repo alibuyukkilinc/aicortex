@@ -5,6 +5,14 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Performance
+
+- **The sidebar badges cost one small request.** The three numbers next to Notifications, Approvals and
+  Stale knowledge were fed by three separate requests, two of which pulled a whole list only to count it,
+  on every live event and from whatever page was open. `GET /counts` now answers all three, with the same
+  visibility rules. Measured with 14 pending drafts: **5,856 bytes over 3 requests → 75 bytes in 1** (-99%).
+  On a real week, `/approvals` alone was 5.2 MB of 8.7 MB of board traffic.
+
 ## [0.2.3] - 2026-09-24
 
 A board that stays usable when it fills up, and a bootstrap task that cannot leak what git hides.

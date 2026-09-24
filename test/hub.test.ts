@@ -200,6 +200,11 @@ test("hub visibility: 'own' scope and branch limits hide the rest of the project
     // Partial views get no project-wide report.
     assert.equal((await t.call({ url: "/api/p/shop/report", cookie: fe.cookie })).statusCode, 403);
     assert.equal((await t.call({ url: "/api/p/shop/report", cookie: admin })).statusCode, 200);
+
+    // The sidebar badges count what each member can see, the same as the lists behind them.
+    const counts = async (cookie: string) => (await t.call({ url: "/api/p/shop/counts", cookie })).json();
+    assert.equal((await counts(own.cookie)).inbox, 1, "the one task assigned to the contractor");
+    assert.equal((await counts(fe.cookie)).inbox, 0);
   } finally {
     await t.cleanup();
   }

@@ -339,13 +339,13 @@ function ThemeToggle() {
 
 function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
   const t = useT();
-  const inbox = useApi<{ count: number }>("/api/inbox?limit=1");
-  const drafts = useApi<{ drafts: unknown[] }>("/api/approvals");
-  const stale = useApi<{ actionable: number }>("/api/stale");
+  // One small request for the three badges: the lists behind them are fetched by their own pages.
+  // `stale` counts high and medium only: formatting-only and snoozed ones are not work.
+  const badges = useApi<{ inbox: number; approvals: number; stale: number }>("/api/counts");
   const counts: Record<string, number> = {
-    inbox: inbox.data?.count ?? 0,
-    approvals: drafts.data?.drafts.length ?? 0,
-    stale: stale.data?.actionable ?? 0, // high and medium only: formatting-only and snoozed are not work
+    inbox: badges.data?.inbox ?? 0,
+    approvals: badges.data?.approvals ?? 0,
+    stale: badges.data?.stale ?? 0,
   };
   const { lang, setLang } = useContext(LangContext);
   const logout = async () => {

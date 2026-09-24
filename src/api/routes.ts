@@ -192,6 +192,19 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       items: r.items.filter((i) => seesItem(req, req.cortex.index.getItem(i.id as string))),
     });
   });
+  // The board's sidebar badges. They used to pull the inbox, every draft and every stale node on each
+  // live event, from whatever page was open, only to show three numbers: 12 KB a time on a real project.
+  app.get("/counts", async (req) => {
+    const stale = req.cortex.staleness
+      .list()
+      .filter((n) => seesNode(req, n.path))
+      .filter(actionable).length;
+    return ok(req, {
+      inbox: req.cortex.items.inbox(req.actor, 0, req.access?.itemSql() ?? null).count,
+      approvals: visibleDrafts(req).length,
+      stale,
+    });
+  });
   app.get("/stale", async (req) => {
     const s = req.cortex.staleness;
     const nodes = s
@@ -252,16 +265,16 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
 
   // ---- approvals ------------------------------------------------------------------
 
-  app.get("/approvals", async (req) => {
-    let drafts = req.cortex.listDrafts();
-    if (req.access) {
-      // Reviewers see every draft they can see; everyone else sees the drafts they proposed.
-      drafts = req.access.can("approve")
-        ? drafts.filter((d) => (d.kind === "node" ? seesNode(req, d.target) : seesItem(req, req.cortex.index.getItem(d.target))))
-        : drafts.filter((d) => d.proposed_by === req.actor.id);
-    }
-    return ok(req, { drafts });
-  });
+  // Reviewers see every draft they can see; everyone else sees the drafts they proposed.
+  const visibleDrafts = (req: FastifyRequest) => {
+    const drafts = req.cortex.listDrafts();
+    if (!req.access) return drafts;
+    return req.access.can("approve")
+      ? drafts.filter((d) => (d.kind === "node" ? seesNode(req, d.target) : seesItem(req, req.cortex.index.getItem(d.target))))
+      : drafts.filter((d) => d.proposed_by === req.actor.id);
+  };
+
+  app.get("/approvals", async (req) => ok(req, { drafts: visibleDrafts(req) }));
   app.get("/approvals/:id", async (req) => {
     const r = req.cortex.getDraft((req.params as Q).id!);
     if (req.access && !req.access.can("approve") && r.draft.proposed_by !== req.actor.id) throw hidden("Draft");

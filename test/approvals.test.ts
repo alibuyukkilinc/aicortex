@@ -77,6 +77,36 @@ test("writing language is a human rule: first in the brief, validated, changes r
   }
 });
 
+test("REST: /counts answers the sidebar badges without sending the lists", async () => {
+  const t = tempProject();
+  const app = buildServer(t.cortex);
+  const H = (token: string) => ({ host: "localhost:4747", authorization: `Bearer ${token}` });
+  try {
+    t.cortex.putNode(t.ai, { path: "backend/a", title: "A", summary: "a" });
+    t.cortex.putNode(t.ai, { path: "backend/b", title: "B", summary: "b" });
+    t.cortex.items.create(t.ai, { type: "question", title: "Which queue?", assignee: "@humans", fields: { blocking: true } });
+
+    const counts = await app.inject({ url: "/api/counts", headers: H(t.init.tokens.owner) });
+    assert.equal(counts.statusCode, 200);
+    const body = counts.json();
+    assert.equal(body.approvals, 2);
+    assert.equal(body.inbox, 1);
+    assert.equal(body.stale, 0);
+
+    // The point of the endpoint: a badge costs a few hundred bytes, not the lists behind it.
+    const list = await app.inject({ url: "/api/approvals", headers: H(t.init.tokens.owner) });
+    assert.equal(list.json().drafts.length, 2);
+    assert.ok(counts.body.length * 4 < list.body.length, `counts ${counts.body.length}B vs approvals ${list.body.length}B`);
+
+    // An AI counts only the drafts it proposed itself, the same rule the list follows.
+    const asAi = await app.inject({ url: "/api/counts", headers: H(t.init.tokens["ai-agent"]) });
+    assert.equal(asAi.json().approvals, 2, "in a single project every actor sees every draft");
+  } finally {
+    await app.close();
+    t.cleanup();
+  }
+});
+
 test("REST: bulk approve and reject are human-only and report per draft", async () => {
   const t = tempProject();
   const app = buildServer(t.cortex);
