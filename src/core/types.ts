@@ -104,6 +104,9 @@ export interface CortexConfig {
   approval: Record<string, ApprovalPolicy>;
   search?: { semantic?: boolean }; // false turns semantic search off for this project
   timezone?: string; // IANA zone reports count days in, e.g. "Europe/Istanbul"; default UTC
+  // Hub project ids this project reads from, e.g. a mobile app linking its backend. Read-only, and only for
+  // callers who are members of the linked project too: a link says where to look, membership says who may.
+  linked?: string[];
 }
 
 export type Draft = (DraftBase & { kind: "node"; data: KnowledgeNode }) | (DraftBase & { kind: "item"; data: Item });

@@ -16,7 +16,17 @@ import type { Agent, HubStore, Member, Principal, User } from "./store.js";
 import { SESSION_DAYS } from "./store.js";
 import { RateLimiter } from "./limiter.js";
 import { registerMcpHttp } from "./mcpHttp.js";
+import type { PullResult } from "./gitSync.js";
+import { pullProject } from "./gitSync.js";
 import type { McpApi } from "../mcp/client.js";
+import type { Access } from "../api/access.js";
+
+// Reads a caller may aim at a linked project (?project=<id>): knowledge and items, nothing that writes,
+// nothing about people's queues. Paths are relative to /api/p/:project.
+const CROSS_READS = /^\/(search|tree|node|items)(\/|$)/;
+
+// Whatever the caller's role over there, a linked read is read-only.
+const readOnly = (a: Access): Access => ({ ...a, can: (p) => p === "read" && a.can(p) });
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -31,7 +41,42 @@ type Q = Record<string, string | undefined>;
 export class Hub {
   private open = new Map<string, { cortex: Cortex; fileActors: Actor[] }>();
 
+  // The last pull per project, for the board. Kept in memory: after a restart the next pull refills it.
+  readonly pulls = new Map<string, PullResult>();
+  private pulling = new Set<string>();
+  private pullTimer: NodeJS.Timeout | null = null;
+
   constructor(readonly store: HubStore) {}
+
+  // Fast-forwards one project's checkout. One pull per project at a time; a second request waits for nothing
+  // and gets the running one's answer from the next read of `pulls`.
+  async pull(projectId: string): Promise<PullResult> {
+    const p = this.store.project(projectId);
+    if (!p) throw new CortexError("not_found", `No project "${projectId}".`, 404);
+    if (this.pulling.has(projectId))
+      return this.pulls.get(projectId) ?? { at: new Date().toISOString(), status: "skipped", message: "A pull is already running." };
+    this.pulling.add(projectId);
+    try {
+      const r = await pullProject(p.path);
+      this.pulls.set(projectId, r);
+      // New files arrive through the folder watcher; a new HEAD through the staleness poll. Nothing else to do.
+      if (r.status === "failed") console.error(`⚠ ${projectId}: ${r.message}`);
+      return r;
+    } finally {
+      this.pulling.delete(projectId);
+    }
+  }
+
+  // Every project in turn, every `minutes`. Off unless hub.yaml asks for it (pull_minutes).
+  startPulling(minutes: number): void {
+    if (!(minutes > 0)) return;
+    const run = async () => {
+      for (const p of this.store.projects()) await this.pull(p.id).catch(() => {});
+    };
+    void run();
+    this.pullTimer = setInterval(() => void run(), minutes * 60_000);
+    this.pullTimer.unref();
+  }
 
   cortex(projectId: string): Cortex {
     const cached = this.open.get(projectId);
@@ -66,6 +111,7 @@ export class Hub {
   }
 
   close(): void {
+    if (this.pullTimer) clearInterval(this.pullTimer);
     for (const { cortex } of this.open.values()) cortex.close();
     this.open.clear();
   }
@@ -297,7 +343,15 @@ export function buildHubServer(hub: Hub): FastifyInstance {
 
   app.get("/api/admin/projects", async (req) => {
     orgAdmin(req);
-    return { projects: store.projects().map((p) => ({ ...p, members: store.members(p.id).length, exists: existsSync(join(p.path, ".cortex")) })) };
+    return {
+      projects: store.projects().map((p) => ({
+        ...p,
+        members: store.members(p.id).length,
+        exists: existsSync(join(p.path, ".cortex")),
+        pull: hub.pulls.get(p.id) ?? null,
+      })),
+      pull_minutes: store.settings.pull_minutes ?? 0,
+    };
   });
   // Register an existing Cortex project by folder, or create .cortex in a folder that has none (init: true).
   app.post("/api/admin/projects", async (req, reply) => {
@@ -345,6 +399,37 @@ export function buildHubServer(hub: Hub): FastifyInstance {
         if (!req.cortex.project.config.actors.some((a) => a.id === m.principal)) hub.syncActors(projectId);
         req.access = buildAccess(m);
         req.actor = { id: m.principal, kind: m.kind, ...(ROLE_POLICY[m.role] ? { policy: ROLE_POLICY[m.role] } : {}) };
+
+        const linked = req.cortex.project.config.linked ?? [];
+        req.linkedProjects = () =>
+          linked
+            .filter((id) => store.project(id))
+            .map((id) => {
+              const readable = !!hub.membership(id, p);
+              return { id, name: store.project(id)!.name, summary: readable ? (hub.cortex(id).tree.read("")?.summary ?? "") : "", readable };
+            });
+
+        // A read aimed at a linked project: switch to that project, with the caller's membership there.
+        const target = (req.query as Q | undefined)?.project;
+        if (target && target !== projectId) {
+          const route = (req.routeOptions.url ?? "").replace(/^\/api\/p\/:project/, "");
+          if (!SAFE_METHODS.has(req.method) || !CROSS_READS.test(route)) {
+            throw new CortexError("cross_project_read_only", "Linked projects can only be searched and read (search, tree, node, items).", 400);
+          }
+          if (!linked.includes(target)) {
+            throw new CortexError("not_linked", `"${target}" is not linked from "${projectId}".`, 400, {
+              linked,
+              hint: `An owner adds it under linked: in ${projectId}'s .cortex/cortex.config.yaml.`,
+            });
+          }
+          if (!store.project(target)) throw new CortexError("not_found", `No project "${target}".`, 404);
+          const tm = hub.membership(target, p);
+          if (!tm) throw new CortexError("forbidden", `${m.principal} is not a member of "${target}" (linked from "${projectId}").`, 403);
+          req.cortex = hub.cortex(target);
+          req.access = readOnly(buildAccess(tm));
+          req.actor = { id: tm.principal, kind: tm.kind };
+          req.crossProject = target;
+        }
       });
 
       await scope.register(projectRoutes);
@@ -356,6 +441,19 @@ export function buildHubServer(hub: Hub): FastifyInstance {
         const q = req.query as Q;
         const kind = q.kind === "human" || q.kind === "ai" ? q.kind : undefined;
         return store.usage(sinceIso(q.since), { project: (req.params as Q).project!, kind });
+      });
+
+      // Where this project's checkout stands against its upstream, and how much hub-written knowledge waits
+      // for a person to commit. The hub only ever pulls; committing stays with people.
+      scope.get("/git", async (req) => {
+        const projectId = (req.params as Q).project!;
+        return { pull_minutes: store.settings.pull_minutes ?? 0, last: hub.pulls.get(projectId) ?? null };
+      });
+      scope.post("/git/pull", async (req) => {
+        if (req.actor.kind !== "human" || !req.access!.can("approve")) {
+          throw new CortexError("forbidden", "Only people who can approve may pull this project's checkout.", 403);
+        }
+        return { result: await hub.pull((req.params as Q).project!) };
       });
 
       scope.get("/members", async (req) => {

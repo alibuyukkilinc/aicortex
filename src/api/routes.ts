@@ -9,10 +9,20 @@ import type { DocKind } from "../index/db.js";
 import type { Access, ItemRef } from "./access.js";
 import { hidden, need } from "./access.js";
 
+export interface LinkedProject {
+  id: string;
+  name: string;
+  summary: string;
+  readable: boolean; // the caller is a member there too; otherwise the link is listed but reads are refused
+}
+
 declare module "fastify" {
   interface FastifyRequest {
     cortex: Cortex;
     access?: Access;
+    // Set by the hub when a read is aimed at a linked project (?project=<id>): req.cortex is that project.
+    crossProject?: string;
+    linkedProjects?: () => LinkedProject[];
   }
 }
 
@@ -28,7 +38,7 @@ const list = (v: string | undefined) =>
     : undefined;
 
 // Every response carries _meta so AIs notice rule changes without re-reading the rules.
-const ok = (req: FastifyRequest, data: object) => ({ ...data, _meta: req.cortex.meta() });
+const ok = (req: FastifyRequest, data: object) => ({ ...(req.crossProject ? { project: req.crossProject } : {}), ...data, _meta: req.cortex.meta() });
 
 const itemOf =
   (c: Cortex) =>
@@ -56,6 +66,14 @@ const streams = new WeakMap<object, number>();
 const sseLimitOf = () => Math.max(1, Number(process.env.CORTEX_SSE_LIMIT) || 50); // env: for tests and small machines
 
 export async function projectRoutes(app: FastifyInstance): Promise<void> {
+  // ?project=<id> reads a linked project. Only the hub can serve that (it knows the other projects and the
+  // caller's membership there); anywhere else the parameter must fail loudly, not answer from this project.
+  app.addHook("preHandler", async (req) => {
+    const target = (req.query as Q | undefined)?.project;
+    if (!target || req.crossProject || target === (req.params as Q | undefined)?.project) return;
+    throw new CortexError("not_linked", "Reading another project needs a team server (hub) with linked projects.", 400);
+  });
+
   app.get("/me", async (req) => {
     const c = req.cortex;
     return ok(req, {
@@ -121,6 +139,8 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/brief", async (req) => {
     const b = req.cortex.brief(req.actor, num((req.query as Q).budget), req.access?.itemSql() ?? null);
+    const linked = req.linkedProjects?.() ?? [];
+    if (linked.length) (b as Record<string, unknown>).linked = linked;
     if (!req.access) return ok(req, b);
     const stale = b.attention.stale_nodes;
     const staleTop = stale?.top.filter((s) => seesNode(req, s.path)) ?? [];

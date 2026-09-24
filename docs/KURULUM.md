@@ -310,6 +310,37 @@ ya da `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN` ortam değişkenleriyle
 `Authorization: Bearer <ajan token'ı>` ile **HTTP üzerinden MCP** bağlanır. Hangi yolla gelirse gelsin
 ajanın rolü ve görünürlüğü geçerlidir.
 
+### 6. Bağlı projeler: bir uygulamanın başka projenin bilgisini okuması
+
+Bir repo bir projedir. Mobil uygulama backend'in API'sini, auth akışını ve kurallarını bilmek zorundaysa,
+mobil projenin `.cortex/cortex.config.yaml` dosyasına bağlantıyı yaz:
+
+```yaml
+linked: [backend]
+```
+
+Mobil ajan tek MCP bağlantısıyla devam eder. `cortex_brief` bağlı projeleri listeler; `cortex_search`,
+`cortex_tree`, `cortex_node`, `cortex_items` ve `cortex_item` `project: "backend"` ile orada okur.
+Bağlantı erişim izni değildir: ajan backend'de de üye olmalı (Okuyucu yeter) ve o üyeliğin dal ve kapsam
+sınırları geçerlidir. Bağlı okumalar oradaki rol ne olursa olsun salt okumadır; soru ve yazma ajanın
+kendi projesinde kalır.
+
+### 7. Hub'daki kopyaları güncel tutmak
+
+Hub her projeyi kendi makinesindeki bir klasörden okur. Geliştiricilerin push ettikleriyle o kopyanın
+güncel kalması için (eskime tespiti güncel koda göre çalışır) hub'ın çekmesine izin ver:
+
+```yaml
+# ~/.cortex/hub/hub.yaml
+pull_minutes: 5
+```
+
+ya da elle `cortexboard hub pull [proje]` veya Organizasyon → Projeler'deki **Çek** düğmesi. Hub yalnızca
+ileri sarar. Commit ve push yapmaz: hub'ın yazdığı bilgi kendi kopyasında kalır ve Projeler sayfası o
+dosyaları sayar ("3 commit bekliyor"), bir insan commit'leyene kadar. Ayrışmış dal, yerel commit ya da
+gelen commit'lerin dokunduğu yerel düzenleme çekmeyi gerekçesiyle durdurur; hiçbir şey sıfırlanmaz ya da
+birleştirilmez. Hub makinesinin uzak repoyu okuyabilmesi gerekir (parola sorusu cevaplanamaz).
+
 ---
 
 ## İsteğe bağlı: anlamla arama

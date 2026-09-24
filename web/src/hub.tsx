@@ -2,6 +2,7 @@ import type { FormEvent, ReactNode } from "react";
 import { useContext, useState } from "react";
 import { ApiError, api, currentProject, qs, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
+import type { Key } from "./i18n";
 import type { HubMe } from "./types";
 import { HBars, StackedColumns } from "./charts";
 import { Ago, ErrorBox, Icon, Loading, Modal, useRoute, useToast } from "./ui";
@@ -286,7 +287,8 @@ type AdminUser = {
   projects: { id: string; role: string }[];
 };
 type AdminAgent = { id: string; name: string; disabled: boolean; projects: { id: string; role: string }[] };
-type AdminProject = { id: string; name: string; path: string; members: number; exists: boolean };
+type PullResult = { at: string; status: "pulled" | "up_to_date" | "skipped" | "failed"; message: string; behind?: number; ahead?: number; pending?: number };
+type AdminProject = { id: string; name: string; path: string; members: number; exists: boolean; pull: PullResult | null };
 
 export function AdminPage({ me }: { me: HubMe }) {
   const t = useT();
@@ -314,7 +316,7 @@ export function AdminPage({ me }: { me: HubMe }) {
 }
 
 function useProjectsList() {
-  return useApi<{ projects: AdminProject[] }>("/api/admin/projects");
+  return useApi<{ projects: AdminProject[]; pull_minutes: number }>("/api/admin/projects");
 }
 
 function Secret({ title, value, hint, onClose }: { title: string; value: string; hint: string; onClose: () => void }) {
@@ -624,6 +626,19 @@ function ProjectsTab() {
   const toast = useToast();
   const projects = useProjectsList();
   const [adding, setAdding] = useState(false);
+  const [pulling, setPulling] = useState<string | null>(null);
+  const pull = async (p: AdminProject) => {
+    setPulling(p.id);
+    try {
+      const r = await api<{ result: PullResult }>(`/api/p/${encodeURIComponent(p.id)}/git/pull`, { method: "POST" });
+      toast({ text: `${p.name}: ${r.result.message}`, error: r.result.status === "failed" });
+      projects.reload();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    } finally {
+      setPulling(null);
+    }
+  };
   const remove = async (p: AdminProject) => {
     if (!confirm(t("hub.unregisterConfirm"))) return;
     try {
@@ -636,6 +651,9 @@ function ProjectsTab() {
   return (
     <>
       <div className="toolbar">
+        <span className="faint">
+          {projects.data?.pull_minutes ? t("hub.pullEvery").replace("{n}", String(projects.data.pull_minutes)) : t("hub.pullManual")}
+        </span>
         <span className="spacer" />
         <button className="btn primary" onClick={() => setAdding(true)}>
           <Icon name="plus" /> {t("hub.addProject")}
@@ -651,6 +669,7 @@ function ProjectsTab() {
                 <th>{t("hub.name")}</th>
                 <th>{t("hub.folder")}</th>
                 <th className="num">{t("hub.memberCount")}</th>
+                <th>{t("hub.git")}</th>
                 <th />
               </tr>
             </thead>
@@ -667,7 +686,13 @@ function ProjectsTab() {
                     {p.path} {!p.exists && <span className="chip danger">{t("hub.missing")}</span>}
                   </td>
                   <td className="num">{p.members}</td>
+                  <td>
+                    <PullState r={p.pull} />
+                  </td>
                   <td className="actions">
+                    <button className="btn sm" disabled={pulling === p.id} onClick={() => void pull(p)}>
+                      <Icon name="download" /> {t("hub.pullNow")}
+                    </button>
                     <button className="btn sm ghost danger" onClick={() => void remove(p)}>
                       {t("hub.unregister")}
                     </button>
@@ -680,6 +705,21 @@ function ProjectsTab() {
       )}
       {adding && <AddProject onClose={() => setAdding(false)} onDone={() => (setAdding(false), projects.reload())} />}
     </>
+  );
+}
+
+// The last pull, and what waits for a person: knowledge the hub wrote but nobody committed yet.
+function PullState({ r }: { r: PullResult | null }) {
+  const t = useT();
+  if (!r) return <span className="faint">{t("hub.pullNever")}</span>;
+  const tone = r.status === "failed" ? "danger" : r.status === "skipped" ? "warn" : "ok";
+  return (
+    <div className="pull-state" title={`${r.message} · ${new Date(r.at).toLocaleString()}`}>
+      <span className={`chip ${tone}`}>{t(`hub.pull.${r.status}` as Key)}</span>
+      {r.behind ? <span className="chip warn">{t("hub.pullBehind").replace("{n}", String(r.behind))}</span> : null}
+      {r.pending ? <span className="chip accent">{t("hub.pullPending").replace("{n}", String(r.pending))}</span> : null}
+      <Ago iso={r.at} />
+    </div>
   );
 }
 

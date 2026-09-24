@@ -5,8 +5,24 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
-The first round of the design work the "can the design go further?" discussion decided on (decision
-`01M3AJ1SRRPTM51GFWVBVT78PS`): the same look, applied with one system on every screen.
+Three decisions reached in discussions, put to work: a project reads the projects it links to, the hub
+keeps its checkouts current by pulling, and the first round of the design work (the same look, applied
+with one system on every screen).
+
+### Added
+
+- **Linked projects.** A mobile app's agent can read its backend's knowledge through its own MCP
+  connection: `linked: [backend]` in the project's config, then `project: "backend"` on `cortex_search`,
+  `cortex_tree`, `cortex_node`, `cortex_items` and `cortex_item`. The brief lists the links and whether
+  the caller may read them. A link is not access: the caller must be a member of the linked project, whose
+  branch and scope limits apply, and linked reads are read-only whatever the role there. Before this an
+  agent needed a second MCP entry per project, loading all 23 tools again (decision
+  `01M3AM8C6VZ0WB1MA2SMANEQJH`).
+- **The hub keeps its checkouts current by pulling.** `pull_minutes` in `hub.yaml` fast-forwards every
+  project from its upstream on a timer; `cortexboard hub pull [project]` and **Pull** on Organization →
+  Projects do it now. It never commits or pushes: knowledge the hub wrote is counted on the Projects page
+  ("3 to commit") until a person commits it, and a diverged branch or a clashing local edit stops the pull
+  with the reason instead of being merged or reset (decision `01M3AM8C7QZG19TBK055EJYWXA`).
 
 ### Changed
 

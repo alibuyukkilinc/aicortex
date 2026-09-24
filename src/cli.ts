@@ -34,6 +34,7 @@ Usage: cortex <command> [options]
   hub add-project <folder> [--id] [--name] [--init [--lang tr] [--branches a,b]]
   hub member <project> <who> [--role contributor] [--scope own] [--branches a,b] [--remove]
                                      Give a person or an AI agent access to a project
+  hub pull [project]                 Fast-forward project checkouts from their upstream (hub.yaml pull_minutes: do it on a timer)
   hub invite <email>                 New invite / password-reset link for a user
   report [--since 7d] [--until <date>] [--lang en|tr] [--json] [--out <file>]
                                      What happened, what is waiting, knowledge health (markdown by default)
@@ -302,8 +303,11 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       if (str("public-url")) store.settings.public_url = str("public-url")!.replace(/\/+$/, "");
       store.settings.port = port;
       store.settings.host = host; // the cookie's Secure default depends on where it really listens
-      const app = buildHubServer(new Hub(store));
+      const hub = new Hub(store);
+      const app = buildHubServer(hub);
       await app.listen({ host, port });
+      hub.startPulling(Number(store.settings.pull_minutes ?? 0));
+      if (store.settings.pull_minutes) console.log(`Pulling every project from its upstream every ${store.settings.pull_minutes} min (fast-forward only).`);
       console.log(`Cortex hub "${store.settings.org}" running at http://${host === "0.0.0.0" ? "localhost" : host}:${port}`);
       if (host !== "127.0.0.1" && host !== "localhost" && !(store.settings.public_url ?? "").startsWith("https://")) {
         console.log("⚠ Listening on the network without HTTPS. Put it behind a reverse proxy with TLS and set public_url to the https address.");
@@ -365,6 +369,19 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       store.close();
       return;
     }
+    // Fast-forward project checkouts from their upstream, now. The hub never commits or pushes.
+    if (sub === "pull") {
+      const { pullProject } = await import("./hub/gitSync.js");
+      const projects = arg ? [store.project(arg)].filter((p) => !!p) : store.projects();
+      if (arg && !projects.length) throw new Error(`No project "${arg}".`);
+      for (const p of projects) {
+        const r = await pullProject(p.path);
+        const mark = r.status === "failed" ? "✖" : r.status === "skipped" ? "–" : "✔";
+        console.log(`${mark} ${p.id}: ${r.message}${r.pending ? ` ${r.pending} .cortex change(s) wait for a commit.` : ""}`);
+      }
+      store.close();
+      return;
+    }
     if (sub === "invite") {
       const u = arg ? store.userByEmail(arg) : null;
       if (!u) throw new Error("Usage: cortexboard hub invite <email of an existing user>");
@@ -373,7 +390,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       store.close();
       return;
     }
-    throw new Error("Usage: cortexboard hub init | start | add-project <folder> | member <project> <who> | invite <email>");
+    throw new Error("Usage: cortexboard hub init | start | add-project <folder> | member <project> <who> | pull [project] | invite <email>");
   } catch (e) {
     store.close();
     throw e;

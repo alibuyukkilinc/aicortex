@@ -19,6 +19,7 @@ export interface HubSettings {
   allowed_hosts?: string[]; // optional Host header allowlist when exposed on a network; when set, it is the whole list (add localhost yourself)
   cookie_secure?: boolean; // Secure flag on the session cookie; default: on unless the hub listens on loopback only
   trust_proxy?: boolean; // behind a reverse proxy: take the client address and https from X-Forwarded-* headers
+  pull_minutes?: number; // fast-forward every project's checkout from its upstream this often; unset or 0 = only on request
 }
 
 export interface User {

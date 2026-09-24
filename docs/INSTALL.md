@@ -310,6 +310,37 @@ on your machines (ChatGPT, a hosted agent) connects to **MCP over HTTP** at
 `https://cortex.acme.com/mcp/p/shop` with `Authorization: Bearer <agent token>`. Whatever the path, the
 agent's role and visibility apply.
 
+### 6. Linked projects: one app reading another's knowledge
+
+One repository is one project. When a mobile app needs its backend's API, auth flow and rules, link them
+in the mobile project's `.cortex/cortex.config.yaml`:
+
+```yaml
+linked: [backend]
+```
+
+The mobile agent keeps its single MCP connection. `cortex_brief` lists the linked projects, and
+`cortex_search`, `cortex_tree`, `cortex_node`, `cortex_items` and `cortex_item` take `project: "backend"`
+to read there. A link is not access: the agent must also be a member of the backend (a Reader is
+enough), and that membership's branch and scope limits apply. Linked reads are read-only whatever the
+role over there; questions and writes stay in the agent's own project.
+
+### 7. Keeping the hub's checkouts current
+
+The hub reads each project from a folder on its own machine. To keep that checkout up to date with what
+developers push (fresh code is what staleness compares against), let the hub pull:
+
+```yaml
+# ~/.cortex/hub/hub.yaml
+pull_minutes: 5
+```
+
+or pull by hand with `cortexboard hub pull [project]`, or with **Pull** on Organization → Projects.
+It only fast-forwards. It never commits or pushes: knowledge the hub wrote stays in its checkout, and the
+Projects page counts those files ("3 to commit") until a person commits them. A diverged branch, local
+commits or local edits the incoming commits touch stop the pull with the reason; nothing is reset or
+merged. Pulling needs read access to the remote from the hub machine (no password prompt can be answered).
+
 ---
 
 ## Optional: search by meaning

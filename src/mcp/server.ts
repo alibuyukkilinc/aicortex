@@ -31,6 +31,13 @@ function wrap<A>(fn: (args: A) => Promise<unknown>) {
 
 const path = (p: string) => (p ? `/${p.split("/").map(encodeURIComponent).join("/")}` : "");
 
+// Reads (search, tree, node, items) can be aimed at a project this one links to, e.g. the backend from a
+// mobile app. Read-only; the caller must be a member there too.
+const LINKED = z
+  .string()
+  .optional()
+  .describe('Read a linked project instead (its id from cortex_brief "linked"), e.g. the backend from a mobile app. Read-only.');
+
 export function buildMcpServer(api: McpApi): McpServer {
   const get = (p: string, q?: Record<string, unknown>) => api.call("GET", p, { query: q });
   const server = new McpServer(
@@ -42,6 +49,7 @@ export function buildMcpServer(api: McpApi): McpServer {
         "Before editing files call cortex_code_context; knowledge marked stale may be wrong. " +
         "After each meaningful change call cortex_log_activity. When unsure, cortex_ask instead of guessing. " +
         "Discussions waiting on your view show up in cortex_inbox; answer them with cortex_discuss. " +
+        'Projects this one links to (cortex_brief "linked", e.g. the backend of a mobile app) can be searched and read with the project parameter. ' +
         "On a team server your role decides what you may write and what you can see; a refusal explains which permission is missing.",
     },
   );
@@ -63,9 +71,12 @@ export function buildMcpServer(api: McpApi): McpServer {
         path: z.string().default("").describe('Branch path, e.g. "backend/auth". Empty string = root.'),
         depth: z.number().int().min(0).max(5).default(1),
         budget: z.number().int().positive().optional().describe("Approximate max tokens for the response."),
+        project: LINKED,
       },
     },
-    wrap((a: { path: string; depth: number; budget?: number }) => get(`/tree${path(a.path)}`, { depth: a.depth, budget: a.budget })),
+    wrap((a: { path: string; depth: number; budget?: number; project?: string }) =>
+      get(`/tree${path(a.path)}`, { depth: a.depth, budget: a.budget, project: a.project }),
+    ),
   );
 
   server.registerTool(
@@ -74,9 +85,9 @@ export function buildMcpServer(api: McpApi): McpServer {
       description:
         "Read one knowledge node in full (summary, body, code links). If its code changed since it was written, " +
         "the response includes `staleness` with the changed files and commits: do not trust it blindly.",
-      inputSchema: { path: z.string().describe('Node path, e.g. "backend/auth/jwt-refresh".') },
+      inputSchema: { path: z.string().describe('Node path, e.g. "backend/auth/jwt-refresh".'), project: LINKED },
     },
-    wrap((a: { path: string }) => get(`/node${path(a.path)}`)),
+    wrap((a: { path: string; project?: string }) => get(`/node${path(a.path)}`, { project: a.project })),
   );
 
   server.registerTool(
@@ -117,10 +128,11 @@ export function buildMcpServer(api: McpApi): McpServer {
         path: z.string().optional().describe("Limit to this branch."),
         limit: z.number().int().min(1).max(50).default(10),
         budget: z.number().int().positive().optional(),
+        project: LINKED,
       },
     },
-    wrap((a: { q: string; kind?: DocKind[]; type?: string; path?: string; limit: number; budget?: number }) =>
-      get("/search", { q: a.q, kind: a.kind, type: a.type, path: a.path, limit: a.limit, budget: a.budget }),
+    wrap((a: { q: string; kind?: DocKind[]; type?: string; path?: string; limit: number; budget?: number; project?: string }) =>
+      get("/search", { q: a.q, kind: a.kind, type: a.type, path: a.path, limit: a.limit, budget: a.budget, project: a.project }),
     ),
   );
 
@@ -194,6 +206,7 @@ export function buildMcpServer(api: McpApi): McpServer {
         limit: z.number().int().min(1).max(100).default(20),
         cursor: z.string().optional(),
         preview: z.boolean().optional().describe("Add a short body gist and the last reply to each row"),
+        project: LINKED,
       },
     },
     wrap((a: Record<string, unknown>) => get("/items", a)),
@@ -210,10 +223,11 @@ export function buildMcpServer(api: McpApi): McpServer {
         ids: z.array(z.string()).min(1).max(MAX_BATCH_ITEMS).optional().describe(`Up to ${MAX_BATCH_ITEMS} items in one call`),
         replies: z.number().int().min(0).max(200).optional().describe("Keep only the last N replies"),
         budget: z.number().int().positive().optional().describe("Approximate max tokens per item"),
+        project: LINKED,
       },
     },
-    wrap(async (a: { id?: string; ids?: string[]; replies?: number; budget?: number }) => {
-      const one = (id: string) => get(`/items/${encodeURIComponent(id)}`, { replies: a.replies, budget: a.budget });
+    wrap(async (a: { id?: string; ids?: string[]; replies?: number; budget?: number; project?: string }) => {
+      const one = (id: string) => get(`/items/${encodeURIComponent(id)}`, { replies: a.replies, budget: a.budget, project: a.project });
       if (!a.ids) {
         if (!a.id) throw new CortexError("validation", "Give `id` or `ids`.");
         return one(a.id);
