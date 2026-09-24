@@ -26,7 +26,9 @@ export interface Period {
 
 // "7d", "2w", "2026-09-01" or a full ISO datetime; until defaults to now.
 export function parsePeriod(since?: string, until?: string, now = Date.now(), tz = "UTC"): Period {
-  const end = until ? parseInstant(until, "until", tz) : now;
+  // Open-ended means "up to and including now": the bound is exclusive, and an entry written in the same
+  // millisecond as the report (fast machines do this) must not fall out of it.
+  const end = until ? parseInstant(until, "until", tz) : now + 1;
   let start: number;
   const rel = /^(\d{1,3})\s*([dw])$/i.exec(since ?? "7d");
   // Calendar-aligned: "7d" is today plus the six days before it (in the project's zone), so the chart shows 7 columns.

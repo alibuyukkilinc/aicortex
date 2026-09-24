@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -11,6 +11,22 @@ import type { CortexError } from "../src/core/types.js";
 import { localApi } from "../src/mcp/client.js";
 import { buildMcpServer } from "../src/mcp/server.js";
 import { tempProject } from "./helpers.js";
+
+test("an open-ended report includes an entry written in the same millisecond", () => {
+  const t = tempProject();
+  try {
+    // The write and the report share one millisecond, as they do on a fast CI machine.
+    mock.timers.enable({ apis: ["Date"], now: Date.now() });
+    try {
+      t.cortex.activity.log(t.ai, { action: "fix", summary: "Same-millisecond fix", why: "Race" });
+      assert.equal(t.cortex.reports.build({ since: "1d" }).totals.activity.logged.total, 1);
+    } finally {
+      mock.timers.reset();
+    }
+  } finally {
+    t.cleanup();
+  }
+});
 
 test("periods: relative, absolute and invalid", () => {
   const now = Date.parse("2026-09-22T12:00:00Z");
