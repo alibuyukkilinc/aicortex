@@ -2177,3 +2177,296 @@ button.chip {
   background: rgba(48, 209, 88, 0.18);
   box-shadow: inset 2px 0 0 var(--ok);
 }
+
+/* ---- board cards, Trello-style ---------------------------------------------------- */
+.kcard {
+  overflow: hidden;
+}
+.kcard .meta {
+  align-items: center;
+}
+/* The first picture on the item, edge to edge above the title. */
+.kcard-cover {
+  display: block;
+  width: calc(100% + 26px);
+  margin: -12px -13px 10px;
+  max-height: 160px;
+  object-fit: cover;
+  background: var(--fill);
+  pointer-events: none;
+}
+.kcard-labels {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.klabel {
+  display: inline-block;
+  min-width: 36px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--faint);
+}
+.klabel.lv-low {
+  background: #34a853;
+}
+.klabel.lv-medium {
+  background: #e3a008;
+}
+.klabel.lv-high {
+  background: #e8710a;
+}
+.klabel.lv-critical {
+  background: var(--danger);
+}
+.kbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.kbadge.due.late {
+  background: var(--danger);
+  color: #fff;
+}
+.kbadge.due.today {
+  background: var(--warn);
+  color: #fff;
+}
+.kbadge.due.done {
+  background: var(--ok);
+  color: #fff;
+}
+.quick-add-btn {
+  margin: 0 8px 8px;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.quick-add-btn:hover {
+  background: var(--fill-strong);
+  color: var(--text);
+}
+.quick-add {
+  margin: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.quick-add .textarea {
+  min-height: 56px;
+  resize: none;
+  padding: 8px 10px;
+}
+
+/* ---- attachments ------------------------------------------------------------------ */
+.drop-area {
+  position: relative;
+  border-radius: var(--radius-lg);
+}
+.drop-area.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+}
+.drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  pointer-events: none;
+  border-radius: var(--radius-lg);
+}
+.desc-empty {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--fill);
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.desc-empty:hover {
+  background: var(--fill-strong);
+}
+.md-field {
+  border-radius: var(--radius);
+}
+.md-field.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.md-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.md-tabs [role="tab"] {
+  border: 0;
+  background: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.md-tabs [role="tab"].on {
+  background: var(--fill-strong);
+  color: var(--text);
+  font-weight: 600;
+}
+.md-busy {
+  font-size: 12px;
+  margin-right: 6px;
+}
+.md-preview {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: auto;
+}
+.md img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+.att-tip {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.att-empty {
+  margin: 0;
+  font-size: 12.5px;
+}
+.att-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.att-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  margin-top: 8px;
+}
+.att-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  background: var(--fill);
+  overflow: hidden;
+}
+.att-tile.pending {
+  opacity: 0.6;
+}
+.att-thumb {
+  height: 96px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: var(--fill-strong);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+.att-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.att-ext {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.att-meta {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+.att-name {
+  font-weight: 560;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.att-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s var(--ease);
+}
+.att-tile:hover .att-actions,
+.att-tile:focus-within .att-actions {
+  opacity: 1;
+}
+.att-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.icon-btn.danger:hover {
+  color: var(--danger);
+}
+.att-preview {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  max-height: 70vh;
+  overflow: auto;
+}
+.att-preview > .md {
+  place-self: stretch;
+}
+.att-big {
+  max-width: 100%;
+  max-height: 68vh;
+  border-radius: 6px;
+}
+.att-text {
+  place-self: stretch;
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+}
+@media (hover: none) {
+  .att-actions {
+    opacity: 1; /* no hover on touch screens */
+  }
+}

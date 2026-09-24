@@ -24,6 +24,13 @@ export interface ItemFlags {
   open: boolean;
 }
 
+// Attachments as the board card shows them: how many, and which picture is the cover.
+export interface FileSummary {
+  count: number;
+  cover: string | null;
+}
+const NO_FILES: FileSummary = { count: 0, cover: null };
+
 export interface IndexedItem {
   id: string;
   type: string;
@@ -41,6 +48,11 @@ export interface IndexedItem {
   updated_at: string;
   reply_count: number;
   last_reply_by: string | null;
+  attachment_count: number;
+  cover: string | null; // file name of the first picture, shown on the board card
+  level: string | null; // fields.priority, or fields.severity for issues
+  due: string | null; // fields.due, YYYY-MM-DD
+  has_body: boolean;
 }
 
 // "draft" is internal: pending knowledge drafts, searchable so an AI can find what is waiting for review.
@@ -100,7 +112,7 @@ const STOPWORDS = new Set(
 );
 
 // Bump when the table layout changes; an old cache is simply dropped and rebuilt from files.
-const INDEX_VERSION = 6;
+const INDEX_VERSION = 7; // 7: what a board card shows (attachments, cover, level, due, has_body)
 
 // The index is a disposable cache: everything here can be rebuilt from the files with reindex().
 export class Index {
@@ -134,7 +146,9 @@ export class Index {
         terminal INTEGER NOT NULL, open_work INTEGER NOT NULL, category_path TEXT, author TEXT NOT NULL, assignee TEXT,
         claimed_by TEXT, claimed_at TEXT,
         blocking INTEGER NOT NULL, created_at TEXT, updated_at TEXT,
-        reply_count INTEGER NOT NULL, last_reply_by TEXT
+        reply_count INTEGER NOT NULL, last_reply_by TEXT,
+        attachment_count INTEGER NOT NULL DEFAULT 0, cover TEXT,
+        level TEXT, due TEXT, has_body INTEGER NOT NULL DEFAULT 0
       );
       CREATE INDEX IF NOT EXISTS items_assignee ON items(assignee, open_work);
       CREATE INDEX IF NOT EXISTS items_category ON items(category_path);
@@ -179,11 +193,16 @@ export class Index {
     }
   }
 
-  reindex(data: { nodes: KnowledgeNode[]; items: { item: Item; replies: Reply[]; flags: ItemFlags }[]; activity: Activity[]; drafts?: Draft[] }): void {
+  reindex(data: {
+    nodes: KnowledgeNode[];
+    items: { item: Item; replies: Reply[]; flags: ItemFlags; files?: FileSummary }[];
+    activity: Activity[];
+    drafts?: Draft[];
+  }): void {
     this.tx(() => {
       this.db.exec("DELETE FROM nodes; DELETE FROM items; DELETE FROM activity; DELETE FROM docs_fts; DELETE FROM doc_text; DELETE FROM code_links;");
       for (const n of data.nodes) this.insertNode(n);
-      for (const i of data.items) this.insertItem(i.item, i.replies, i.flags);
+      for (const i of data.items) this.insertItem(i.item, i.replies, i.flags, i.files);
       for (const a of data.activity) this.insertActivity(a);
       for (const d of data.drafts ?? []) this.insertDraft(d);
     });
@@ -263,38 +282,42 @@ export class Index {
 
   // ---- items --------------------------------------------------------------
 
-  upsertItem(item: Item, replies: Reply[], flags: ItemFlags): void {
+  upsertItem(item: Item, replies: Reply[], flags: ItemFlags, files: FileSummary = NO_FILES): void {
     this.tx(() => {
       this.db.prepare("DELETE FROM items WHERE id = ?").run(item.id);
       this.db.prepare("DELETE FROM code_links WHERE kind = 'item' AND ref = ?").run(item.id);
       this.deleteDoc("item", item.id);
-      this.insertItem(item, replies, flags);
+      this.insertItem(item, replies, flags, files);
     });
   }
 
-  private insertItem(i: Item, replies: Reply[], flags: ItemFlags): void {
+  private insertItem(i: Item, replies: Reply[], flags: ItemFlags, files: FileSummary = NO_FILES): void {
     this.insertCodeLinks("item", i.id, i.links?.code);
     const last = replies[replies.length - 1];
-    this.db
-      .prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(
-        i.id,
-        i.type,
-        i.title,
-        i.status,
-        flags.terminal ? 1 : 0,
-        flags.open ? 1 : 0,
-        i.category_path ?? null,
-        i.author,
-        i.assignee ?? null,
-        i.claimed_by ?? null,
-        i.claimed_at ?? null,
-        i.fields?.blocking === true ? 1 : 0,
-        i.created_at,
-        i.updated_at,
-        replies.length,
-        last?.author ?? null,
-      );
+    this.db.prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      i.id,
+      i.type,
+      i.title,
+      i.status,
+      flags.terminal ? 1 : 0,
+      flags.open ? 1 : 0,
+      i.category_path ?? null,
+      i.author,
+      i.assignee ?? null,
+      i.claimed_by ?? null,
+      i.claimed_at ?? null,
+      i.fields?.blocking === true ? 1 : 0,
+      i.created_at,
+      i.updated_at,
+      replies.length,
+      last?.author ?? null,
+      files.count,
+      files.cover,
+      // What a board card shows at a glance: the priority (tasks) or severity (issues), a due date.
+      typeof i.fields?.priority === "string" ? i.fields.priority : typeof i.fields?.severity === "string" ? i.fields.severity : null,
+      typeof i.fields?.due === "string" ? i.fields.due : null,
+      i.body?.trim() ? 1 : 0,
+    );
     const fieldText = Object.values(i.fields ?? {})
       .filter((v) => typeof v === "string")
       .join(" ");
@@ -559,6 +582,11 @@ function toItem(r: Record<string, unknown>): IndexedItem {
     updated_at: r.updated_at as string,
     reply_count: r.reply_count as number,
     last_reply_by: (r.last_reply_by as string | null) ?? null,
+    attachment_count: (r.attachment_count as number | null) ?? 0,
+    cover: (r.cover as string | null) ?? null,
+    level: (r.level as string | null) ?? null,
+    due: (r.due as string | null) ?? null,
+    has_body: r.has_body === 1,
   };
 }
 

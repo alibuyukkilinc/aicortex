@@ -1,11 +1,13 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Attachment } from "./attachments.js";
+import { isSafeImage, mediaType, safeFileName, uniqueName } from "./attachments.js";
 import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter.js";
 import type { Item, Reply } from "../core/types.js";
 import { fold } from "../util/text.js";
 
-// Layout: items/<ID>-<slug>/item.md and items/<ID>-<slug>/replies/<REPLY_ID>.md
-// One file per reply means two people answering at once never conflict in git.
+// Layout: items/<ID>-<slug>/item.md, items/<ID>-<slug>/replies/<REPLY_ID>.md and items/<ID>-<slug>/files/<name>
+// One file per reply means two people answering at once never conflict in git; attachments are plain files.
 
 const ID = /^[0-9A-Z]{26}$/;
 
@@ -82,6 +84,60 @@ export class ItemStore {
     mkdirSync(join(dir, "replies"), { recursive: true });
     const { body, item_id: _i, ...meta } = reply;
     writeFileSync(join(dir, "replies", `${reply.id}.md`), stringifyFrontmatter(meta, body), "utf8");
+  }
+
+  // ---- attachments ---------------------------------------------------------------------
+
+  attachments(id: string): Attachment[] {
+    const dir = this.dirFor(id);
+    const fdir = dir && join(dir, "files");
+    if (!fdir || !existsSync(fdir)) return [];
+    const out: Attachment[] = [];
+    for (const name of readdirSync(fdir)) {
+      if (name.startsWith(".")) continue; // .gitkeep, .DS_Store
+      const st = statSync(join(fdir, name));
+      if (!st.isFile()) continue;
+      out.push({ name: name.normalize("NFC"), size: st.size, type: mediaType(name), added_at: st.mtime.toISOString() });
+    }
+    return out.sort((a, b) => a.added_at.localeCompare(b.added_at) || a.name.localeCompare(b.name));
+  }
+
+  // What the board card needs: how many, and the first picture as its cover.
+  fileSummary(id: string): { count: number; cover: string | null } {
+    const files = this.attachments(id);
+    return { count: files.length, cover: files.find((f) => isSafeImage(f.type))?.name ?? null };
+  }
+
+  readAttachment(id: string, name: string): Buffer | null {
+    const file = this.attachmentPath(id, name);
+    return file && existsSync(file) ? readFileSync(file) : null;
+  }
+
+  // Stores `data` under a safe, unused name and returns what was stored.
+  addAttachment(id: string, rawName: string, data: Buffer): Attachment {
+    const dir = this.dirFor(id);
+    if (!dir) throw new Error(`item ${id} not found`);
+    const fdir = join(dir, "files");
+    mkdirSync(fdir, { recursive: true });
+    const taken = new Set(readdirSync(fdir).map((n) => n.normalize("NFC").toLowerCase()));
+    const name = uniqueName(safeFileName(rawName), taken);
+    writeFileSync(join(fdir, name), data);
+    return this.attachments(id).find((a) => a.name === name)!;
+  }
+
+  removeAttachment(id: string, name: string): boolean {
+    const file = this.attachmentPath(id, name);
+    if (!file || !existsSync(file)) return false;
+    unlinkSync(file);
+    return true;
+  }
+
+  // Only a name that is already safe resolves: "../item.md" or "a/b" never leave the files folder.
+  private attachmentPath(id: string, name: string): string | null {
+    const dir = this.dirFor(id);
+    const clean = String(name ?? "").normalize("NFC");
+    if (!dir || !clean || clean !== safeFileName(clean)) return null;
+    return join(dir, "files", clean);
   }
 
   replies(id: string): Reply[] {

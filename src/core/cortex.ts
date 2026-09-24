@@ -212,7 +212,14 @@ export class Cortex {
     const items = this.itemStore.allIds().flatMap((id) => {
       const item = this.itemStore.read(id);
       if (!item) return [];
-      return [{ item, replies: this.itemStore.replies(id), flags: this.itemFlags(item.type, item.status, schemaOf(item.type)) }];
+      return [
+        {
+          item,
+          replies: this.itemStore.replies(id),
+          flags: this.itemFlags(item.type, item.status, schemaOf(item.type)),
+          files: this.itemStore.fileSummary(id),
+        },
+      ];
     });
     const activity = this.activityStore.all();
     this.index.reindex({ nodes, items, activity, drafts: this.drafts.list() });

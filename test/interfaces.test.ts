@@ -72,6 +72,7 @@ test("MCP: tools list and a brief -> search -> update round trip", async () => {
       "cortex_create_item",
       "cortex_inbox",
       "cortex_item",
+      "cortex_item_file",
       "cortex_items",
       "cortex_log_activity",
       "cortex_node",

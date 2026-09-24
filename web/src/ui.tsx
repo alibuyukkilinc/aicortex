@@ -1,7 +1,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ApiError } from "./api";
 import { GLOSSARY, LangContext, timeAgo, useLabels, useT } from "./i18n";
 import type { Actor } from "./types";
@@ -57,6 +57,12 @@ const paths: Record<string, string> = {
   percent: "M19 5L5 19M6.5 6.5m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0M17.5 17.5m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0",
   star: "M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z",
   sidebar: "M4 5h16v14H4zM10 5v14",
+  clip: "M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8",
+  image: "M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15.5 9.5m-1.5 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0",
+  download: "M12 4v11M7 10l5 5 5-5M5 20h14",
+  trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
+  text: "M4 6h16M4 11h16M4 16h10",
+  clock: "M12 12m-9 0a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 2",
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; size?: number }) {
@@ -79,8 +85,20 @@ export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; s
 
 // ---- small pieces -----------------------------------------------------------------
 
-export function Markdown({ text }: { text: string }) {
-  const html = useMemo(() => DOMPurify.sanitize(marked.parse(text ?? "", { async: false, gfm: true, breaks: true }) as string), [text]);
+const WITH_BLOB = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+
+// `files`: where "files/<name>" links point: the attachments' URL base of the item this text belongs to,
+// or a function for files that exist only in the browser so far (a new item's pasted screenshots).
+export function Markdown({ text, files }: { text: string; files?: string | ((name: string) => string) }) {
+  const html = useMemo(() => {
+    let src = text ?? "";
+    if (typeof files === "string") src = src.replace(/\]\((<?)files\//g, (_m, lt: string) => `](${lt}${files}/`);
+    else if (files) src = src.replace(/\]\(<files\/([^>]+)>\)|\]\(files\/([^)\s]+)\)/g, (_m, a?: string, b?: string) => `](<${files(a ?? b ?? "")}>)`);
+    const html = marked.parse(src, { async: false, gfm: true, breaks: true }) as string;
+    // Files not uploaded yet are shown from blob: URLs this page made itself; DOMPurify drops those by
+    // default, so they are allowed only in that case, next to its usual list.
+    return typeof files === "function" ? DOMPurify.sanitize(html, { ALLOWED_URI_REGEXP: WITH_BLOB }) : DOMPurify.sanitize(html);
+  }, [text, files]);
   if (!text?.trim()) return null;
   return <div className="md" dangerouslySetInnerHTML={{ __html: html }} />;
 }
@@ -239,12 +257,26 @@ export function ListRow({ onPress, className, label, children }: { onPress: () =
 
 // ---- overlays --------------------------------------------------------------------
 
+// Open overlays, newest last. Escape closes only the top one: a preview opened from a drawer must not
+// take the drawer with it.
+const overlays: { current: () => void }[] = [];
+if (typeof window !== "undefined") {
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !overlays.length) return;
+    e.preventDefault();
+    overlays[overlays.length - 1].current();
+  });
+}
+
 function useEscape(onClose: () => void) {
+  const ref = useRef(onClose);
+  ref.current = onClose;
   useEffect(() => {
-    const on = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [onClose]);
+    overlays.push(ref);
+    return () => {
+      overlays.splice(overlays.indexOf(ref), 1);
+    };
+  }, []);
 }
 
 export function Drawer({ onClose, head, children }: { onClose: () => void; head: ReactNode; children: ReactNode }) {

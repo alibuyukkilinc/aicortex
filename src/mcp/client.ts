@@ -10,7 +10,8 @@ import { CortexError } from "../core/types.js";
 
 export interface McpApi {
   where: string; // shown in the MCP instructions: "this folder" or the hub project
-  call(method: string, path: string, opts?: { query?: Record<string, unknown>; body?: unknown; text?: boolean }): Promise<unknown>;
+  // text: the body as a string; binary: the body as bytes (attachments). Otherwise parsed JSON.
+  call(method: string, path: string, opts?: { query?: Record<string, unknown>; body?: unknown; text?: boolean; binary?: boolean }): Promise<unknown>;
   close(): Promise<void>;
 }
 
@@ -50,7 +51,7 @@ export async function localApi(cortex: Cortex, actor: Actor): Promise<McpApi> {
         ...(opts.body !== undefined ? { payload: opts.body as object } : {}),
       });
       if (res.statusCode >= 400) fail(res.statusCode, res.json());
-      return opts.text ? res.body : res.json();
+      return opts.binary ? res.rawPayload : opts.text ? res.body : res.json();
     },
     close: () => app.close(),
   };
@@ -69,6 +70,7 @@ export function remoteApi(hub: string, project: string, token: string): McpApi {
       }).catch((e: Error) => {
         throw new CortexError("hub_unreachable", `Cannot reach the hub at ${hub}: ${e.message}`, 503);
       });
+      if (opts.binary && res.ok) return Buffer.from(await res.arrayBuffer());
       const text = await res.text();
       if (!res.ok) fail(res.status, text.startsWith("{") ? JSON.parse(text) : { error: { message: text.slice(0, 300) } });
       return opts.text ? text : JSON.parse(text);

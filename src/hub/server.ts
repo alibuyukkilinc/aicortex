@@ -508,7 +508,7 @@ export function buildHubServer(hub: Hub): FastifyInstance {
           const e = (res.json() as { error?: { code?: string; message?: string; hint?: unknown } }).error ?? {};
           throw new CortexError(e.code ?? "error", e.message ?? `Request failed (${res.statusCode}).`, res.statusCode, e.hint);
         }
-        return opts.text ? res.body : res.json();
+        return opts.binary ? res.rawPayload : opts.text ? res.body : res.json();
       },
       close: async () => {},
     };

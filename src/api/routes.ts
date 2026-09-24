@@ -4,6 +4,7 @@ import { reportToMarkdown } from "../core/reportMarkdown.js";
 import type { Activity, NodeSummary } from "../core/types.js";
 import { CortexError } from "../core/types.js";
 import { actionable } from "../core/staleness.js";
+import { MAX_ATTACHMENT_BYTES, isSafeImage, isText, mediaType } from "../store/attachments.js";
 import type { DocKind } from "../index/db.js";
 import type { Access, ItemRef } from "./access.js";
 import { hidden, need } from "./access.js";
@@ -344,6 +345,53 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     need(req, req.cortex.index.getItem(id)?.type === "question" ? "ask" : "write_items");
     return reply.code(201).send(ok(req, req.cortex.items.reply(req.actor, id, (req.body ?? {}) as never)));
   });
+  // ---- attachments ---------------------------------------------------------------
+  // Upload is the raw file as the request body (any content type) with its name in ?name=, so the
+  // board can send a pasted screenshot as-is and no multipart parser is needed. Files are served back
+  // with the type from their extension; anything that could run in the page (SVG, HTML) is a download.
+
+  app.get("/items/:id/files", async (req) => {
+    const id = (req.params as Q).id!;
+    itemVisibleOr404(req, id);
+    return ok(req, { files: req.cortex.items.attachments(id) });
+  });
+  app.get("/items/:id/files/:name", async (req, reply) => {
+    const { id, name } = req.params as Q;
+    itemVisibleOr404(req, id!);
+    const data = req.cortex.itemStore.readAttachment(id!, name!);
+    if (!data) throw new CortexError("not_found", `No file "${name}" on this item.`, 404);
+    const type = mediaType(name!);
+    // PDFs are downloads too: the sandbox policy below keeps browsers from rendering them inline anyway.
+    const inline = (isSafeImage(type) || isText(type)) && (req.query as Q).download === undefined;
+    return reply
+      .header("content-type", isText(type) ? `${type}; charset=utf-8` : type)
+      .header("content-disposition", `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name!)}`)
+      .header("x-content-type-options", "nosniff")
+      .header("content-security-policy", "sandbox; default-src 'none'")
+      .header("cache-control", "private, max-age=300")
+      .send(data);
+  });
+  app.register(async (files) => {
+    // Every body in this scope is bytes, whatever its declared type (a .json file is still a file).
+    files.removeAllContentTypeParsers();
+    files.addContentTypeParser("*", { parseAs: "buffer", bodyLimit: MAX_ATTACHMENT_BYTES + 1 }, (_req, body, done) => done(null, body));
+    files.post("/items/:id/files", { bodyLimit: MAX_ATTACHMENT_BYTES + 1 }, async (req, reply) => {
+      need(req, "write_items");
+      const id = (req.params as Q).id!;
+      itemVisibleOr404(req, id);
+      const name = (req.query as Q).name ?? "";
+      if (!name.trim()) throw new CortexError("invalid_file", "Send the file name as ?name=, e.g. ?name=screenshot.png", 400);
+      if (!Buffer.isBuffer(req.body)) throw new CortexError("invalid_file", "Send the file itself as the request body.", 400);
+      return reply.code(201).send(ok(req, req.cortex.items.attach(req.actor, id, name, req.body)));
+    });
+  });
+  app.delete("/items/:id/files/:name", async (req) => {
+    need(req, "write_items");
+    const { id, name } = req.params as Q;
+    itemVisibleOr404(req, id!);
+    return ok(req, req.cortex.items.detach(req.actor, id!, name!));
+  });
+
   app.post("/ask", async (req, reply) => {
     need(req, "ask");
     const b = (req.body ?? {}) as { about?: string; title?: string; body?: string; assignee?: string; blocking?: boolean };

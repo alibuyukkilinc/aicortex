@@ -55,8 +55,20 @@ export interface ItemSummary {
   claimed_at?: string;
   blocking?: boolean;
   replies?: number;
+  files?: number; // attachments
+  cover?: string; // first picture, shown on the board card
+  level?: string; // priority, or severity for issues
+  due?: string; // YYYY-MM-DD
+  has_body?: boolean;
   updated_at: string;
   reason?: string;
+}
+
+export interface Attachment {
+  name: string;
+  size: number;
+  type: string;
+  added_at: string;
 }
 
 export interface CodeLink {

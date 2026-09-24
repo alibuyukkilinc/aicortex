@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Cortex } from "./cortex.js";
 import type { IndexedItem, ItemQuery, SqlFilter } from "../index/db.js";
 import { normalizePath } from "../store/tree.js";
+import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } from "../store/attachments.js";
 import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
 import type { ItemSchema, ValidationContext } from "./schema.js";
 import { canTransition, describeSchema, validateFields } from "./schema.js";
@@ -410,7 +411,54 @@ export class ItemService {
 
   private save(item: Item): void {
     this.c.itemStore.write(item);
-    this.c.index.upsertItem(item, this.c.itemStore.replies(item.id), this.c.itemFlags(item.type, item.status));
+    this.reindexItem(item);
+  }
+
+  private reindexItem(item: Item): void {
+    this.c.index.upsertItem(item, this.c.itemStore.replies(item.id), this.c.itemFlags(item.type, item.status), this.c.itemStore.fileSummary(item.id));
+  }
+
+  // ---- attachments ---------------------------------------------------------------------
+  // Files next to the item (screenshots, logs, a spec in Markdown). They are not item fields, so they
+  // skip drafts: a draft cannot carry bytes. An AI whose writes to this type would be drafts or refused
+  // may therefore not attach either; a person can.
+
+  attachments(id: string) {
+    this.get(id);
+    return this.c.itemStore.attachments(id);
+  }
+
+  attach(actor: Actor, id: string, name: string, data: Buffer) {
+    const { item } = this.get(id);
+    this.attachGate(actor, item.type);
+    if (!data.length) throw new CortexError("invalid_file", "The file is empty.", 400);
+    if (data.length > MAX_ATTACHMENT_BYTES) throw new CortexError("file_too_large", `Files may be at most ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB.`, 413);
+    if (this.c.itemStore.attachments(id).length >= MAX_ATTACHMENTS) {
+      throw new CortexError("too_many_files", `An item holds at most ${MAX_ATTACHMENTS} files. Remove some first.`, 400);
+    }
+    const file = this.c.itemStore.addAttachment(id, name, data);
+    this.reindexItem(item);
+    this.c.activity.system(actor.id, "item.attached", `Attached "${file.name}" to ${item.type} "${item.title}"`, [id], { type: item.type });
+    return { applied: true, id, file, message: `Attached ${file.name}.` };
+  }
+
+  detach(actor: Actor, id: string, name: string) {
+    const { item } = this.get(id);
+    this.attachGate(actor, item.type);
+    if (!this.c.itemStore.removeAttachment(id, name)) throw new CortexError("not_found", `No file "${name}" on this item.`, 404);
+    this.reindexItem(item);
+    this.c.activity.system(actor.id, "item.detached", `Removed "${name}" from ${item.type} "${item.title}"`, [id], { type: item.type });
+    return { applied: true, id, message: `Removed ${name}. It stays in git history.` };
+  }
+
+  private attachGate(actor: Actor, type: string): void {
+    if (this.policyGate(actor, type) === "draft") {
+      throw new CortexError(
+        "forbidden",
+        `AI changes to ${type} items wait for approval here, and files cannot wait in a draft. Ask a person to attach it.`,
+        403,
+      );
+    }
   }
 
   applyDraft(item: Item): void {
@@ -444,7 +492,15 @@ export class ItemService {
       }
       replies = kept;
     }
-    return { item, rev: itemRevision(item), replies, replies_omitted: total - replies.length, rules_url: `/api/rules/${item.type}` };
+    const attachments = this.c.itemStore.attachments(id);
+    return {
+      item,
+      rev: itemRevision(item),
+      replies,
+      replies_omitted: total - replies.length,
+      ...(attachments.length ? { attachments } : {}),
+      rules_url: `/api/rules/${item.type}`,
+    };
   }
 
   list(q: {
@@ -520,6 +576,11 @@ function compact(i: IndexedItem) {
     ...(i.claimed_by ? { claimed_by: i.claimed_by, claimed_at: i.claimed_at } : {}),
     ...(i.blocking ? { blocking: true } : {}),
     ...(i.reply_count ? { replies: i.reply_count } : {}),
+    ...(i.attachment_count ? { files: i.attachment_count } : {}),
+    ...(i.cover ? { cover: i.cover } : {}),
+    ...(i.level ? { level: i.level } : {}),
+    ...(i.due ? { due: i.due } : {}),
+    ...(i.has_body ? { has_body: true } : {}),
     updated_at: i.updated_at,
   };
 }

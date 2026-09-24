@@ -135,7 +135,7 @@ export class SyncService {
           this.c.index.deleteItem(t.id);
           return { kind: "items", n: 1 };
         }
-        this.c.index.upsertItem(item, this.c.itemStore.replies(t.id), this.c.itemFlags(item.type, item.status));
+        this.c.index.upsertItem(item, this.c.itemStore.replies(t.id), this.c.itemFlags(item.type, item.status), this.c.itemStore.fileSummary(t.id));
         return { kind: "items", n: 1 };
       }
       case "draft": {

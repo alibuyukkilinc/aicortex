@@ -6,6 +6,10 @@ import type { ActivityInput } from "../core/activity.js";
 import type { ClaimInput, CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
 import type { DocKind } from "../index/db.js";
 import type { McpApi } from "./client.js";
+import { isSafeImage, isText, mediaType } from "../store/attachments.js";
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // what an AI client comfortably takes as one image
+const MAX_TEXT_CHARS = 100_000;
 
 // Compact JSON: every byte here is a token the AI pays for.
 function result(data: object) {
@@ -199,6 +203,39 @@ export function buildMcpServer(api: McpApi): McpServer {
       },
     },
     wrap((a: { id: string; replies?: number; budget?: number }) => get(`/items/${encodeURIComponent(a.id)}`, { replies: a.replies, budget: a.budget })),
+  );
+
+  server.registerTool(
+    "cortex_item_file",
+    {
+      description:
+        "Read a file attached to an item (cortex_item lists them under `attachments`): Markdown and text come back as text, " +
+        "screenshots and other pictures as an image you can look at. Other files are described, not returned.",
+      inputSchema: { id: z.string(), name: z.string().describe("The file name exactly as listed in attachments") },
+    },
+    async (a: { id: string; name: string }) => {
+      try {
+        const type = mediaType(a.name);
+        const data = (await api.call("GET", `/items/${encodeURIComponent(a.id)}/files/${encodeURIComponent(a.name)}`, { binary: true })) as Buffer;
+        if (isSafeImage(type) && data.length <= MAX_IMAGE_BYTES) {
+          return { content: [{ type: "image" as const, data: data.toString("base64"), mimeType: type }] };
+        }
+        if (isText(type)) {
+          const text = data.toString("utf8");
+          const cut = text.length > MAX_TEXT_CHARS;
+          return result({
+            name: a.name,
+            type,
+            ...(cut ? { truncated: true, total_chars: text.length } : {}),
+            text: cut ? text.slice(0, MAX_TEXT_CHARS) : text,
+          });
+        }
+        return result({ name: a.name, type, size: data.length, note: "Not a text file or a picture this tool can show." });
+      } catch (e) {
+        const err = e instanceof CortexError ? { code: e.code, message: e.message, hint: e.hint } : { code: "internal", message: String(e) };
+        return { isError: true, content: [{ type: "text" as const, text: JSON.stringify({ error: err }) }] };
+      }
+    },
   );
 
   server.registerTool(

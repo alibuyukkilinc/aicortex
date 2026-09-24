@@ -1,9 +1,24 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import type { ApiError } from "./api";
 import { api, useApi } from "./api";
 import { LangContext, useLabels, useT } from "./i18n";
 import { SchemaForm } from "./SchemaForm";
-import type { Item, NodeSummary, Reply, Schema } from "./types";
+import type { Attachment, Item, NodeSummary, Reply, Schema } from "./types";
+import type { PendingFile } from "./attachments";
+import {
+  AttachmentGrid,
+  MAX_BYTES,
+  MarkdownField,
+  PendingList,
+  filesBase,
+  formatSize,
+  markdownRef,
+  pendingName,
+  safeName,
+  uploadFile,
+  useDropZone,
+  usePasteFiles,
+} from "./attachments";
 import { ActorChip, Ago, Drawer, ErrorBox, Icon, Loading, Markdown, Modal, StatusChip, TypeChip, go, useSession, useToast } from "./ui";
 
 export function useSchema(type: string | null) {
@@ -34,8 +49,48 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
   const t = useT();
   const label = useLabels();
   const toast = useToast();
-  const { actors, me, ask } = useSession();
-  const { data, error, loading, reload } = useApi<{ item: Item; replies: Reply[] }>(`/api/items/${id}`);
+  const { actors, me, ask, can } = useSession();
+  const { data, error, loading, reload } = useApi<{ item: Item; replies: Reply[]; attachments?: Attachment[] }>(`/api/items/${id}`);
+  const [uploading, setUploading] = useState<string[]>([]);
+  const [editing, setEditing] = useState<string | null>(null); // the description being edited, or null
+  const canWrite = can("write_items");
+
+  // Stores files on this item, one by one, and returns the names the server gave them.
+  const upload = async (list: File[]): Promise<string[]> => {
+    const names: string[] = [];
+    for (const f of list) {
+      if (f.size > MAX_BYTES) {
+        toast({ text: t("att.tooBig").replace("{name}", f.name).replace("{size}", formatSize(MAX_BYTES)), error: true });
+        continue;
+      }
+      setUploading((u) => [...u, f.name]);
+      try {
+        names.push((await uploadFile(id, f, f.name)).name);
+      } catch (e) {
+        toast({ text: `${f.name}: ${(e as Error).message}`, error: true });
+      } finally {
+        setUploading((u) => u.filter((n) => n !== f.name));
+      }
+    }
+    if (names.length) {
+      toast({ text: t("att.added").replace("{n}", String(names.length)) });
+      reload();
+    }
+    return names;
+  };
+  const drop = useDropZone((list) => canWrite && void upload(list));
+  usePasteFiles((list) => canWrite && void upload(list), t("att.screenshot"));
+
+  const saveBody = async (text: string) => {
+    try {
+      const r = await api<{ applied: boolean; message: string }>(`/api/items/${id}`, { method: "PATCH", body: { body: text } });
+      if (!r.applied) toast({ text: r.message });
+      setEditing(null);
+      reload();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    }
+  };
   const schema = useSchema(data?.item.type ?? null);
   const [body, setBody] = useState("");
   const [replyFields, setReplyFields] = useState<Record<string, unknown>>({});
@@ -188,7 +243,56 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
         )}
       </div>
 
-      <Markdown text={item.body} />
+      <div className={`drop-area${drop.dragging ? " dropping" : ""}`} {...drop.props}>
+        {drop.dragging && <div className="drop-hint">{t("att.dropHere")}</div>}
+        <div className="section desc">
+          <div className="row" style={{ marginBottom: 6 }}>
+            <h3 style={{ margin: 0 }}>
+              <Icon name="text" size={14} /> {t("item.body")}
+            </h3>
+            <span className="spacer" />
+            {canWrite && editing === null && (
+              <button type="button" className="btn sm ghost" onClick={() => setEditing(item.body ?? "")}>
+                <Icon name="edit" size={14} /> {t("common.edit")}
+              </button>
+            )}
+          </div>
+          {editing !== null ? (
+            <>
+              <MarkdownField value={editing} onChange={setEditing} onFiles={upload} files={filesBase(id)} minHeight={180} autoFocus />
+              <div className="row" style={{ marginTop: 8, justifyContent: "flex-end" }}>
+                <button type="button" className="btn" onClick={() => setEditing(null)}>
+                  {t("common.cancel")}
+                </button>
+                <button type="button" className="btn primary" disabled={editing === item.body} onClick={() => void saveBody(editing)}>
+                  {t("common.save")}
+                </button>
+              </div>
+            </>
+          ) : item.body?.trim() ? (
+            <Markdown text={item.body} files={filesBase(id)} />
+          ) : (
+            canWrite && (
+              <button type="button" className="desc-empty" onClick={() => setEditing("")}>
+                {t("att.addDescription")}
+              </button>
+            )
+          )}
+        </div>
+        <AttachmentGrid
+          itemId={id}
+          files={data.attachments ?? []}
+          canWrite={canWrite}
+          uploading={uploading}
+          onPick={(list) => void upload(list)}
+          onChanged={reload}
+          onInsert={(name) =>
+            editing !== null
+              ? setEditing(`${editing.trimEnd()}\n${markdownRef(name)}\n`)
+              : void saveBody(`${(item.body ?? "").trimEnd()}\n\n${markdownRef(name)}\n`)
+          }
+        />
+      </div>
       {item.handoff_note && (
         <p className="muted" style={{ fontSize: 12.5, fontStyle: "italic" }}>
           {t("item.handoffNote")}: {item.handoff_note}
@@ -278,7 +382,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
                 </span>
               )}
             </div>
-            <Markdown text={r.body} />
+            <Markdown text={r.body} files={filesBase(id)} />
             {r.fields && Object.keys(r.fields).length > 0 && (
               <dl className="kv" style={{ marginTop: 8 }}>
                 {Object.entries(r.fields).map(([k, v]) => (
@@ -290,7 +394,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
         ))}
 
         <div className="card" style={{ padding: 12, marginTop: 8 }}>
-          <textarea className="textarea" placeholder={t("item.replyPlaceholder")} value={body} onChange={(e) => setBody(e.target.value)} />
+          <MarkdownField value={body} onChange={setBody} onFiles={upload} files={filesBase(id)} placeholder={t("item.replyPlaceholder")} minHeight={80} />
           {schema?.reply?.fields && Object.keys(schema.reply.fields).length > 0 && (
             <div style={{ marginTop: 10 }}>
               <SchemaForm fields={schema.reply.fields} value={replyFields} onChange={setReplyFields} actors={actors} />
@@ -364,6 +468,35 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingFile[]>([]);
+  const toast = useToast();
+
+  // Files wait in the browser until the item exists; names are fixed now so references in the text hold.
+  const queue = async (list: File[]): Promise<string[]> => {
+    const added: PendingFile[] = [];
+    for (const f of list) {
+      if (f.size > MAX_BYTES) {
+        toast({ text: t("att.tooBig").replace("{name}", f.name).replace("{size}", formatSize(MAX_BYTES)), error: true });
+        continue;
+      }
+      const name = pendingName(
+        safeName(f.name),
+        [...pending, ...added].map((p) => p.name),
+      );
+      added.push({ name, file: f, url: URL.createObjectURL(f) });
+    }
+    setPending((p) => [...p, ...added]);
+    return added.map((p) => p.name);
+  };
+  const unqueue = (name: string) =>
+    setPending((p) => {
+      const gone = p.find((x) => x.name === name);
+      if (gone) URL.revokeObjectURL(gone.url);
+      return p.filter((x) => x.name !== name);
+    });
+  useEffect(() => () => pending.forEach((p) => URL.revokeObjectURL(p.url)), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const drop = useDropZone((list) => void queue(list));
+  usePasteFiles((list) => void queue(list), t("att.screenshot"));
 
   const submit = async () => {
     setBusy(true);
@@ -373,6 +506,16 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
         method: "POST",
         body: { type: kind, title, body, fields, ...(category ? { category_path: category } : {}), ...(assignee ? { assignee } : {}) },
       });
+      // The item exists now: send the files. One failing does not undo the item; the rest still go.
+      const failed: string[] = [];
+      for (const p of pending) {
+        try {
+          await uploadFile(r.id, p.file, p.name);
+        } catch {
+          failed.push(p.name);
+        }
+      }
+      if (failed.length) toast({ text: t("att.someFailed").replace("{names}", failed.join(", ")), error: true });
       onClose();
       go(`item/${r.id}`);
     } catch (e) {
@@ -384,58 +527,69 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
 
   return (
     <Modal onClose={onClose} title={t("item.new")}>
-      <div className="grid2">
+      <div className={`drop-area${drop.dragging ? " dropping" : ""}`} {...drop.props}>
+        {drop.dragging && <div className="drop-hint">{t("att.dropHere")}</div>}
+        <div className="grid2">
+          <div className="field">
+            <label htmlFor="items-board-type">{t("board.type")}</label>
+            <select id="items-board-type" className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}))}>
+              {itemTypes.map((x) => (
+                <option key={x} value={x}>
+                  {label.type(x)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="items-item-assignee-2">{t("item.assignee")}</label>
+            <select id="items-item-assignee-2" className="select" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+              <option value="">{t("common.unassigned")}</option>
+              <option value="@humans">@humans</option>
+              <option value="@ai">@ai</option>
+              {actors.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.id} ({a.kind})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {schema?.description && (
+          <p className="muted" style={{ marginTop: 0 }}>
+            {label.description(kind, schema.description)}
+          </p>
+        )}
         <div className="field">
-          <label htmlFor="items-board-type">{t("board.type")}</label>
-          <select id="items-board-type" className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}))}>
-            {itemTypes.map((x) => (
-              <option key={x} value={x}>
-                {label.type(x)}
-              </option>
+          <label htmlFor="items-item-title">
+            {t("item.title")} <span className="req">*</span>
+          </label>
+          <input id="items-item-title" className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="items-item-category">
+            {t("item.category")} {schema?.category_required && <span className="req">*</span>}
+          </label>
+          <select id="items-item-category" className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">—</option>
+            {branches.map((b) => (
+              <option key={b}>{b}</option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="items-item-assignee-2">{t("item.assignee")}</label>
-          <select id="items-item-assignee-2" className="select" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-            <option value="">{t("common.unassigned")}</option>
-            <option value="@humans">@humans</option>
-            <option value="@ai">@ai</option>
-            {actors.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.id} ({a.kind})
-              </option>
-            ))}
-          </select>
+          <label htmlFor="items-item-body">{t("item.body")}</label>
+          <MarkdownField
+            id="items-item-body"
+            value={body}
+            onChange={setBody}
+            onFiles={queue}
+            files={(name) => pending.find((p) => p.name === name)?.url ?? ""}
+          />
+          <PendingList files={pending} onRemove={unqueue} />
+          <p className="faint att-tip">{t("att.tip")}</p>
         </div>
+        {schema && <SchemaForm fields={schema.fields} value={fields} onChange={setFields} actors={actors} />}
       </div>
-      {schema?.description && (
-        <p className="muted" style={{ marginTop: 0 }}>
-          {label.description(kind, schema.description)}
-        </p>
-      )}
-      <div className="field">
-        <label htmlFor="items-item-title">
-          {t("item.title")} <span className="req">*</span>
-        </label>
-        <input id="items-item-title" className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
-      </div>
-      <div className="field">
-        <label htmlFor="items-item-category">
-          {t("item.category")} {schema?.category_required && <span className="req">*</span>}
-        </label>
-        <select id="items-item-category" className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">—</option>
-          {branches.map((b) => (
-            <option key={b}>{b}</option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="items-item-body">{t("item.body")}</label>
-        <textarea id="items-item-body" className="textarea" value={body} onChange={(e) => setBody(e.target.value)} />
-      </div>
-      {schema && <SchemaForm fields={schema.fields} value={fields} onChange={setFields} actors={actors} />}
       <ErrorBox error={err} />
       <div className="modal-foot">
         <button className="btn" onClick={onClose}>

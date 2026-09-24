@@ -5,6 +5,8 @@ import { useLabels, useT } from "../i18n";
 import { NewItemDialog, nextStatuses, useBranches, useSchema } from "../items";
 import type { ItemSummary } from "../types";
 import { ActorChip, ErrorBox, Icon, Loading, Pressable, go, useSession, useToast } from "../ui";
+import { fileUrl } from "../attachments";
+import type { Schema } from "../types";
 
 export function Board({ type }: { type: string }) {
   const t = useT();
@@ -135,16 +137,34 @@ export function Board({ type }: { type: string }) {
                       onDragEnd={() => setDragging(null)}
                       onPress={() => openItem(i.id)}
                     >
+                      {i.cover && <img className="kcard-cover" src={fileUrl(i.id, i.cover)} alt="" loading="lazy" draggable={false} />}
+                      {(i.level || i.blocking) && (
+                        <div className="kcard-labels">
+                          {i.level && <span className={`klabel lv-${i.level}`}>{label.value(i.level)}</span>}
+                          {i.blocking && <span className="klabel lv-critical">{t("item.blocking")}</span>}
+                        </div>
+                      )}
                       <div className="title">{i.title}</div>
                       <div className="meta">
-                        {i.blocking && <span className="chip danger">{t("item.blocking")}</span>}
-                        <ActorChip id={i.assignee} actors={actors} />
-                        {i.category_path && <span className="chip">{i.category_path}</span>}
+                        {i.due && <DueChip due={i.due} done={schema.statuses.indexOf(i.status) === schema.statuses.length - 1} />}
+                        {i.has_body && (
+                          <span className="kbadge" title={t("board.hasBody")} aria-label={t("board.hasBody")}>
+                            <Icon name="text" size={13} />
+                          </span>
+                        )}
                         {i.replies ? (
-                          <span className="chip" title={t("board.replies")}>
-                            <Icon name="chat" size={12} /> {i.replies}
+                          <span className="kbadge" title={t("board.replies")}>
+                            <Icon name="chat" size={13} /> {i.replies}
                           </span>
                         ) : null}
+                        {i.files ? (
+                          <span className="kbadge" title={t("board.files")}>
+                            <Icon name="clip" size={13} /> {i.files}
+                          </span>
+                        ) : null}
+                        {i.category_path && <span className="chip">{i.category_path}</span>}
+                        <span className="spacer" />
+                        {i.assignee && <ActorChip id={i.assignee} actors={actors} />}
                         {/* The same moves as dragging, for keyboards and touch screens. */}
                         {can("write_items") && nextStatuses(schema, i.status).length > 0 && (
                           <select
@@ -167,6 +187,9 @@ export function Board({ type }: { type: string }) {
                     </Pressable>
                   ))}
                 </div>
+                {(type === "question" ? can("ask") : can("write_items")) && (
+                  <QuickAdd type={type} status={status} schema={schema} branch={branch} assignee={assignee} onAdded={reload} />
+                )}
               </section>
             );
           })}
@@ -177,5 +200,102 @@ export function Board({ type }: { type: string }) {
       </div>
       {creating && <NewItemDialog type={type} defaultPath={branch || undefined} onClose={() => setCreating(false)} />}
     </>
+  );
+}
+
+// Trello's due-date badge: red when late, amber when due today, quiet when done.
+function DueChip({ due, done }: { due: string; done: boolean }) {
+  const t = useT();
+  const today = new Date();
+  const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const state = done ? "done" : due < key ? "late" : due === key ? "today" : "";
+  const shown = new Date(`${due}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return (
+    <span className={`kbadge due ${state}`} title={state === "late" ? t("board.overdue") : due}>
+      <Icon name="clock" size={13} /> {shown}
+    </span>
+  );
+}
+
+// "Add a card" at the bottom of a column: type a title, Enter, and it lands in this column; the input
+// stays open for the next one, as in Trello. The board's branch and assignee filters are applied.
+function QuickAdd({
+  type,
+  status,
+  schema,
+  branch,
+  assignee,
+  onAdded,
+}: {
+  type: string;
+  status: string;
+  schema: Schema;
+  branch: string;
+  assignee: string;
+  onAdded: () => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    const text = title.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      const r = await api<{ id: string }>("/api/items", {
+        method: "POST",
+        body: { type, title: text, ...(branch ? { category_path: branch } : {}), ...(assignee ? { assignee } : {}) },
+      });
+      // New items start in the type's first status; move it to the column it was typed into.
+      if (status !== schema.initial) await api(`/api/items/${r.id}`, { method: "PATCH", body: { status } });
+      setTitle("");
+      onAdded();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open)
+    return (
+      <button type="button" className="quick-add-btn" onClick={() => setOpen(true)}>
+        <Icon name="plus" size={14} /> {t("board.addCard")}
+      </button>
+    );
+  return (
+    <div className="quick-add">
+      <textarea
+        className="textarea"
+        autoFocus
+        rows={2}
+        value={title}
+        placeholder={t("board.addCardHint")}
+        aria-label={t("board.addCard")}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            void add();
+          }
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            setOpen(false);
+            setTitle("");
+          }
+        }}
+      />
+      <div className="row" style={{ gap: 6 }}>
+        <button type="button" className="btn primary sm" disabled={busy || !title.trim()} onClick={() => void add()}>
+          {t("board.addCard")}
+        </button>
+        <button type="button" className="icon-btn" aria-label={t("common.cancel")} onClick={() => (setOpen(false), setTitle(""))}>
+          <Icon name="x" size={14} />
+        </button>
+      </div>
+    </div>
   );
 }
