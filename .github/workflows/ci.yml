@@ -37,7 +37,8 @@ jobs:
       # Lint and format are the same on every OS: checked once, on one leg, not six times.
       - if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
         run: npm run lint && npm run format:check
-      - run: npm test
+      # Failing tests also become annotations on the run page (scripts/gh-annotations.mjs).
+      - run: npm run test:ci
       - run: npm run build
       # The spec's acceptance criterion: a clean machine installs, inits and starts Cortex in under 2 minutes.
       - run: npm run smoke
