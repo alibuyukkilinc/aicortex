@@ -175,7 +175,7 @@ test("a board still holding the old token cookie is let in once and moved to a s
   }
 });
 
-test("cortex logout ends sessions on a running server; only hashes are stored", async () => {
+test("cortexboard logout ends sessions on a running server; only hashes are stored", async () => {
   const t = tempProject();
   const app = buildServer(t.cortex);
   const host = { host: "localhost:4747" };

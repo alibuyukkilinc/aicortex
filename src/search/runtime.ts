@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-// Semantic search is opt-in (`cortex semantic on`): the ONNX runtime is ~290 MB, so it is installed once
+// Semantic search is opt-in (`cortexboard semantic on`): the ONNX runtime is ~290 MB, so it is installed once
 // per machine under ~/.cortex/runtime instead of shipping with every `npx` run. Models are cached in
 // ~/.cortex/models and shared by all projects.
 

@@ -55,7 +55,7 @@ first use and needs no install. If you prefer:
 | | Command | When |
 |---|---|---|
 | `npx` (default) | `npx cortexboard start` | Nothing to install; always runs the version you ask for |
-| Global | `npm install -g cortexboard`, then `cortexboard start` (or `cortex start`) | You use it daily in many projects |
+| Global | `npm install -g cortexboard`, then `cortexboard start` | You use it daily in many projects |
 | Project dependency | `npm install -D cortexboard`, then `npx cortexboard start` | The whole team gets the same version from `package.json` |
 
 ---

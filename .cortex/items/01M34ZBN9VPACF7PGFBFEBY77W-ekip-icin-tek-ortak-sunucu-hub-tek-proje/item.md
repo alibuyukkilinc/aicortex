@@ -17,4 +17,4 @@ updated_at: 2026-09-22T19:09:55.071Z
 updated_by: owner
 ---
 
-Ekip Cortex'e bir sunucu üzerinden tarayıcıyla bağlanır; AI ajanları token ile. `aicortex start` tek kişilik, yalnızca localhost modu olarak değişmeden kalır.
+Ekip Cortex'e bir sunucu üzerinden tarayıcıyla bağlanır; AI ajanları token ile. `cortexboard start` tek kişilik, yalnızca localhost modu olarak değişmeden kalır.

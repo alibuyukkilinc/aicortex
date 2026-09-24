@@ -25,5 +25,5 @@ updated_at: 2026-09-24T07:30:15.387Z
 - Panoda denetim serisi bir bağlam serisidir (`Series.context`, `web/src/charts.tsx`): açıklamada ve ipucunda görünür, çizilmez ve ekseni belirlemez. Rapor sayfasındaki satırlar klavyeyle açılır (`ListRow`).
 - Kısmi görünürlüğü olan hub üyesi proje çapındaki raporu alamaz (403).
 - `reportToMarkdown(report, lang)`: Slack'e veya PR açıklamasına yapıştırmak için.
-- Erişim: `GET /api/report` (`format=md`), MCP `cortex_report`, CLI `cortex report`, panoda Raporlar sayfası.
+- Erişim: `GET /api/report` (`format=md`), MCP `cortex_report`, CLI `cortexboard report`, panoda Raporlar sayfası.
 - "Belgelenmemiş dal" = özetinde hâlâ init'in yer tutucu metni olan dal.

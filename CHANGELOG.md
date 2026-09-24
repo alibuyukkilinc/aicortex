@@ -5,6 +5,13 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-24
+
+### Changed
+
+- **One command: `cortexboard`.** The short `cortex` alias is gone; it was a name common enough to
+  collide with another tool in a global install. Every example, message and document uses the full name.
+
 ## [0.2.0] - 2026-09-24
 
 The theme of this release is making what 0.1 already had trustworthy: honest numbers, stale knowledge
@@ -14,9 +21,6 @@ was measured, by how much.
 
 ### Changed
 
-- **The package is published as `cortexboard`.** The working name `aicortex` (never published) is
-  refused by the registry: npm compares names with punctuation removed, and `ai-cortex` already exists.
-  The command is still `cortex`, and `cortexboard` runs the same binary.
 - **Accepted decisions no longer count as open work.** They were settled but kept showing up in open-item
   counts, branch counters, the inbox and reports. A schema can now mark statuses as `resolved`
   (decisions: `accepted`); `accepted → superseded` stays allowed. On this repository: open items 19 → 6,
@@ -50,7 +54,7 @@ was measured, by how much.
 - **`cortex_log_activity` names the knowledge your change made stale** and asks the AI to update or verify
   it in the same turn (still a draft a person approves). The brief lists them under
   `stale_nodes.from_your_changes`.
-- **`cortex logout [--actor <id>] [--all]`** ends board sessions, also on a running server.
+- **`cortexboard logout [--actor <id>] [--all]`** ends board sessions, also on a running server.
 - **Board**: a "Move to" menu on every card (keyboards and touch screens), announced to screen readers.
 - **Lint and format**: `npm run lint` (oxlint with type information: floating and misused promises,
   `await` on non-promises, type-only imports, React hooks rules, and four jsx-a11y rules) and
@@ -73,7 +77,7 @@ was measured, by how much.
   troubleshooting.
 - **`--dir <project folder>`** (or `CORTEX_DIR`) on every project command, for MCP clients that do not start
   servers in the project folder (Claude Desktop, Codex). `init --dir` creates the project there.
-- **`cortex --version`**.
+- **`cortexboard --version`**.
 - **Tests** for the CLI, git, frontmatter, agent files, the full AI protocol over MCP, a two-clone
   parallel merge and attachments. 89 → 137 tests.
 
@@ -131,5 +135,6 @@ was measured, by how much.
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
 
-[Unreleased]: https://github.com/alibuyukkilinc/aicortex/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/alibuyukkilinc/aicortex/releases/tag/v0.2.0
+[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.1
+[0.2.0]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.0

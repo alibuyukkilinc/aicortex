@@ -24,7 +24,7 @@ updated_at: 2026-09-24T07:30:10.834Z
 
 - `onRequest` kancası localhost/127.0.0.1/[::1] dışındaki her Host'u reddeder.
 - Giriş kodu `<aktör>.<bitiş>.<imza>` aktörün kendi token'ıyla imzalanır: sunucuda durum tutmaz, token hiçbir zaman adres çubuğuna veya geçmişe düşmez.
-- Pano oturumu (`src/api/sessions.ts`): `/login` rastgele bir oturum anahtarı verir; çerez API token'ı DEĞİLDİR. `.cortex/.sessions.json` yalnızca SHA-256 özetini tutar, 30 gün geçerli, 0600, git'e girmez. `/api/logout` oturumu siler; `cortex logout [--actor] [--all]` çalışan sunucudaki oturumları da bitirir.
+- Pano oturumu (`src/api/sessions.ts`): `/login` rastgele bir oturum anahtarı verir; çerez API token'ı DEĞİLDİR. `.cortex/.sessions.json` yalnızca SHA-256 özetini tutar, 30 gün geçerli, 0600, git'e girmez. `/api/logout` oturumu siler; `cortexboard logout [--actor] [--all]` çalışan sunucudaki oturumları da bitirir.
 - Geçiş: ham token taşıyan eski çerez bir kez kabul edilip yeni oturumla değiştirilir (aynı anda gelen istekler aynı oturumu alır); yalnızca insan aktörler. 0.2.x sonrası kaldırılacak.
 - Bearer yolu (AI'lar, betikler) değişmedi. `loadTokens` değişim zamanı+boyutla önbellekler; karşılaştırma SHA-256 özetleri üzerinde `timingSafeEqual` ile, erken çıkmadan tüm girdilere bakar.
 - `.secrets.yaml` `init`'te 0600 yazılır; POSIX'te daha gevşek izinli eski dosya ilk okumada 0600'a çekilir.

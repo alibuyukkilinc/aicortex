@@ -69,7 +69,7 @@ export class SessionStore {
     for (const [h, s] of Object.entries(this.data)) if (Date.parse(s.expires) <= now) delete this.data[h];
   }
 
-  // Re-read when the file changes, so `cortex logout` in a terminal takes effect on a running server.
+  // Re-read when the file changes, so `cortexboard logout` in a terminal takes effect on a running server.
   private load(): void {
     let m: number;
     try {

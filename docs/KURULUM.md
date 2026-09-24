@@ -55,7 +55,7 @@ indirir, kurulum gerektirmez. İstersen:
 | | Komut | Ne zaman |
 |---|---|---|
 | `npx` (varsayılan) | `npx cortexboard start` | Hiçbir şey kurulmaz; istediğin sürüm çalışır |
-| Genel kurulum | `npm install -g cortexboard`, sonra `cortexboard start` (ya da `cortex start`) | Birçok projede her gün kullanıyorsan |
+| Genel kurulum | `npm install -g cortexboard`, sonra `cortexboard start` | Birçok projede her gün kullanıyorsan |
 | Proje bağımlılığı | `npm install -D cortexboard`, sonra `npx cortexboard start` | Ekibin tamamı `package.json`'dan aynı sürümü alsın |
 
 ---

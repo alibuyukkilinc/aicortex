@@ -29,7 +29,7 @@ Bugün AI ile yazılım geliştirirken:
 
 | Katman | Seçim | Not |
 |---|---|---|
-| Çalışma ortamı | Node.js ≥ 22.16 (TypeScript; yerleşik SQLite FTS5 ile ilk bu sürümde geliyor) | `npx cortexboard` ile dağıtım; komut `cortex` adıyla da gelir |
+| Çalışma ortamı | Node.js ≥ 22.16 (TypeScript; yerleşik SQLite FTS5 ile ilk bu sürümde geliyor) | `npx cortexboard` ile dağıtım |
 | HTTP API | Fastify | Yalnızca 127.0.0.1 |
 | MCP | `@modelcontextprotocol/sdk` | stdio |
 | İndeks | Node'un yerleşik `node:sqlite` modülü + FTS5 | **Yeniden üretilebilir önbellektir**, git'e girmez. Yerel derleme gerektiren paket yok |
@@ -67,7 +67,7 @@ proje/
 ```
 
 - Her kayıt tek bir dosyadır. Bu sayede merge çakışmaları azalır.
-- `.index/` silinirse `cortex reindex` ile dosyalardan yeniden üretilir.
+- `.index/` silinirse `cortexboard reindex` ile dosyalardan yeniden üretilir.
 - `.cortex/.gitattributes` satır sonlarını LF'ye sabitler.
 
 ## 5. Veri modeli
@@ -246,7 +246,7 @@ Ekip sunucusundaki bir proje için: `npx cortexboard mcp --hub <url> --project <
 - **Raporlar:** Bölüm 15.
 - **Kurallar:** şemaları ve genel kuralları görüntüleme ve düzenleme (yalnızca insan).
 - **Kılavuz:** sistem nasıl işler, AI nasıl bağlanır (komut sunucuya ve projeye göre hazır yazılır), roller ve görünürlük, mobil ekip örneği, İngilizce terimler sözlüğü. Panoda kalan İngilizce terimlerin üstüne gelince açıklaması çıkar.
-- **Arama çubuğu** her ekranda. TR/EN, açık/koyu tema. Giriş: `cortex login` ile 10 dakikalık imzalı bağlantı, şifre yok.
+- **Arama çubuğu** her ekranda. TR/EN, açık/koyu tema. Giriş: `cortexboard login` ile 10 dakikalık imzalı bağlantı, şifre yok.
 
 ## 13. İlk kurulum akışı
 
@@ -314,8 +314,3 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `cortexboard start
 - [x] `.index/` silinip `reindex` çalıştırıldığında hiçbir veri kaybolmuyorsa
 - [x] Claude Code MCP üzerinden, Bölüm 14'teki protokolü baştan sona uygulayabiliyorsa — *`test/protocol.test.ts`: yalnızca MCP araçlarıyla brief → gelen kutusu → arama → kod bağlamı → değişiklik → aktivite → güncelle/doğrula → onay, gerçek git deposunda*
 - [x] İki geliştirici `.cortex/` üzerinde paralel çalışıp git merge yaptığında veri bozulmuyorsa — *`test/parallel-merge.test.ts`: iki klon aynı gün, aynı aktörlerle yazıyor, `git merge` çakışmasız, yeniden kurulan indeks iki tarafı da içeriyor. Test ilk yazıldığında kırmızıydı: aynı aktörün aynı günkü günlüğü add/add çakışması veriyordu; `.cortex/.gitattributes`'a `activity/**/*.jsonl merge=union` eklendi*
-
-## 19. Açık sorular
-
-- Komut adı: paket `cortexboard`, komut hem `cortexboard` hem `cortex`. Global kurulumda `cortex` başka bir araçla çakışabilir; kısa adı tutmaya devam edelim mi?
-- Sürümleme ve yayın süreci (değişiklik günlüğü, npm yayın yetkisi) henüz belirlenmedi.

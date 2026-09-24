@@ -1,16 +1,16 @@
 {
   "name": "cortexboard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared project brain for humans and AIs: knowledge tree, board, decisions and AI activity in one place.",
   "author": "alibuyukkilinc",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alibuyukkilinc/aicortex.git"
+    "url": "git+https://github.com/alibuyukkilinc/cortexboard.git"
   },
   "bugs": {
-    "url": "https://github.com/alibuyukkilinc/aicortex/issues"
+    "url": "https://github.com/alibuyukkilinc/cortexboard/issues"
   },
-  "homepage": "https://github.com/alibuyukkilinc/aicortex#readme",
+  "homepage": "https://github.com/alibuyukkilinc/cortexboard#readme",
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "dev": "tsx src/cli.ts",
@@ -62,7 +62,6 @@
     "vite": "^8.3.0"
   },
   "bin": {
-    "cortex": "dist/cli.js",
     "cortexboard": "dist/cli.js"
   },
   "files": [

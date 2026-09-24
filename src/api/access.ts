@@ -4,7 +4,7 @@ import { CortexError } from "../core/types.js";
 import type { SqlFilter } from "../index/db.js";
 
 // What a principal may do in one project. The hub fills this from the member's role; single-project mode
-// (`cortex start`, localhost only) has no access object and relies on the core's own human/AI rules.
+// (`cortexboard start`, localhost only) has no access object and relies on the core's own human/AI rules.
 export type Perm =
   | "read"
   | "ask" // open questions, reply to them

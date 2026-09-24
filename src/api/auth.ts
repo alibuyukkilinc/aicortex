@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 // Login links for the web board: "<actor>.<expiry>.<hmac>" signed with the actor's own token.
-// Stateless, so `cortex login` can mint a link while the server runs in another process.
+// Stateless, so `cortexboard login` can mint a link while the server runs in another process.
 // The token itself never appears in the URL or browser history.
 
 const TTL_MS = 10 * 60 * 1000;

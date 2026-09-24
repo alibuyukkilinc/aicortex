@@ -147,7 +147,7 @@ Next steps:
       }
       // A running server re-reads the session file, so this takes effect without a restart.
       const ended = new SessionStore(project.dir).revokeAll(actor);
-      console.log(`✔ Ended ${ended} board session(s)${actor ? ` for ${actor}` : ""}. Open the board again with \`cortex login\`.`);
+      console.log(`✔ Ended ${ended} board session(s)${actor ? ` for ${actor}` : ""}. Open the board again with \`cortexboard login\`.`);
       break;
     }
 
@@ -233,7 +233,7 @@ Next steps:
       const sim = (x: Float32Array, y: Float32Array) => x.reduce((s, v, i) => s + v * y[i], 0);
       if (!(sim(a, b) > sim(a, c))) throw new Error("The model loaded but produced unexpected results.");
       rt.writeSettings({ semantic: true });
-      console.log("✔ Semantic search on. Restart `cortex start` / your MCP server; existing content is indexed in the background.");
+      console.log("✔ Semantic search on. Restart `cortexboard start` / your MCP server; existing content is indexed in the background.");
       break;
     }
 

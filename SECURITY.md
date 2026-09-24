@@ -8,7 +8,7 @@ answer within a week; if the report is confirmed, a fix and an advisory follow, 
 you ask not to be.
 
 Useful to include: the version (`npx cortexboard --version` or `package.json`), whether it is single-project
-mode (`cortex start`) or the team server (`cortex hub start`), and the steps to reproduce.
+mode (`cortexboard start`) or the team server (`cortexboard hub start`), and the steps to reproduce.
 
 ## Supported versions
 

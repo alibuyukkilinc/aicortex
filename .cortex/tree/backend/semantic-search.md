@@ -1,6 +1,6 @@
 ---
 title: Anlamla arama (isteğe bağlı)
-summary: "`cortex semantic on` bilgisayara bir kez yerel model kurar (~/.cortex
+summary: "`cortexboard semantic on` bilgisayara bir kez yerel model kurar (~/.cortex
   altında, tüm projeler ortak). Vektörler SQLite'ta ve bellekte durur; kelime
   aramasıyla RRF ile birleşir. Ölçüldü: hibrit arama ~7 ms, asıl maliyet tek
   seferlik gömme (~50 ms/belge)."

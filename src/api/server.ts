@@ -77,7 +77,7 @@ export function baseServer(opts: { trustProxy?: boolean } = {}): FastifyInstance
   return app;
 }
 
-// Single project, localhost only (`cortex start`): actor tokens from .cortex/.secrets.yaml, board login by signed link.
+// Single project, localhost only (`cortexboard start`): actor tokens from .cortex/.secrets.yaml, board login by signed link.
 export function buildServer(cortex: Cortex): FastifyInstance {
   const app = baseServer();
   const sessions = new SessionStore(cortex.project.dir);
@@ -123,7 +123,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
       return reply.code(401).send({
         error: {
           code: "unauthorized",
-          message: "Send 'Authorization: Bearer <token>' (tokens are in .cortex/.secrets.yaml), or open the board with a link from `cortex login`.",
+          message: "Send 'Authorization: Bearer <token>' (tokens are in .cortex/.secrets.yaml), or open the board with a link from `cortexboard login`.",
         },
       });
     }
@@ -140,7 +140,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
         .type("text/html")
         .send(page("Login link expired or invalid", "Run <code>npx cortexboard login</code> in your project for a fresh link."));
     }
-    // The cookie is a session key, never the API token: logging out (or `cortex logout`) really ends it.
+    // The cookie is a session key, never the API token: logging out (or `cortexboard logout`) really ends it.
     reply.setCookie(SESSION_COOKIE, sessions.create(actor.id), cookieOpts);
     return reply.redirect("/");
   });

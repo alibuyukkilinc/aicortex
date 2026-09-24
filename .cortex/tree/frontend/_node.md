@@ -1,6 +1,6 @@
 ---
 title: Web pano
-summary: "React 19 + Vite. dist/web içine derlenir, `cortex start` sunar.
+summary: "React 19 + Vite. dist/web içine derlenir, `cortexboard start` sunar.
   Sayfalar: Bildirimler, Pano (Trello tarzı kanban), Bilgi, Aktivite, Onaylar,
   Eskimiş bilgi, Raporlar, Kurallar, Kılavuz, Arama. Türkçe/İngilizce, açık/koyu
   tema, daraltılabilir menü, canlı güncellenir."

@@ -5,7 +5,7 @@ Knowledge tree, decisions, questions and AI activity in one place, versioned in 
 
 > 🇹🇷 Türkçe açıklama aşağıda · **Kurulum rehberi: [docs/KURULUM.md](docs/KURULUM.md)**
 
-> **Status:** early (v0.2). Package: `cortexboard` (the CLI is also available as `cortex`). MIT licensed; contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+> **Status:** early (v0.2). Package: `cortexboard`. MIT licensed; contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **New here? The [installation guide](docs/INSTALL.md) walks through everything from installing Node.js to connecting Claude Code, Cursor, VS Code, Claude Desktop or Codex, and explains the two setups (one project on your computer, or a team server).**
 
@@ -122,7 +122,7 @@ Everything is plain markdown with YAML frontmatter: readable, diffable, mergeabl
 
 ## Teams: one server, many projects
 
-`cortex start` is one project on your own machine. For a team, run the **hub**: one server, many projects, people who sign in with email and password, AI agents with tokens, and roles per project.
+`cortexboard start` is one project on your own machine. For a team, run the **hub**: one server, many projects, people who sign in with email and password, AI agents with tokens, and roles per project.
 
 ```bash
 npx cortexboard hub init --org "Acme" --admin-email you@acme.com --admin-name "You" --public-url https://cortex.acme.com
