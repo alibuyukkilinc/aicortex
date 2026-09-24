@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { FSWatcher } from "node:fs";
-import { existsSync, readFileSync, readdirSync, watch, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
@@ -151,7 +151,16 @@ export class Cortex {
 
   // Picks up hand edits, git pulls and writes from other Cortex processes (e.g. MCP next to the API).
   watch(onError: (e: unknown) => void = () => {}): void {
-    this.watcher = watch(this.project.dir, { recursive: true }, (_event, file) => {
+    // The long, real path: Node 24.20's libuv asserts and aborts the process (0xC0000409) when a watch is
+    // opened through a Windows 8.3 short name (C:\Users\RUNNER~1\..., typical for temp folders), because
+    // the events come back under the long name. realpath.native expands it; elsewhere it is a no-op.
+    let dir = this.project.dir;
+    try {
+      dir = realpathSync.native(dir);
+    } catch {
+      // unreadable path: watch it as given
+    }
+    this.watcher = watch(dir, { recursive: true }, (_event, file) => {
       if (this.closed) return;
       // Node can report a change without naming the file; then we have no choice but to rebuild.
       if (file == null) this.pendingAll = true;
