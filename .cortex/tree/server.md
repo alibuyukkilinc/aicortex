@@ -13,11 +13,11 @@ links:
     - file: .github/workflows/release.yml
     - file: scripts/smoke.mjs
     - file: scripts/release-notes.mjs
-verified_at_commit: 3295916c724365d800427f9468950a5ad1f02895
+verified_at_commit: 19caf0b9e5cabe08d303fb389f2a370e42ff15c6
 id: 01M34Q1CBEMJA6S58G199HVFBQ
 status: active
-updated_by: ai-agent
-updated_at: 2026-09-24T03:14:10.138Z
+updated_by: owner
+updated_at: 2026-09-24T03:47:42.303Z
 ---
 
 - Node 22.16 veya üstü gerekir (node:sqlite'ın FTS5'li ilk sürümü). Veritabanı sunucusu, Docker veya API anahtarı gerekmez.

@@ -9,11 +9,11 @@ links:
     - file: src/core/cortex.ts
     - file: CORTEX_SPEC.md
     - file: README.md
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 19caf0b9e5cabe08d303fb389f2a370e42ff15c6
 id: 01M34Q1CBAV6VRTFKAVCK99EC0
 status: active
-updated_by: ai-agent
-updated_at: 2026-09-24T03:22:51.230Z
+updated_by: owner
+updated_at: 2026-09-24T03:47:36.755Z
 ---
 
 ## Ne işe yarar?
