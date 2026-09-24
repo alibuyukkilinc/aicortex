@@ -1,34 +1,41 @@
 ---
 title: Güvenlik modeli
-summary: "Tek proje: yalnızca localhost, git'e girmeyen token'lar, 10 dakikalık
-  imzalı giriş bağlantısı. Hub: e-posta + scrypt şifre, httpOnly oturum çerezi,
-  CSRF başlığı, giriş deneme sınırı, ajan tokenlarının yalnızca özeti; proje
-  başına rol ve görünürlük. Kurallar ve onaylar insana ait."
-tags:
-  - giris
-  - csrf
+summary: "Tek proje: yalnızca localhost, sahibine özel token'lar (0600), 10
+  dakikalık imzalı giriş bağlantısı, özetle saklanan iptal edilebilir pano
+  oturumu. Ekler yalnızca güvenli türlerde satır içi. Hub: scrypt şifre,
+  httpOnly oturum, CSRF başlığı, her kapıda deneme sınırı; rol ve görünürlük."
 links:
   code:
     - file: src/api/auth.ts
     - file: src/api/server.ts
-      lines: 40-80
+      lines: 81-155
+    - file: src/api/sessions.ts
+    - file: src/core/project.ts
     - file: src/hub/server.ts
+    - file: src/hub/limiter.ts
     - file: src/hub/crypto.ts
-verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
+    - file: src/store/attachments.ts
+verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
 id: 01M34Q1CBF3AXG1Q0MKDJYKB6J
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T19:28:28.225Z
+updated_at: 2026-09-24T03:22:52.076Z
 ---
 
 - `onRequest` kancası localhost/127.0.0.1/[::1] dışındaki her Host'u reddeder.
 - Giriş kodu `<aktör>.<bitiş>.<imza>` aktörün kendi token'ıyla imzalanır: sunucuda durum tutmaz, token hiçbir zaman adres çubuğuna veya geçmişe düşmez.
-- Çerezle yapılan yazımlar `x-cortex-csrf: 1` başlığı ister; başka bir site bunu CORS olmadan gönderemez, CORS da hiç açılmaz.
+- Pano oturumu (`src/api/sessions.ts`): `/login` rastgele bir oturum anahtarı verir; çerez API token'ı DEĞİLDİR. `.cortex/.sessions.json` yalnızca SHA-256 özetini tutar, 30 gün geçerli, 0600, git'e girmez. `/api/logout` oturumu siler; `cortex logout [--actor] [--all]` çalışan sunucudaki oturumları da bitirir.
+- Geçiş: ham token taşıyan eski çerez bir kez kabul edilip yeni oturumla değiştirilir (aynı anda gelen istekler aynı oturumu alır); yalnızca insan aktörler. 0.2.x sonrası kaldırılacak.
+- Bearer yolu (AI'lar, betikler) değişmedi. `loadTokens` değişim zamanı+boyutla önbellekler; karşılaştırma SHA-256 özetleri üzerinde `timingSafeEqual` ile, erken çıkmadan tüm girdilere bakar.
+- `.secrets.yaml` `init`'te 0600 yazılır; POSIX'te daha gevşek izinli eski dosya ilk okumada 0600'a çekilir.
+- Çerezle yapılan yazımlar `x-cortex-csrf: 1` başlığı ister; CORS hiç açılmaz.
 - Aktör adları dosya adı olarak kullanıldığı için denetlenir.
+- **Ekler** (`GET /items/:id/files/:name`): tür uzantıdan belirlenir, `X-Content-Type-Options: nosniff` ve `Content-Security-Policy: sandbox; default-src 'none'` ile sunulur. Yalnızca güvenli resimler (png/jpeg/gif/webp/avif/bmp/ico) ve metin satır içi; SVG, HTML ve PDF her zaman indirme (sayfada kod çalıştırabilirler). Dosya adı tek bir güvenli yol parçasına çevrilir; zaten güvenli olmayan ad (`../item.md`, ters bölü) hiç çözülmez, 404. Dosya başına 15 MB, kalem başına 100. Panoda Markdown DOMPurify'dan geçer; `blob:` adreslerine yalnızca henüz yüklenmemiş ekleri gösterirken izin verilir.
 ## Hub
-- Şifreler scrypt ile özetlenir, en az 10 karakter; davet ve oturum tokenları yalnızca SHA-256 özetiyle saklanır.
-- Oturum çerezi httpOnly, SameSite=Lax, `public_url` https ise Secure; çerezle yazımlar `x-cortex-csrf` ister.
-- Adres+e-posta başına 15 dakikada 10 hatalı giriş sınırı.
-- Host kontrolü isteğe bağlı (`allowed_hosts`): hub her istekte kimlik istediği için DNS rebinding riski localhost aracındaki gibi değil.
-- İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılmalı; `hub start` ağa açıkken HTTPS yoksa uyarır.
+- Şifreler scrypt ile özetlenir, en az 10 karakter; davet ve oturum tokenları yalnızca SHA-256 özetiyle saklanır. Davet 48 saat geçerli, tek kullanımlık.
+- Oturum çerezi httpOnly, SameSite=Lax. Secure: `hub.yaml` → `cookie_secure` verilmişse o; verilmemişse hub yalnızca loopback'te dinlemiyorsa açık. `trust_proxy: true` iken `X-Forwarded-Proto: https` de Secure yapar. Çerezle yazımlar `x-cortex-csrf` ister.
+- Deneme sınırı (`src/hub/limiter.ts`, 15 dakika): adres+e-posta başına 10 hatalı şifre; adres başına 10 hatalı ajan token'ı (REST ve MCP birlikte); adres başına 20 geçersiz davet bağlantısı. Bellek üst sınırlı.
+- `allowed_hosts` tanımlıysa listenin kendisidir: localhost için gizli istisna yok.
+- İnternete açılacaksa HTTPS arkasında çalıştırılmalı; `hub start` ağa açıkken HTTPS yoksa uyarır.
+- Güvenlik bildirimi: `SECURITY.md` (GitHub özel açık bildirimi).
 - Henüz yok: SSO, iki adımlı doğrulama, e-postayla davet gönderimi.

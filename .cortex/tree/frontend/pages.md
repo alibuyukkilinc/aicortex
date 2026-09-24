@@ -1,33 +1,31 @@
 ---
 title: Pano sayfaları
-summary: Her sayfa web/src/pages altında ayrı bir dosya. Kalem çekmecesi ve soru
-  sorma penceresi web/src/items.tsx'te; kalem formları kurallardan otomatik
-  üretilir (web/src/SchemaForm.tsx).
-tags:
-  - web
+summary: Her sayfa web/src/pages altında ayrı bir dosya. Kalem çekmecesi ve yeni
+  kayıt penceresi web/src/items.tsx'te, ekler web/src/attachments.tsx'te; pano
+  kartları Trello tarzı (kapak, etiket, tarih, rozetler, "Kart ekle"). Tıklanan
+  her satır klavyeyle de çalışır.
 links:
   code:
     - file: web/src/pages
     - file: web/src/items.tsx
+    - file: web/src/attachments.tsx
     - file: web/src/SchemaForm.tsx
     - file: web/src/hub.tsx
-    - file: web/src/pages/Guide.tsx
-    - file: web/src/pages/Inbox.tsx
-verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
+    - file: web/src/ui.tsx
+verified_at_commit: 3295916c724365d800427f9468950a5ad1f02895
 id: 01M34QY9ZWPSMQ85J1ACFRTWTS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T19:28:28.280Z
+updated_at: 2026-09-24T03:14:17.674Z
 ---
 
-- Bildirimler (`pages/Inbox.tsx`): tek satırlık özet ("5 şey seni bekliyor · 2 taslak onayını bekliyor") ve başlığı, sayısı, bir cümlelik açıklaması olan gruplar: işi durduran sorular, sana atananlar, grubunu bekleyenler, cevaplanan soruların, yeni yanıtlar, kararlar, onay bekleyen taslaklar, eskimiş bilgi. Pano: tür başına kanban; yasak geçişler soluk ve açıklamalı.
-- Bilgi: ağaç, markdown, kod bağlantıları; üstte yol (root / backend / …) ve işlem düğmeleri aynı satırda, başlık altında tam genişlikte; eskimiş düğümde "Hâlâ doğru" ve "Düzenle" düğmeleri; kök dışındaki düğümlerde "Sil" (sunucu reddederse nedeni gösterilir).
-- Arama: taslak sonuçlar "taslak, onay bekliyor" etiketiyle görünür, tıklayınca Onaylar'a gider.
-- Aktivite: canlı akış, her kayıtta "bunu sor" düğmesi.
-- Onaylar: mevcut ve önerilen yan yana; onay kutularıyla toplu onay/ret, işlenemeyenler seçili kalır.
-- Kalem formu ve ayrıntı paneli: alanlar kurallardan üretilir, hazır alan ve seçenek adları çevrilir (`SchemaForm`, `FieldRow`).
-- Raporlar: başlıktaki dönem ve dışa aktarma düğmeleri tek grup; özet kutuları, grafikler, listeler, markdown kopyala/indir. Kurallar: YAML düzenleyici, geçersiz kural kaydedilmez.
-- Hub ekranları (`web/src/hub.tsx`): giriş, davet, projelerim, organizasyon (kişiler, AI ajanları, projeler; davet bağlantısı ve token bir kez gösterilir), proje Üyeler sayfası (rol, görür, dallar). Üst çubukta proje değiştirici ve hesap menüsü.
-- Kılavuz (`pages/Guide.tsx`): sistem nasıl işler, sıradan bir gün, AI bağlantısı (MCP komutu sunucuya ve projeye göre hazır yazılır), rol tablosu, mobil ekip örneği, terimler sözlüğü.
-- İngilizce terimler: `GLOSSARY` (`web/src/i18n.ts`) + `<Term w="commit">`; üstüne gelince açıklama çıkar. Aktivite eylemleri ve arama sonucu türleri çevrilir, ham hâli ipucunda kalır.
+- Bildirimler (`pages/Inbox.tsx`): tek satırlık özet ve başlığı, sayısı, bir cümlelik açıklaması olan gruplar: işi durduran sorular, sana atananlar, grubunu bekleyenler, cevaplanan soruların, yeni yanıtlar, kararlar, onay bekleyen taslaklar, eskimiş bilgi (yalnızca yüksek ve orta derece).
+- Pano (`pages/Board.tsx`): tür başına kanban, Trello tarzı kart: ilk resim eki kapak, öncelik (issue'da önem) renkli etiket, son tarih rozeti (geçtiyse kırmızı, bugünse turuncu, bitince yeşil), açıklama / yanıt / ek rozetleri, sağda atanan. Her sütunun altında "Kart ekle": başlık + Enter, kart o sütuna düşer, giriş açık kalır. Kartta "Şuraya taşı" menüsü (klavye ve dokunmatik için sürüklemenin karşılığı), taşıma `aria-live` ile duyurulur.
+- Kalem çekmecesi (`items.tsx`): açıklama yerinde düzenlenir (Yaz / Önizle), altında Ekler ızgarası (küçük resimler, önizleme penceresi: resim, işlenmiş Markdown, metin; oklarla dosyalar arası; indir / açıklamaya ekle / kaldır). Çekmece açıkken ekran görüntüsü yapıştırmak (Ctrl+V) ya da dosya sürüklemek eke dönüşür; açıklamaya veya yanıta yapıştırınca `![..](<files/..>)` imlecin yerine girer. Markdown'daki `files/<ad>` aynı kalemin ekini gösterir (`<Markdown files>`).
+- Yeni kayıt penceresi: aynı yapıştır / bırak / seç; dosyalar tarayıcıda bekler (önizleme blob: adresleriyle), kayıt oluşunca yüklenir.
+- Bilgi: ağaç (ad bir bağlantı, `aria-current`; açma/kapama ayrı düğme), markdown, kod bağlantıları; eskimiş düğümde derece, "Hâlâ doğru", "Düzelt" ve (insanlar için) "Ertele".
+- Eskimiş bilgi (`pages/Stale.tsx`): dereceye göre gruplar, satır başına Doğrula / Düzelt / Ertele, "biçimsel olanların hepsini doğrula".
+- Arama, Aktivite, Onaylar (onaydan sonra kod değişmişse "HEAD'de doğrula"), Raporlar, Kurallar, Hub ekranları, Kılavuz: önceki gibi.
+- Pencereler: Escape yalnızca en üstteki pencereyi kapatır (`useEscape` yığını, `web/src/ui.tsx`).
+- Erişilebilirlik: tıklanan ama `<button>` olamayan her şey `Pressable`; etiketler `htmlFor`/`id` ile bağlı; jsx-a11y kuralları lint'te hata seviyesinde.
 - Rolün izin vermediği düğmeler gizlenir (`useSession().can(perm)`); asıl denetim sunucuda.

@@ -1,30 +1,37 @@
 ---
 title: Bilinen tuzaklar
-summary: "node:sqlite: FTS5 ancak Node 22.16'dan itibaren var; numaralı
-  parametre (?1) yok, adlandırılmış kullan; uyarı filtresinden önce
-  yüklenmemeli. SQL LIKE'ta _ joker. Windows'ta git çağrısı ~20 ms. Satır
-  sonları LF."
-tags:
-  - tuzak
-  - sqlite
-  - windows
+summary: "node:sqlite: FTS5 ancak Node 22.16'dan itibaren; numaralı parametre
+  yok. git Türkçe yolları tırnaklar, macOS NFD verir. typescript-eslint TS 7'yi
+  desteklemez. DOMPurify blob: adreslerini atar. Fastify JSON ayrıştırıcısı ham
+  yüklemede engel. Windows'ta git çağrısı ~20-45 ms."
 links:
   code:
     - file: src/index/db.ts
     - file: src/git/git.ts
     - file: src/cli.ts
-verified_at_commit: da2b11a97658129d06087801ccfc2a5b7acf5b2f
+verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
 id: 01M34QYABJE3KGV82NE6BGAWEK
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T19:28:28.247Z
+updated_at: 2026-09-24T03:22:54.994Z
 ---
 
-- **En düşük Node 22.16**: 22.13, 22.14 ve 22.15'teki node:sqlite FTS5 içermiyor, Cortex hiç açılmıyordu. Yerelde 22.16 kullanıldığı için CI'daki en eski sürüm testine kadar fark edilmedi.
+- **En düşük Node 22.16**: 22.13-22.15'teki node:sqlite FTS5 içermiyor, Cortex hiç açılmıyordu.
 - **node:sqlite parametreleri**: `?1` gibi numaralı yer tutucular çalışmıyor; `:ad` ya da düz `?` kullan.
-- **LIKE ve alt çizgi**: dosya adlarındaki `_` joker gibi eşleşiyordu; kod bağlantısı aramaları birebir karşılaştırıyor.
+- **LIKE ve alt çizgi**: `_` joker gibi eşleşir; kod bağlantısı aramaları birebir karşılaştırır, görünürlük SQL'i dal adlarını `ESCAPE '\'` ile kaçışlar.
+- **git ve Türkçe karakterli yollar**: git ASCII dışı yolları tırnaklayıp sekizli kaçışla yazar (`"src/\303\266deme.ts"`); `Git.run` her çağrıda `-c core.quotepath=false` verir ve çıktıyı NFC'ye çevirir.
+- **NFC/NFD**: macOS dosya adlarını ayrışık bildirir. Bağlı dosya yolları, kod bağlamı girdisi, izleyici yolları, git çıktısı ve ek adları NFC'ye çevrilir.
 - **ExperimentalWarning**: `src/cli.ts` SQLite uyarısını gizler; ondan önce hiçbir şey node:sqlite yüklememeli.
-- **Taşıma tespiti**: `git diff` bağlı yolla sınırlanınca taşınan dosyanın yeni yeri görünmüyor; silinmiş görünen dosyalar için ayrıca kontrol ediliyor.
-- **HEAD kontrolü**: 5 saniyede bir (`Cortex.watch`); Windows'ta her git çağrısı yaklaşık 20 ms.
-- **Statik dosyalar ve yeniden derleme**: `@fastify/static` `wildcard: false` ile dosya listesini yalnızca açılışta çıkarıyordu; sunucu açıkken derlenen pano boş sayfa gösteriyordu (yeni JS dosyası yerine HTML dönüyordu). Önceki teşhis "tarayıcı önbelleği" yanlıştı. Artık `wildcard: true` ve eksik dosyada 404.
-- **Brief boyutu**: 800 token sınırı testle korunuyor; listeler "sayı + ilk 5" şeklinde tutulur.
+- **Taşıma tespiti**: `git diff` bağlı yolla sınırlanınca taşınan dosyanın yeni yeri görünmez; silinmiş görünenler için ayrıca kontrol edilir.
+- **HEAD kontrolü**: 5 saniyede bir; Windows'ta her git çağrısı ~20-45 ms. Eskime git cevaplarını HEAD başına önbelleğe alır; biçim kararları blob çiftine göre diske yazılır.
+- **"Yalnızca biçim" tespiti**: `git diff -w` Prettier'ın yaptığını (satır bölme, sondaki virgül, gereksiz parantez, tırnak) biçim saymaz; S8 süpürgesinde 22 düğümün hepsi orta/yüksek çıkmıştı. Çözüm projenin kendi Prettier'ına sormak (`backend/staleness`).
+- **Lint ve TypeScript 7**: typescript-eslint TS'in JS API'sini ister (peer <6.1), TS 7'de o API yok; lint oxlint `--type-aware` ile (karar `01M3837TYN730SW3BRBT5YWDAX`). `label-has-associated-control` varsayılanda metni ifade olan etiketleri (`{t("...")}`) atlar; `assert: "htmlFor"` gerekir.
+- **Ham dosya yükleme ve Fastify**: `application/json` gövdesi JSON ayrıştırıcısına gider; ek yükleme kapsamında `removeAllContentTypeParsers()` + tek bir bayt ayrıştırıcı (`"*"`, `parseAs: "buffer"`) kullanılır, yoksa .json dosyası yüklenemez.
+- **DOMPurify ve blob:**: varsayılan izinli adres listesi `blob:` içermez; yeni kayıt penceresinde henüz yüklenmemiş resimler boş görünüyordu. Yalnızca o durumda `ALLOWED_URI_REGEXP`'e `blob` eklenir.
+- **Escape ve iç içe pencereler**: her pencere kendi Escape dinleyicisini kursaydı önizleme çekmeceyle birlikte kapanıyordu; `useEscape` artık bir yığın, yalnızca en üstteki kapanır.
+- **Performans ölçümü**: `new Cortex` kalem klasörü haritasını zaten ısıtır; "soğuk reindex" kare maliyeti göstermez, taze bir `ItemStore` ile ölçülmeli.
+- **Statik dosyalar ve yeniden derleme**: `@fastify/static` `wildcard: true`, eksik dosyada 404.
+- **Brief boyutu**: 800 token sınırı testle korunuyor.
+- **SSE ve dinleyici uyarısı**: 11. panoda `MaxListenersExceededWarning`; `/events` sınırı (50) ile `setMaxListeners` ayarlanır.
+- **Taslak zamanlaması**: bir düğüm taslağını yazdıktan sonra aynı dosyalara kod commit'lenirse onay onu HEAD'e taşımaz, eskimiş kalır. Taslakları kod durulduktan sonra yaz.
+- **Test ortamında bağlantı klasörü**: `node_modules`'a bağlantı (Windows junction) açan test, temizlikten önce bağlantıyı `unlinkSync` ile kaldırır; özyinelemeli silme bağlantının içine yürümesin.

@@ -1,20 +1,21 @@
 ---
 title: Kalemler, şemalar ve kurallar
-summary: "Beş hazır kalem türü var: görev, issue, soru, not, karar. Her biri
-  düzenlenebilir bir rules/&lt;tür&gt;.schema.yaml dosyasıyla tanımlı. assignee
-  (kime ait) ile claimed_by (şu an kim çalışıyor) ayrı; if_rev ve claim ile
-  eşzamanlı yazım koruması var."
+summary: 'Beş hazır kalem türü var: görev, issue, soru, not, karar. Her biri
+  düzenlenebilir bir rules/<tür>.schema.yaml dosyasıyla tanımlı. "Bitti" iki
+  ayrı şey: terminal ve resolved. assignee ile claimed_by ayrı; if_rev ve claim
+  eşzamanlı yazımı korur. Kalemler dosya eki taşır.'
 links:
   code:
     - file: src/core/items.ts
     - file: src/core/schema.ts
     - file: src/core/language.ts
     - file: src/core/types.ts
-verified_at_commit: e047112b0fd3eb0ad9a2607ed9b3c2553c72506e
+    - file: src/store/attachments.ts
+verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
 id: 01M34QY9EQ1V2FK6QYKKVTPEDB
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-22T23:09:51.798Z
+updated_at: 2026-09-24T03:22:54.167Z
 ---
 
 - Varsayılanlar `DEFAULT_SCHEMAS` içinde (`src/core/schema.ts`); `init` bunları `.cortex/rules/` altına yazar.
@@ -23,15 +24,27 @@ updated_at: 2026-09-22T23:09:51.798Z
 - Kuralları yalnızca insan değiştirebilir; kaydetmeden önce denetlenir (`validateRulesDoc`), bir yazım hatası tüm yazımları bozamaz.
 - `rules/_global.yaml` içindeki `language` alanı AI'ların hangi dilde yazacağını belirler; brief'te ilk kural olarak görünür.
 - `rules_version` = rules/ klasörünün özeti. Her cevapta `_meta` içinde gelir; AI kuralları yalnızca bu değişince yeniden okur.
-- Kalem kime atanabilir: bir aktör, `@humans` (insanlar) ya da `@ai`. Gelen kutusunda engelleyici sorular en üstte (`ItemService.inbox`).
+- Kalem kime atanabilir: bir aktör, `@humans` (insanlar) ya da `@ai`. Gelen kutusunda engelleyici sorular en üstte (`ItemService.inbox`); hub'da görünürlük sorgunun içinde uygulanır, `count` üyenin açabildiği sayıdır.
 - `ask(about, title)` soruyu, sorulan şeyi yapan kişiye yönlendirir.
+- Liste cevabı (`list`, pano kartı) kalemin özetini taşır: yanıt sayısı, ek sayısı (`files`), kapak resmi (`cover`), öncelik ya da önem (`level`), son tarih (`due`), açıklaması var mı (`has_body`). Hepsi indeksten gelir.
+
+### "Bitti"nin iki anlamı: terminal ve resolved (`src/core/schema.ts`)
+- `terminal`: bu durumdan çıkan geçiş yok. Geçiş kontrolünü ve raporlardaki "kapanan kayıt" sayımını bu belirler.
+- `resolved` (isteğe bağlı): iş bitti ama kalem hâlâ hareket edebilir. Karar türü için varsayılanı `[accepted]`.
+- `isOpenWork(schema, status)` = ne terminal ne resolved. Açık iş soran her yer bunu kullanır: brief'teki dal sayıları, gelen kutusu, `items?open=true`, raporlardaki açık issue'lar.
+- İndekste iki bayrak birden tutulur (`terminal`, `open_work`); ikisi de kurallardan gelir, bir kural değişikliği `retermItems` ile yeniden karar verir. Tek karar noktası `Cortex.itemFlags`.
+- Şema dosyasında `resolved` yoksa `loadSchema` yerleşik varsayılana düşer: eski projeler güncellemeyle düzelir.
+- `codeContext` bilerek istisna yapar: kabul edilmiş kararları da döndürür.
 
 ### Görev devri: claim/release, eşzamanlılık, devir notu (`src/core/items.ts`)
-- `assignee` (kime ait, `@ai` gibi gruplar dahil) ile `claimed_by`/`claimed_at` (şu an fiilen kim çalışıyor, belirli bir aktör) ayrı kavramlar. Birden fazla AI aynı "@ai" görevine yazabildiği için, "şu an bunu ben alıyorum" demenin yolu claim.
-- `ItemService.claim(actor, id, { action: "claim"|"release", note?, force? })`: atomik check-then-set. Boşsa, aynı aktördeyse veya süresi geçmişse (2 saat TTL, arka plan işi yok, okuma anında hesaplanır — `CLAIM_TTL_MS`) claim başarılı; başkası tutuyorsa 409 `conflict` (`held_by`, `since`). Yalnızca insan `force: true` ile başkasının claim'ini devralabilir. `release` yalnızca tutan tarafından (ya da insan+force) yapılabilir.
-- Claim/release **her zaman direkt yazar**, `policyGate`'i (taslak onayı) atlar — koordinasyon metaverisi, incelenmesi gereken bilgi değil; taslağa düşerse "şimdi alıyorum" anlamsızlaşır.
-- **Kritik:** claim/release `item.updated_at`/`updated_by`'a dokunmaz, bu yüzden `itemRevision()`'ı (title/body/status/assignee/category/fields/links/updated_at hash'i) hiç değiştirmez. Bekleyen bir içerik taslağının `base_rev`'i claim aktivitesinden etkilenmez.
-- `handoff_note`: claim/release ile yazılan kısa (≤500 karakter) "nereye kadar geldim" notu. Genel `update()`'den yazılamaz — kapsamı dar, "son kontrol noktası" anlamını korur.
-- `UpdateItemInput.if_rev`: isteğe bağlı, verilirse `itemRevision(current)` ile karşılaştırılır, uyuşmazsa 409 `conflict` (draft onayındaki `base_rev` deseniyle aynı `Cortex.conflict()` kullanılıyor, artık private değil). Verilmezse eski davranış (kontrolsüz, son yazan kazanır) aynen sürüyor.
-- MCP: `cortex_claim` (yeni araç) ve `cortex_update_item`'a eklenen `if_rev`. REST: `POST /items/:id/claim`.
-- `ItemService.get()` artık `rev: itemRevision(item)` döndürüyor; bir sonraki `if_rev`/claim'e geri verilebilir.
+- `assignee` (kime ait) ile `claimed_by`/`claimed_at` (şu an fiilen kim çalışıyor) ayrı kavramlar.
+- `ItemService.claim(actor, id, { action: "claim"|"release", note?, force? })`: atomik; boşsa, aynı aktördeyse veya süresi geçmişse (2 saat, `CLAIM_TTL_MS`) başarılı; başkası tutuyorsa 409 `conflict`. Yalnızca insan `force: true` ile devralabilir.
+- Claim/release her zaman direkt yazar (taslağa düşmez) ve `itemRevision()`'ı değiştirmez; bekleyen bir taslağın `base_rev`'i etkilenmez.
+- `handoff_note`: claim/release ile yazılan kısa (≤500 karakter) "nereye kadar geldim" notu.
+- `UpdateItemInput.if_rev`: verilirse `itemRevision(current)` ile karşılaştırılır, uyuşmazsa 409. `ItemService.get()` `rev` döndürür.
+
+### Ekler (`ItemService.attach/detach`, `src/store/attachments.ts`)
+- Dosyalar kalemin klasöründe: `items/<ULID>-<slug>/files/<ad>`. Klasör doğrunun kendisi. `get()` cevabı `attachments` listesini (ad, boyut, tür, eklenme zamanı) taşır; `itemRevision`'a girmez.
+- Ad güvenli tek bir yol parçasına çevrilir ama okunur kalır; aynı ad tekrar gelirse `-2`. Dosya başına 15 MB, kalem başına 100, boş dosya reddedilir. Her ekleme/kaldırma `item.attached` / `item.detached` denetim kaydı bırakır.
+- Politika: ekler taslak olamaz. AI'ın bu türe yazımları taslak olacaksa (review) ek yükleyemez/kaldıramaz; `human_only` zaten reddedilir; `auto`'da doğrudan. İnsan her zaman.
+- Markdown'da `files/<ad>` aynı kalemin ekini gösterir; pano yapıştırılan ekran görüntüsünü `![..](<files/..>)` olarak ekler.
