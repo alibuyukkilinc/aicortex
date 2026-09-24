@@ -123,7 +123,10 @@ was measured, by how much.
 - The raw-token board cookie is accepted once for the upgrade; this compatibility path will be removed
   after 0.2.x.
 
-## [0.1.0] - 2026-09-22
+## 0.1.0 - 2026-09-22 (never published)
 
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
+
+[Unreleased]: https://github.com/alibuyukkilinc/aicortex/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/alibuyukkilinc/aicortex/releases/tag/v0.2.0

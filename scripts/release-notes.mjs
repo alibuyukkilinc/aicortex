@@ -8,10 +8,22 @@ if (!version) {
   console.error("Usage: node scripts/release-notes.mjs <version>");
   process.exit(1);
 }
-const text = readFileSync(resolve(import.meta.dirname, "../CHANGELOG.md"), "utf8").replace(/\r\n/g, "\n");
-const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const m = new RegExp(`^## \\[${escaped}\\][^\\n]*\\n([\\s\\S]*?)(?=^## \\[|(?![\\s\\S]))`, "m").exec(text);
-const body = m?.[1].trim();
+const lines = readFileSync(resolve(import.meta.dirname, "../CHANGELOG.md"), "utf8")
+  .replace(/\r\n/g, "\n")
+  .split("\n");
+// "## [0.2.0] - date" or "## 0.1.0 - date": the section runs to the next "## " heading or the link definitions.
+const heading = (l) => /^## /.test(l);
+const isThis = (l) => (heading(l) && l.replace(/^## \[?/, "").startsWith(`${version}]`)) || l.replace(/^## \[?/, "").startsWith(`${version} `);
+const start = lines.findIndex(isThis);
+let body = "";
+if (start >= 0) {
+  const out = [];
+  for (const l of lines.slice(start + 1)) {
+    if (heading(l) || /^\[[^\]]+\]: /.test(l)) break;
+    out.push(l);
+  }
+  body = out.join("\n").trim();
+}
 if (!body) {
   console.error(`CHANGELOG.md has no section for ${version}.`);
   process.exit(1);
