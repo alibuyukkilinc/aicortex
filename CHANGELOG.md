@@ -5,6 +5,10 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-24
+
+A board that stays usable when it fills up, and a bootstrap task that cannot leak what git hides.
+
 ### Security
 
 - **The bootstrap task no longer lists files git ignores.** The markdown it asks the AI to import came
@@ -194,7 +198,8 @@ was measured, by how much.
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
 
-[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.3
 [0.2.2]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.2
 [0.2.1]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.1
 [0.2.0]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.0
