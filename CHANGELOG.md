@@ -5,6 +5,20 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Added
+
+- **`cortexboard hub member <project> <who>`** gives a person or an AI agent access to a project from the
+  machine that runs the hub, with `--role`, `--scope`, `--branches` and `--remove`. Until now the only way
+  to grant an agent a project was the board, which left a working token failing with "not a member" and
+  no way to fix it from a terminal. A membership granted this way is live on the next request: the row
+  decides access, and the project's actor list catches up in the same moment, so no restart is needed.
+
+### Changed
+
+- **A refusal names who was refused and where.** `You are not a member of this project.` became
+  `opencode is not a member of "arsa-back".`: an agent's error is read in someone else's log, where
+  "this project" means nothing. The MCP endpoint already said it this way.
+
 ### Fixed
 
 - **The MCP server announces the version it ships as.** Its `serverInfo` was pinned to `0.1.0` in the

@@ -210,6 +210,40 @@ test("hub visibility: 'own' scope and branch limits hide the rest of the project
   }
 });
 
+test("a membership granted outside the API (cortexboard hub member) is live at once", async () => {
+  const t = await setup();
+  try {
+    const admin = await t.login("ada@example.com", "correct-horse-1");
+    const made = await t.call({
+      method: "POST",
+      url: "/api/admin/agents",
+      cookie: admin,
+      payload: { id: "opencode", projects: [{ id: "blog", role: "contributor" }] },
+    });
+    assert.equal(made.statusCode, 201, made.body);
+    const token = made.json().token as string;
+
+    // The agent exists but was never given this project: the refusal names it.
+    const refused = await t.call({ url: "/api/p/shop/brief", token });
+    assert.equal(refused.statusCode, 403);
+    assert.match(refused.json().error.message, /not a member of "shop"/);
+
+    // What `cortexboard hub member shop opencode` does, from a second process, while the hub runs.
+    t.store.setMember("shop", "opencode", { role: "contributor" });
+
+    const allowed = await t.call({ url: "/api/p/shop/brief", token });
+    assert.equal(allowed.statusCode, 200, "no restart needed");
+    // The project's actor list caught up too, so the newcomer can be assigned work.
+    const actors = (await t.call({ url: "/api/p/shop/me", token })).json().actors as { id: string }[];
+    assert.ok(
+      actors.some((a) => a.id === "opencode"),
+      actors.map((a) => a.id).join(","),
+    );
+  } finally {
+    await t.cleanup();
+  }
+});
+
 test("hub AI agents: tokens, reader / contributor / trusted, never approve", async () => {
   const t = await setup();
   try {

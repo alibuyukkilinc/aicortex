@@ -32,6 +32,8 @@ Usage: cortex <command> [options]
   hub init --org <name> --admin-email <e> --admin-name <n> [--public-url <https://...>]
   hub start [--host 0.0.0.0] [--port 4747]    Team server: many projects, people with passwords, AI agents with tokens
   hub add-project <folder> [--id] [--name] [--init [--lang tr] [--branches a,b]]
+  hub member <project> <who> [--role contributor] [--scope own] [--branches a,b] [--remove]
+                                     Give a person or an AI agent access to a project
   hub invite <email>                 New invite / password-reset link for a user
   report [--since 7d] [--until <date>] [--lang en|tr] [--json] [--out <file>]
                                      What happened, what is waiting, knowledge health (markdown by default)
@@ -72,6 +74,9 @@ async function main() {
       hub: { type: "string" },
       project: { type: "string" },
       token: { type: "string" },
+      role: { type: "string" },
+      scope: { type: "string" },
+      remove: { type: "boolean" },
     },
     allowPositionals: true,
   });
@@ -238,7 +243,7 @@ Next steps:
     }
 
     case "hub": {
-      await hubCommand(positionals[0], positionals[1], values);
+      await hubCommand(positionals[0], positionals[1], values, positionals[2]);
       break;
     }
 
@@ -258,7 +263,7 @@ Next steps:
 }
 
 // The team server: people sign in with email + password, AI agents with tokens, one board for many projects.
-async function hubCommand(sub: string | undefined, arg: string | undefined, v: Record<string, string | boolean | undefined>) {
+async function hubCommand(sub: string | undefined, arg: string | undefined, v: Record<string, string | boolean | undefined>, arg2?: string) {
   const { join, resolve, basename } = await import("node:path");
   const { homedir } = await import("node:os");
   const { existsSync } = await import("node:fs");
@@ -329,6 +334,37 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       console.log(`✔ Project "${name}" registered as ${id}. Organization admins can open it; add members on the board.`);
       return;
     }
+    // Granting access from the machine that runs the hub: the same thing the board's Members page does,
+    // for a terminal. Whoever can run this already owns the hub's files.
+    if (sub === "member") {
+      const projectId = arg;
+      const who = arg2 ?? str("id");
+      if (!projectId || !who) {
+        throw new Error("Usage: cortexboard hub member <project> <user or agent> [--role contributor] [--scope all|own] [--branches a,b] [--remove]");
+      }
+      if (v.remove) {
+        if (!store.member(projectId, who)) throw new Error(`"${who}" is not a member of "${projectId}".`);
+        store.removeMember(projectId, who);
+        console.log(`✔ ${who} removed from ${projectId}.`);
+        store.close();
+        return;
+      }
+      const branches = str("branches")
+        ?.split(",")
+        .map((b) => b.trim())
+        .filter(Boolean);
+      const m = store.setMember(projectId, who, {
+        ...(str("role") ? { role: str("role") } : {}),
+        ...(str("scope") ? { scope: str("scope") } : {}),
+        ...(branches ? { branches } : {}),
+      });
+      console.log(
+        `✔ ${m.principal} (${m.kind}) is ${m.role} on ${projectId}, sees ${m.scope === "all" ? "everything" : "only its own records"}${m.branches.length ? `, branches: ${m.branches.join(", ")}` : ""}.`,
+      );
+      console.log("A running hub applies this on the next request; no restart needed.");
+      store.close();
+      return;
+    }
     if (sub === "invite") {
       const u = arg ? store.userByEmail(arg) : null;
       if (!u) throw new Error("Usage: cortexboard hub invite <email of an existing user>");
@@ -337,7 +373,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       store.close();
       return;
     }
-    throw new Error("Usage: cortexboard hub init | start | add-project <folder> | invite <email>");
+    throw new Error("Usage: cortexboard hub init | start | add-project <folder> | member <project> <who> | invite <email>");
   } catch (e) {
     store.close();
     throw e;

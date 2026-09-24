@@ -337,8 +337,12 @@ export function buildHubServer(hub: Hub): FastifyInstance {
         if (!store.project(projectId)) throw new CortexError("not_found", `No project "${projectId}".`, 404);
         const p = req.principal!;
         const m = hub.membership(projectId, p);
-        if (!m) throw new CortexError("forbidden", "You are not a member of this project.", 403);
+        // Name both sides: an agent's refusal is read in someone else's log, where "this project" means nothing.
+        if (!m) throw new CortexError("forbidden", `${p.kind === "human" ? p.user.id : p.agent.id} is not a member of "${projectId}".`, 403);
         req.cortex = hub.cortex(projectId);
+        // A membership granted outside the API (`cortexboard hub member`) is live at once: the row decides
+        // access, and the actor list catches up here so assignments and reports name the newcomer too.
+        if (!req.cortex.project.config.actors.some((a) => a.id === m.principal)) hub.syncActors(projectId);
         req.access = buildAccess(m);
         req.actor = { id: m.principal, kind: m.kind, ...(ROLE_POLICY[m.role] ? { policy: ROLE_POLICY[m.role] } : {}) };
       });
