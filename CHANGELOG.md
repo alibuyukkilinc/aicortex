@@ -5,6 +5,11 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-24
+
+For a team setting up a project that never used Cortex, and for agents that read the queue: the first
+AI finds its task, reading open work takes fewer calls, and keyword search reaches other forms of a word.
+
 ### Added
 
 - **A new project tells its first AI what to do.** `init` (also `hub add-project --init` and "Add project"
@@ -162,6 +167,7 @@ was measured, by how much.
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
 
-[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.2
 [0.2.1]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.1
 [0.2.0]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.0

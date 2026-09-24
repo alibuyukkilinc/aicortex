@@ -264,7 +264,7 @@ After=network.target
 
 [Service]
 User=cortex
-ExecStart=/usr/bin/npx --yes cortexboard@0.2.0 hub start
+ExecStart=/usr/bin/npx --yes cortexboard@0.2.2 hub start
 Restart=on-failure
 
 [Install]
