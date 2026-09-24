@@ -5,6 +5,15 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Added
+
+- **Fewer calls to read the queue.** `cortex_items(preview: true)` (REST `GET /items?preview=true`) adds a
+  short gist of each item's body and its last reply (who, when, which status change) to every row, and
+  `cortex_item` takes `ids` to read up to 10 related items in one call; a missing or hidden one only fails
+  its own row. The brief gains `open_elsewhere`: open work waiting on someone other than you, never
+  repeating the inbox and left out when empty. In an A/B run agents answered the same five questions with
+  12 tool calls instead of 20, 19% faster, at the same accuracy.
+
 ### Fixed
 
 - **A Turkish project no longer opens on an English tree.** `init --lang tr` now seeds the branch

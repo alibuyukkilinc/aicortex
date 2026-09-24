@@ -32,6 +32,15 @@ export function estimateTokens(value: unknown): number {
   return Math.ceil(s.length / 4);
 }
 
+// Cut to a whole word, with an ellipsis, so a trimmed summary still reads like a sentence.
+export function shorten(text: string, max: number): string {
+  if (max === 0) return "";
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 // ULID: time-sortable, collision-safe ids so parallel writers never clash in git.

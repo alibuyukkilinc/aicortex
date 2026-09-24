@@ -11,7 +11,7 @@ import { ActivityStore } from "../store/activity.js";
 import { DraftStore } from "../store/drafts.js";
 import { ItemStore } from "../store/items.js";
 import { TreeStore, normalizePath } from "../store/tree.js";
-import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
+import { estimateTokens, nowIso, shortHash, shorten, ulid } from "../util/text.js";
 import type { Embedder } from "../search/embedder.js";
 import { TransformersEmbedder } from "../search/embedder.js";
 import { semanticEnabled } from "../search/runtime.js";
@@ -61,15 +61,6 @@ const NODE_EXAMPLE = {
 const NON_ITEM_RULES = new Set(["node", "activity"]);
 const RRF_K = 60; // standard Reciprocal Rank Fusion constant
 const BRIEF_BUDGET = 800; // tokens; the spec's promise for the session opener
-
-// Cut to a whole word, with an ellipsis, so a trimmed summary still reads like a sentence.
-function shorten(text: string, max: number): string {
-  if (max === 0) return "";
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max);
-  const space = cut.lastIndexOf(" ");
-  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
-}
 
 // Content hash of a node, so conflict detection does not depend on clock resolution.
 function revision(n: KnowledgeNode): string {
@@ -321,6 +312,10 @@ export class Cortex {
     const stale = allStale.filter(actionable);
     const yours = this.staleFromYourChanges(actor, stale);
     const inbox = this.items.inbox(actor, 5, visible);
+    // The rest of the open queue, what waits on others: "what is going on here" without a cortex_items call.
+    // Inbox items are left out so the brief never spends tokens listing the same item twice.
+    const inboxIds = new Set(this.items.inbox(actor, 200, visible).items.map((i) => i.id));
+    const others = this.index.queryItems({ open: true, visible, limit: 200, offset: 0 }).items.filter((i) => !inboxIds.has(i.id));
     const recent = this.index.queryActivity({ includeSystem: false, limit: 3 }).map((a) => ({ id: a.id, actor: a.actor, at: a.at, summary: a.summary }));
 
     const build = ([chars, rows, activity]: [number, number, number]) => ({
@@ -337,6 +332,17 @@ export class Cortex {
           count: inbox.count,
           top: inbox.items.slice(0, rows).map(({ id, type, title, reason, blocking }) => ({ id, type, title, reason, ...(blocking ? { blocking } : {}) })),
         },
+        // Open work waiting on someone else: humans, other agents, or nobody yet. Left out when empty.
+        ...(others.length
+          ? {
+              open_elsewhere: {
+                count: others.length,
+                top: others
+                  .slice(0, rows)
+                  .map((i) => ({ id: i.id, type: i.type, title: i.title, status: i.status, ...(i.assignee ? { assignee: i.assignee } : {}) })),
+              },
+            }
+          : {}),
         // Count + a few: after a bootstrap there can be dozens, and the brief must stay small.
         pending_approvals: {
           count: mine.length,

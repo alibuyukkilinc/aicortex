@@ -305,6 +305,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       open: bool(q.open),
       limit: num(q.limit),
       cursor: q.cursor,
+      preview: bool(q.preview),
       // Filtered before LIMIT/OFFSET: full pages and a true total for members who see part of the project.
       visible: req.access?.itemSql() ?? null,
     });

@@ -10,6 +10,7 @@ import { isSafeImage, isText, mediaType } from "../store/attachments.js";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // what an AI client comfortably takes as one image
 const MAX_TEXT_CHARS = 100_000;
+const MAX_BATCH_ITEMS = 10;
 
 // Compact JSON: every byte here is a token the AI pays for.
 function result(data: object) {
@@ -177,7 +178,10 @@ export function buildMcpServer(api: McpApi): McpServer {
   server.registerTool(
     "cortex_items",
     {
-      description: "List items (task, issue, question, note, decision or custom types) without bodies. Filter to keep it small.",
+      description:
+        "List items (task, issue, question, note, decision or custom types). Filter to keep it small. " +
+        "With preview=true each row also carries a short gist of the body and the last reply (who, when, status change), " +
+        'which usually answers "what is open and who moves next" without opening items one by one.',
       inputSchema: {
         type: z.string().optional(),
         status: z.string().optional(),
@@ -187,6 +191,7 @@ export function buildMcpServer(api: McpApi): McpServer {
         open: z.boolean().optional().describe("true = not in a terminal status"),
         limit: z.number().int().min(1).max(100).default(20),
         cursor: z.string().optional(),
+        preview: z.boolean().optional().describe("Add a short body gist and the last reply to each row"),
       },
     },
     wrap((a: Record<string, unknown>) => get("/items", a)),
@@ -195,14 +200,40 @@ export function buildMcpServer(api: McpApi): McpServer {
   server.registerTool(
     "cortex_item",
     {
-      description: "Read one item with its replies (newest kept when trimmed). The response names the rules for its type.",
+      description:
+        "Read an item with its replies (newest kept when trimmed). The response names the rules for its type. " +
+        "Pass `ids` to read several related items (a decision, its issue and question) in one call.",
       inputSchema: {
-        id: z.string(),
+        id: z.string().optional(),
+        ids: z.array(z.string()).min(1).max(MAX_BATCH_ITEMS).optional().describe(`Up to ${MAX_BATCH_ITEMS} items in one call`),
         replies: z.number().int().min(0).max(200).optional().describe("Keep only the last N replies"),
-        budget: z.number().int().positive().optional(),
+        budget: z.number().int().positive().optional().describe("Approximate max tokens per item"),
       },
     },
-    wrap((a: { id: string; replies?: number; budget?: number }) => get(`/items/${encodeURIComponent(a.id)}`, { replies: a.replies, budget: a.budget })),
+    wrap(async (a: { id?: string; ids?: string[]; replies?: number; budget?: number }) => {
+      const one = (id: string) => get(`/items/${encodeURIComponent(id)}`, { replies: a.replies, budget: a.budget });
+      if (!a.ids) {
+        if (!a.id) throw new CortexError("validation", "Give `id` or `ids`.");
+        return one(a.id);
+      }
+      // One missing or hidden item must not cost the others: its row carries the error instead.
+      const ids = [...new Set([...(a.id ? [a.id] : []), ...a.ids])];
+      let meta: unknown;
+      const rows = await Promise.all(
+        ids.map((id) =>
+          one(id).then(
+            // _meta once for the whole answer, not once per item.
+            (r) => {
+              const { _meta, ...rest } = r as { _meta?: unknown };
+              meta = _meta;
+              return rest;
+            },
+            (e: unknown) => ({ id, error: e instanceof CortexError ? { code: e.code, message: e.message } : { code: "internal", message: String(e) } }),
+          ),
+        ),
+      );
+      return { items: rows, ...(meta ? { _meta: meta } : {}) };
+    }),
   );
 
   server.registerTool(

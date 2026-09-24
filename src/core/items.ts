@@ -3,7 +3,7 @@ import type { Cortex } from "./cortex.js";
 import type { IndexedItem, ItemQuery, SqlFilter } from "../index/db.js";
 import { normalizePath } from "../store/tree.js";
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } from "../store/attachments.js";
-import { estimateTokens, nowIso, shortHash, ulid } from "../util/text.js";
+import { estimateTokens, nowIso, shortHash, shorten, ulid } from "../util/text.js";
 import type { ItemSchema, ValidationContext } from "./schema.js";
 import { canTransition, describeSchema, validateFields } from "./schema.js";
 import type { Actor, Item, ItemLinks, Reply } from "./types.js";
@@ -513,6 +513,7 @@ export class ItemService {
     limit?: number;
     cursor?: string;
     visible?: SqlFilter | null;
+    preview?: boolean;
   }) {
     const limit = Math.min(Math.max(q.limit ?? 20, 1), 500);
     const offset = q.cursor ? Math.max(0, Number(q.cursor) || 0) : 0;
@@ -528,7 +529,31 @@ export class ItemService {
       offset,
     });
     const next = offset + items.length < total ? String(offset + items.length) : null;
-    return { items: items.map(compact), total, next_cursor: next };
+    const rows = items.map((i) => (q.preview ? { ...compact(i), ...this.preview(i.id) } : compact(i)));
+    return { items: rows, total, next_cursor: next };
+  }
+
+  // The gist of an item and where its conversation stands, so a list answers "what is this and who moves next"
+  // without opening every item: agents measured 3-5 extra cortex_item calls per question without it.
+  private preview(id: string) {
+    const item = this.c.itemStore.read(id);
+    if (!item) return {};
+    const flat = (t: string) => t.replace(/\s+/g, " ").trim();
+    const gist = flat(item.body);
+    const last = this.c.itemStore.replies(id).at(-1);
+    return {
+      ...(gist ? { gist: shorten(gist, PREVIEW_CHARS) } : {}),
+      ...(last
+        ? {
+            last_reply: {
+              by: last.author,
+              at: last.created_at,
+              ...(last.status_change ? { to: last.status_change.to } : {}),
+              text: shorten(flat(last.body), PREVIEW_CHARS),
+            },
+          }
+        : {}),
+    };
   }
 
   inbox(actor: Actor, limit = 20, visible: SqlFilter | null = null) {
@@ -563,6 +588,8 @@ export class ItemService {
     };
   }
 }
+
+const PREVIEW_CHARS = 200;
 
 function compact(i: IndexedItem) {
   return {
