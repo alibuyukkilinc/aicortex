@@ -27,3 +27,15 @@ test("agent files: the hint is added to files that exist, once, without touching
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("agent files: a CLAUDE.md that only imports AGENTS.md is left alone, the hint goes to AGENTS.md once", () => {
+  const root = mkdtempSync(join(tmpdir(), "cortex-agent-"));
+  try {
+    writeFileSync(join(root, "CLAUDE.md"), "@AGENTS.md\n");
+    writeFileSync(join(root, "AGENTS.md"), "# Rules\n");
+    assert.deepEqual(appendAgentHint(root, AGENT_HINT), ["AGENTS.md"]);
+    assert.equal(readFileSync(join(root, "CLAUDE.md"), "utf8"), "@AGENTS.md\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -12,6 +12,8 @@ export function appendAgentHint(root: string, hint: string): string[] {
     if (!existsSync(file)) continue;
     const text = readFileSync(file, "utf8");
     if (text.includes("<!-- cortex:start -->")) continue;
+    // A CLAUDE.md that imports AGENTS.md ("@AGENTS.md") already gets the hint from there; twice is noise.
+    if (name === "CLAUDE.md" && /^@AGENTS\.md\s*$/m.test(text) && existsSync(join(root, "AGENTS.md"))) continue;
     writeFileSync(file, `${text.trimEnd()}\n\n${hint}\n`, "utf8");
     changed.push(name);
   }

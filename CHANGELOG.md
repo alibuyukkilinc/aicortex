@@ -5,6 +5,21 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Security
+
+- **The bootstrap task no longer lists files git ignores.** The markdown it asks the AI to import came
+  from a plain folder walk, so a git-ignored `docs/ai/infra.local.md` holding real server keys was listed
+  on a real project, and anything imported lands in the committed `.cortex/`. In a git repository the
+  list now comes from `git ls-files` (tracked, and untracked but not ignored); outside git, `*.local.md`
+  is skipped. The task text also tells the AI never to copy secrets into Cortex.
+
+### Fixed
+
+- **Large docs folders are listed whole.** The markdown list stopped at 50 files, so a disaster-recovery
+  runbook was left out on a project with 51; the limit is now 200.
+- **`init --agent-files` adds the hint once.** A `CLAUDE.md` that only imports `AGENTS.md` (`@AGENTS.md`)
+  is left alone; the hint goes to `AGENTS.md`, instead of Claude reading it twice.
+
 ## [0.2.2] - 2026-09-24
 
 For a team setting up a project that never used Cortex, and for agents that read the queue: the first

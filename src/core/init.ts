@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -244,7 +245,12 @@ function token(): string {
 
 const SKIP = new Set(["node_modules", ".git", CORTEX_DIR, "vendor", "dist", "build", ".next", "coverage"]);
 
-export function findMarkdown(root: string, limit = 50): string[] {
+// Markdown worth importing into the tree. In a git repository the list comes from git itself, so files the
+// project ignores never appear: an ignored `infra.local.md` with real server keys was once listed, and what
+// the bootstrap task imports ends up in the committed .cortex/. Outside git, a bounded walk.
+export function findMarkdown(root: string, limit = 200): string[] {
+  const listed = gitMarkdown(root);
+  if (listed) return listed.slice(0, limit);
   const out: string[] = [];
   const walk = (dir: string, depth: number) => {
     if (depth > 4 || out.length >= limit) return;
@@ -254,12 +260,36 @@ export function findMarkdown(root: string, limit = 50): string[] {
       const st = statSync(full, { throwIfNoEntry: false });
       if (!st) continue;
       if (st.isDirectory()) walk(full, depth + 1);
-      else if (name.toLowerCase().endsWith(".md")) out.push(relative(root, full).replace(/\\/g, "/"));
+      else if (name.toLowerCase().endsWith(".md") && !LOCAL_MD.test(name)) out.push(relative(root, full).replace(/\\/g, "/"));
       if (out.length >= limit) return;
     }
   };
   walk(root, 0);
   return out;
+}
+
+// Outside git there is no ignore list to ask; "*.local.md" is the common name for private notes.
+const LOCAL_MD = /\.local\.md$/i;
+
+// Tracked, and untracked but not ignored, .md files under root (relative to it); null outside a git work tree.
+function gitMarkdown(root: string): string[] | null {
+  try {
+    const out = execFileSync("git", ["-c", "core.quotepath=false", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.md", "*.MD"], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    const files = out
+      .split("\0")
+      .filter(Boolean)
+      .map((f) => f.normalize("NFC"))
+      .filter((f) => !f.split("/").some((part) => SKIP.has(part)));
+    return [...new Set(files)].sort();
+  } catch {
+    return null;
+  }
 }
 
 // A ready-made task the user hands to their own AI, so filling the tree costs Cortex zero tokens.
@@ -282,6 +312,8 @@ ${language ? `\n${languageRule(language)}\n` : ""}
 5. Existing markdown worth importing:
 ${markdown.length ? markdown.map((m) => `   - ${m}`).join("\n") : "   (none found)"}
    Move the durable knowledge into nodes. Note contradictions instead of silently picking one.
+   Everything in .cortex/ is committed: never copy secrets (passwords, keys, tokens, addresses with
+   credentials) into Cortex, and do not read files git ignores (e.g. *.local.md) for this task.
 6. Past decisions you find in docs or commit history: record them with cortex_create_item (type "decision").
    Open questions and contradictions: cortex_create_item (type "question", assignee "@humans").
 7. Always include a short "reason" with each write.
