@@ -9,11 +9,11 @@ links:
     - file: src/core/cortex.ts
     - file: CORTEX_SPEC.md
     - file: README.md
-verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
+verified_at_commit: fabbee9530eb06cc42492428bf966d1517ad9857
 id: 01M34Q1CBAV6VRTFKAVCK99EC0
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:30:10.675Z
+updated_at: 2026-09-24T07:54:40.413Z
 ---
 
 ## Ne işe yarar?
@@ -39,6 +39,5 @@ Token dostu · tek komutla çalışır · git dostu · kontrol insanda · AI'ın
 Ayrıntılı proje bilgisi (hangi dosya ne yapar, neden böyle karar verdik) bu ağaçtadır.
 
 ## Yayın
-npm paketi: **`cortexboard`**, ilk yayınlanan sürüm 0.2.0 (24 Eylül 2026, provenance imzalı). Kurulum: `npx cortexboard init`, sonra `npx cortexboard start`. Komut kısa adıyla `cortex` olarak da gelir.
-Ad neden `aicortex` değil: npm yeni adları noktalama işaretlerini atarak karşılaştırıyor ve npm'de zaten `ai-cortex` var; ayrıntı `server` düğümünde.
-Depo: github.com/alibuyukkilinc/aicortex (depo adı eski adında kaldı).
+npm paketi: **`cortexboard`**, tek komut `cortexboard`. Kurulum: `npx cortexboard init`, sonra `npx cortexboard start`.
+Depo: github.com/alibuyukkilinc/cortexboard. Yayın akışı ve sürüm adımları `server` düğümünde.
