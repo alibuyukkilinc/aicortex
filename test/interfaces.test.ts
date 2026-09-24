@@ -65,6 +65,7 @@ test("MCP: tools list and a brief -> search -> update round trip", async () => {
     const tools = (await client.listTools()).tools.map((x) => x.name).sort();
     assert.deepEqual(tools, [
       "cortex_activity",
+      "cortex_archive",
       "cortex_ask",
       "cortex_brief",
       "cortex_claim",

@@ -64,6 +64,7 @@ const paths: Record<string, string> = {
   text: "M4 6h16M4 11h16M4 16h10",
   clock: "M12 12m-9 0a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 2",
   debate: "M3 5h11v8H7l-4 3zM10 16h7l4 3v-9h-4",
+  archive: "M3 5h18v4H3zM5 9v10h14V9M10 13h4",
   eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 12m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0",
 };
 

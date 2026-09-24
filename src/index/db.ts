@@ -17,6 +17,7 @@ export interface IndexedNode {
   tags: string[];
   updated_at: string;
   updated_by: string;
+  archived: boolean;
 }
 
 // Both come from the rules, not from the item file: a rules edit changes them without any file changing.
@@ -54,6 +55,7 @@ export interface IndexedItem {
   level: string | null; // fields.priority, or fields.severity for issues
   due: string | null; // fields.due, YYYY-MM-DD
   has_body: boolean;
+  archived: boolean;
 }
 
 // "draft" is internal: pending knowledge drafts, searchable so an AI can find what is waiting for review.
@@ -99,6 +101,7 @@ export interface ItemQuery {
   under?: string;
   open?: boolean;
   visible?: SqlFilter | null;
+  archived?: "exclude" | "only" | "include"; // default exclude: archived items are out of everyday view
   limit: number;
   offset: number;
 }
@@ -113,7 +116,7 @@ const STOPWORDS = new Set(
 );
 
 // Bump when the table layout changes; an old cache is simply dropped and rebuilt from files.
-const INDEX_VERSION = 7; // 7: what a board card shows (attachments, cover, level, due, has_body)
+const INDEX_VERSION = 8; // 8: archived nodes and items
 
 // The index is a disposable cache: everything here can be rebuilt from the files with reindex().
 export class Index {
@@ -139,7 +142,8 @@ export class Index {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS nodes (
         path TEXT PRIMARY KEY, parent TEXT, title TEXT NOT NULL, summary TEXT NOT NULL,
-        status TEXT NOT NULL, tags TEXT NOT NULL, updated_at TEXT, updated_by TEXT
+        status TEXT NOT NULL, tags TEXT NOT NULL, updated_at TEXT, updated_by TEXT,
+        archived INTEGER NOT NULL DEFAULT 0
       );
       CREATE INDEX IF NOT EXISTS nodes_parent ON nodes(parent);
       CREATE TABLE IF NOT EXISTS items (
@@ -149,7 +153,8 @@ export class Index {
         blocking INTEGER NOT NULL, created_at TEXT, updated_at TEXT,
         reply_count INTEGER NOT NULL, last_reply_by TEXT,
         attachment_count INTEGER NOT NULL DEFAULT 0, cover TEXT,
-        level TEXT, due TEXT, has_body INTEGER NOT NULL DEFAULT 0
+        level TEXT, due TEXT, has_body INTEGER NOT NULL DEFAULT 0,
+        archived INTEGER NOT NULL DEFAULT 0
       );
       CREATE INDEX IF NOT EXISTS items_assignee ON items(assignee, open_work);
       CREATE INDEX IF NOT EXISTS items_category ON items(category_path);
@@ -241,11 +246,12 @@ export class Index {
   }
 
   private insertNode(n: KnowledgeNode): void {
-    this.insertCodeLinks("node", n.path, n.links?.code);
+    // An archived node's code links are dropped: it must not turn stale or show up in code context.
+    if (!n.archived) this.insertCodeLinks("node", n.path, n.links?.code);
     const tags = n.tags ?? [];
     this.db
-      .prepare("INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(n.path, parentPath(n.path), n.title, n.summary, n.status, JSON.stringify(tags), n.updated_at ?? null, n.updated_by ?? null);
+      .prepare("INSERT INTO nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(n.path, parentPath(n.path), n.title, n.summary, n.status, JSON.stringify(tags), n.updated_at ?? null, n.updated_by ?? null, n.archived ? 1 : 0);
     // Path segments are indexed with the title so "auth" finds "backend/auth/*".
     this.insertDoc("node", n.path, n.path, n.status, "", `${n.title} ${n.path.replace(/[/-]/g, " ")}`, n.summary, n.body, tags.join(" "));
   }
@@ -264,11 +270,15 @@ export class Index {
   }
 
   children(path: string): IndexedNode[] {
-    return this.db.prepare("SELECT * FROM nodes WHERE parent = ? ORDER BY path").all(path).map(toNode);
+    return this.db.prepare("SELECT * FROM nodes WHERE parent = ? AND archived = 0 ORDER BY path").all(path).map(toNode);
   }
 
   childCount(path: string): number {
-    return (this.db.prepare("SELECT COUNT(*) AS c FROM nodes WHERE parent = ?").get(path) as { c: number }).c;
+    return (this.db.prepare("SELECT COUNT(*) AS c FROM nodes WHERE parent = ? AND archived = 0").get(path) as { c: number }).c;
+  }
+
+  archivedNodes(): IndexedNode[] {
+    return this.db.prepare("SELECT * FROM nodes WHERE archived = 1 ORDER BY path").all().map(toNode);
   }
 
   // Open items filed under this node or any node below it.
@@ -293,9 +303,9 @@ export class Index {
   }
 
   private insertItem(i: Item, replies: Reply[], flags: ItemFlags, files: FileSummary = NO_FILES): void {
-    this.insertCodeLinks("item", i.id, i.links?.code);
+    if (!i.archived) this.insertCodeLinks("item", i.id, i.links?.code);
     const last = replies[replies.length - 1];
-    this.db.prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+    this.db.prepare("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
       i.id,
       i.type,
       i.title,
@@ -318,6 +328,7 @@ export class Index {
       typeof i.fields?.priority === "string" ? i.fields.priority : typeof i.fields?.severity === "string" ? i.fields.severity : null,
       typeof i.fields?.due === "string" ? i.fields.due : null,
       i.body?.trim() ? 1 : 0,
+      i.archived ? 1 : 0,
     );
     const fieldText = Object.values(i.fields ?? {})
       .filter((v) => typeof v === "string")
@@ -376,6 +387,7 @@ export class Index {
     if (q.assignee?.length) (where.push(`assignee IN (${q.assignee.map(() => "?").join(",")})`), args.push(...q.assignee));
     if (q.under) (where.push("(category_path = ? OR category_path LIKE ?)"), args.push(q.under, `${q.under}/%`));
     if (q.visible) (where.push(`(${q.visible.sql})`), args.push(...q.visible.args));
+    if (q.archived !== "include") where.push(q.archived === "only" ? "archived = 1" : "archived = 0");
     const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
     const total = (this.db.prepare(`SELECT COUNT(*) AS c FROM items ${w}`).get(...args) as { c: number }).c;
     const items = this.db
@@ -585,6 +597,7 @@ function toNode(r: Record<string, unknown>): IndexedNode {
     tags: JSON.parse((r.tags as string) || "[]"),
     updated_at: r.updated_at as string,
     updated_by: r.updated_by as string,
+    archived: r.archived === 1,
   };
 }
 
@@ -611,6 +624,7 @@ function toItem(r: Record<string, unknown>): IndexedItem {
     level: (r.level as string | null) ?? null,
     due: (r.due as string | null) ?? null,
     has_body: r.has_body === 1,
+    archived: r.archived === 1,
   };
 }
 

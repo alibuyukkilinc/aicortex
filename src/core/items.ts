@@ -428,6 +428,12 @@ export class ItemService {
     });
   }
 
+  // Archiving writes the item as it is, apart from `archived`: no status rules, no approval policy (the
+  // archive service decides who may), and updated_at stays so the record keeps its real last change.
+  saveArchived(item: Item): void {
+    this.save(item);
+  }
+
   private save(item: Item): void {
     this.c.itemStore.write(item);
     this.reindexItem(item);

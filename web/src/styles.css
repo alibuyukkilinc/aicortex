@@ -3240,3 +3240,31 @@ button.chip {
   font-size: var(--text-xs);
   color: var(--faint);
 }
+
+/* ---- archive ---------------------------------------------------------------------------- */
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+.arch-reason {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+.arch-why {
+  font-size: var(--text-xs);
+}
+.row-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex: none;
+}

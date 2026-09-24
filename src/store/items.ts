@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Attachment } from "./attachments.js";
 import { isSafeImage, mediaType, safeFileName, uniqueName } from "./attachments.js";
@@ -151,6 +151,14 @@ export class ItemStore {
         const { meta, body } = parseFrontmatter<Reply>(readFileSync(join(rdir, f), "utf8"));
         return { ...meta, id: f.slice(0, -3), item_id: id, body };
       });
+  }
+
+  // The whole folder: item, replies, attachments. Git history keeps it.
+  remove(id: string): void {
+    const dir = this.dirFor(id);
+    if (!dir) return;
+    rmSync(dir, { recursive: true, force: true });
+    this.dirs.delete(id);
   }
 
   allIds(): string[] {

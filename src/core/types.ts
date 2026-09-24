@@ -5,6 +5,14 @@ export type ApprovalPolicy = "auto" | "review" | "human_only";
 // Group assignees: anyone of that kind may pick the item up.
 export const GROUP_ASSIGNEES = { "@humans": "human", "@ai": "ai" } as const;
 
+// Taken out of everyday view: search, the brief, the tree, code context, lists and staleness skip it.
+// The file stays (and git keeps it), readable by id or path, and a person can bring it back.
+export interface Archived {
+  at: string;
+  by: string; // who archived it (an AI's archiving is a draft until a person approves it)
+  reason?: string;
+}
+
 export interface CodeLink {
   file: string;
   lines?: string;
@@ -18,6 +26,7 @@ export interface NodeMeta {
   links?: { code?: CodeLink[]; items?: string[] };
   verified_at_commit?: string;
   status: NodeStatus;
+  archived?: Archived;
   updated_by: string;
   updated_at: string;
 }
@@ -55,6 +64,7 @@ export interface Item {
   claimed_by?: string; // actor id actively working this right now; separate from assignee
   claimed_at?: string;
   handoff_note?: string; // where the claim holder left off; set on claim/release only
+  archived?: Archived;
   tags?: string[];
   links?: ItemLinks;
   fields: Record<string, unknown>;
@@ -107,6 +117,9 @@ export interface CortexConfig {
   // Hub project ids this project reads from, e.g. a mobile app linking its backend. Read-only, and only for
   // callers who are members of the linked project too: a link says where to look, membership says who may.
   linked?: string[];
+  // Archiving: finished items older than after_days are suggested (default 30); activity older than
+  // activity_days leaves default search (default 90). Files and reports keep everything.
+  archive?: { after_days?: number; activity_days?: number };
 }
 
 export type Draft = (DraftBase & { kind: "node"; data: KnowledgeNode }) | (DraftBase & { kind: "item"; data: Item });

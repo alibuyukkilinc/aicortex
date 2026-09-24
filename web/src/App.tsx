@@ -8,6 +8,7 @@ import { LangContext, initialLang, timeAgo, useT } from "./i18n";
 import { AskDialog, ItemDrawer } from "./items";
 import { Activity } from "./pages/Activity";
 import { Approvals } from "./pages/Approvals";
+import { Archive } from "./pages/Archive";
 import { Board } from "./pages/Board";
 import { DiscussionView, Discussions } from "./pages/Discussions";
 import { Inbox } from "./pages/Inbox";
@@ -164,6 +165,7 @@ const NAV: { key: Key; route: string; icon: string; group: NavGroup }[] = [
   { key: "nav.knowledge", route: "knowledge", icon: "tree", group: "memory" },
   { key: "nav.stale", route: "stale", icon: "alert", group: "memory" },
   { key: "nav.activity", route: "activity", icon: "activity", group: "memory" },
+  { key: "nav.archive", route: "archive", icon: "archive", group: "memory" },
   { key: "nav.reports", route: "reports", icon: "report", group: "project" },
   { key: "nav.rules", route: "rules", icon: "rules", group: "project" },
   { key: "nav.guide", route: "guide", icon: "ask", group: "project" },
@@ -250,6 +252,9 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
       break;
     case "stale":
       content = <Stale />;
+      break;
+    case "archive":
+      content = <Archive />;
       break;
     case "reports":
       content = <Reports />;

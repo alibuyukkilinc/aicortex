@@ -23,6 +23,7 @@ import { StalenessService, actionable } from "./staleness.js";
 import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
 import { DiscussionService } from "./discussions.js";
+import { ArchiveService } from "./archive.js";
 import type { SyncStats } from "./sync.js";
 import { SyncService } from "./sync.js";
 import type { Project } from "./project.js";
@@ -65,7 +66,7 @@ const RRF_K = 60; // standard Reciprocal Rank Fusion constant
 const BRIEF_BUDGET = 800; // tokens; the spec's promise for the session opener
 
 // Content hash of a node, so conflict detection does not depend on clock resolution.
-function revision(n: KnowledgeNode): string {
+export function nodeRevision(n: KnowledgeNode): string {
   return shortHash(JSON.stringify([n.title, n.summary, n.body, n.tags ?? [], n.links ?? {}, n.status, n.updated_at]));
 }
 
@@ -88,6 +89,7 @@ export class Cortex {
   readonly index: Index;
   readonly items: ItemService;
   readonly discussions: DiscussionService;
+  readonly archive: ArchiveService;
   readonly activity: ActivityService;
   // "change" fires after every write and every reindex; the web board streams it to browsers.
   readonly events = new EventEmitter();
@@ -113,6 +115,7 @@ export class Cortex {
     this.index = new Index(this.p.index);
     this.items = new ItemService(this);
     this.discussions = new DiscussionService(this);
+    this.archive = new ArchiveService(this);
     this.activity = new ActivityService(this);
     const wantSemantic = project.config.search?.semantic !== false && semanticEnabled();
     const factory = opts.embedder !== undefined ? opts.embedder : wantSemantic ? () => new TransformersEmbedder() : null;
@@ -536,7 +539,10 @@ export class Cortex {
 
   // One search over knowledge, items (decisions, issues, questions...) and activity: "why did we do X?" lands here.
   // Hybrid when the semantic index is available: keyword and meaning rankings fused with Reciprocal Rank Fusion.
-  async search(q: string, opts: { kinds?: DocKind[]; under?: string; status?: string; type?: string; limit?: number; budget?: number } = {}) {
+  async search(
+    q: string,
+    opts: { kinds?: DocKind[]; under?: string; status?: string; type?: string; limit?: number; budget?: number; archived?: boolean } = {},
+  ) {
     if (!q || !q.trim()) throw new CortexError("empty_query", "Query is empty.", 400, { example: "/api/search?q=jwt refresh" });
     const badKind = opts.kinds?.find((k) => !["node", "item", "activity"].includes(k)); // "draft" is internal
     if (badKind) throw new CortexError("invalid_query", `Unknown kind "${badKind}".`, 400, { kinds: ["node", "item", "activity"] });
@@ -558,7 +564,20 @@ export class Cortex {
     };
     keyword.forEach((h, i) => add(h.kind, h.ref, i, "keyword"));
     semantic?.forEach((h, i) => add(h.kind, h.ref, i, "semantic"));
-    const ranked = [...fused.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+    // Archived records, and activity older than the search window, stay out unless asked for: they are
+    // why the archive exists (they cost tokens and crowd out what still applies).
+    const activityCutoff = this.archive.activityCutoff();
+    const current = (kind: DocKind, ref: string) => {
+      if (opts.archived) return true;
+      if (kind === "item") return !this.index.getItem(ref)?.archived;
+      if (kind === "node") return !this.index.getNode(ref)?.archived;
+      if (kind === "activity") return (this.index.getActivity(ref)?.at ?? "") >= activityCutoff;
+      return true;
+    };
+    const ranked = [...fused.values()]
+      .filter((h) => current(h.kind, h.ref))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
 
     const results: Record<string, unknown>[] = [];
     let used = 0;
@@ -645,6 +664,7 @@ export class Cortex {
       ...data,
       path,
       id: existing?.id ?? ulid(),
+      ...(existing?.archived ? { archived: existing.archived } : {}), // editing an archived node does not bring it back
       status: "active",
       updated_by: actor.id,
       updated_at: nowIso(),
@@ -670,7 +690,7 @@ export class Cortex {
         target: path,
         proposed_by: actor.id,
         reason,
-        base_rev: existing ? revision(existing) : undefined,
+        base_rev: existing ? nodeRevision(existing) : undefined,
         data: node,
       });
       return {
@@ -751,7 +771,7 @@ export class Cortex {
     let warning: StaleChange[] | undefined;
     if (d.kind === "node") {
       const current = this.tree.read(d.target);
-      if (!force && current && d.base_rev !== revision(current)) throw this.conflict(current.updated_by, current.updated_at);
+      if (!force && current && d.base_rev !== nodeRevision(current)) throw this.conflict(current.updated_by, current.updated_at);
       const pin = this.pinOnApproval(d.data, opts.verifyAtHead === true);
       warning = pin.changed;
       this.writeNode({ ...d.data, ...(pin.commit ? { verified_at_commit: pin.commit } : {}), status: "active", updated_at: nowIso() });

@@ -5,12 +5,23 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
-Three decisions reached in discussions, put to work: a project reads the projects it links to, the hub
+Memory that stays lean (archive), and three decisions reached in discussions, put to work: a project reads the projects it links to, the hub
 keeps its checkouts current by pulling, and the first round of the design work (the same look, applied
 with one system on every screen).
 
 ### Added
 
+- **Archive: memory that stays lean.** Knowledge and records that no longer apply (a one-off server
+  problem solved for good, a superseded decision, a branch for code that is gone) leave search, the
+  brief, the tree, code context, item lists and staleness, so they stop crowding out what still applies
+  and stop costing tokens. The file stays and git keeps it: an archived record is readable by id or path,
+  searchable with `archived: true` ("was this solved before?"), and a person can bring it back or, once
+  archived, delete it for good. Cortex suggests candidates (finished items untouched for 30 days that no
+  open item cites, knowledge marked deprecated; `archive.after_days` in the project config); only finished
+  items can go, never open work or an accepted decision. AI agents propose with `cortex_archive` and a
+  reason, which becomes a draft a person approves. Activity older than 90 days (`archive.activity_days`)
+  leaves default search but is never archived or deleted: it is the audit trail. New **Archive** page
+  under Memory.
 - **Linked projects.** A mobile app's agent can read its backend's knowledge through its own MCP
   connection: `linked: [backend]` in the project's config, then `project: "backend"` on `cortex_search`,
   `cortex_tree`, `cortex_node`, `cortex_items` and `cortex_item`. The brief lists the links and whether

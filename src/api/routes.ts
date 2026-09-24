@@ -273,6 +273,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       type: q.type,
       limit: num(q.limit),
       budget: num(q.budget),
+      archived: bool(q.archived),
     });
     if (!req.access) return ok(req, r);
     const visible = r.results.filter((h) => {
@@ -381,6 +382,57 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     need(req, type === "question" || type === "discussion" ? "ask" : "write_items");
     return reply.code(201).send(ok(req, req.cortex.items.reply(req.actor, id, (req.body ?? {}) as never)));
   });
+  // ---- archive --------------------------------------------------------------------
+  // Records that no longer apply leave everyday view (search, brief, tree, lists) but stay in the files.
+  // Anyone who reads sees the suggestions and the archive; archiving needs write access (an AI's archiving
+  // becomes drafts); bringing back and deleting for good are for people who approve.
+
+  const isItemRef = (ref: string) => /^[0-9A-Z]{26}$/.test(ref);
+  const refsVisibleOr404 = (req: FastifyRequest, refs: string[]) => {
+    for (const r of refs) {
+      if (isItemRef(r)) itemVisibleOr404(req, r);
+      else if (!seesNode(req, r)) throw hidden(`Node "${r}"`);
+    }
+  };
+  const refsOf = (req: FastifyRequest): string[] => {
+    const b = (req.body ?? {}) as { refs?: unknown; ref?: unknown };
+    const refs = Array.isArray(b.refs) ? b.refs : b.ref !== undefined ? [b.ref] : [];
+    if (!refs.length || refs.some((r) => typeof r !== "string")) {
+      throw new CortexError("invalid_request", "Send { refs: [...] }: item ids or knowledge paths.", 400, {
+        example: { refs: ["01J9Z...", "backend/old-queue"] },
+      });
+    }
+    return refs as string[];
+  };
+
+  app.get("/archive/candidates", async (req) => {
+    const r = req.cortex.archive.candidates(req.access?.itemSql() ?? null);
+    return ok(req, { ...r, candidates: r.candidates.filter((c) => c.kind === "item" || seesNode(req, c.ref)) });
+  });
+  app.get("/archive", async (req) => {
+    const r = req.cortex.archive.list(req.access?.itemSql() ?? null);
+    return ok(req, { archived: r.archived.filter((a) => a.kind === "item" || seesNode(req, a.ref)) });
+  });
+  app.post("/archive", async (req) => {
+    const refs = refsOf(req);
+    if (refs.some(isItemRef)) need(req, "write_items");
+    if (refs.some((r) => !isItemRef(r))) need(req, "write_knowledge");
+    refsVisibleOr404(req, refs);
+    return ok(req, req.cortex.archive.archive(req.actor, refs, ((req.body ?? {}) as { reason?: string }).reason));
+  });
+  app.post("/archive/restore", async (req) => {
+    need(req, "approve");
+    const refs = refsOf(req);
+    refsVisibleOr404(req, refs);
+    return ok(req, req.cortex.archive.restore(req.actor, refs));
+  });
+  app.post("/archive/purge", async (req) => {
+    need(req, "approve");
+    const [ref] = refsOf(req);
+    refsVisibleOr404(req, [ref!]);
+    return ok(req, req.cortex.archive.purge(req.actor, ref!));
+  });
+
   // ---- discussions ----------------------------------------------------------------
   // A discussion is an item (created with POST /items, views are replies); these add the list with vote
   // counts, the count that proposes a decision, and a person's final call.

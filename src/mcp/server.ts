@@ -129,10 +129,11 @@ export function buildMcpServer(api: McpApi): McpServer {
         limit: z.number().int().min(1).max(50).default(10),
         budget: z.number().int().positive().optional(),
         project: LINKED,
+        archived: z.boolean().optional().describe("Also search archived records and old activity. Use it when a problem looks like one solved before."),
       },
     },
-    wrap((a: { q: string; kind?: DocKind[]; type?: string; path?: string; limit: number; budget?: number; project?: string }) =>
-      get("/search", { q: a.q, kind: a.kind, type: a.type, path: a.path, limit: a.limit, budget: a.budget, project: a.project }),
+    wrap((a: { q: string; kind?: DocKind[]; type?: string; path?: string; limit: number; budget?: number; project?: string; archived?: boolean }) =>
+      get("/search", { q: a.q, kind: a.kind, type: a.type, path: a.path, limit: a.limit, budget: a.budget, project: a.project, archived: a.archived }),
     ),
   );
 
@@ -404,6 +405,29 @@ export function buildMcpServer(api: McpApi): McpServer {
       const markdown = await api.call("GET", "/report", { query: { since: a.since, until: a.until, format: "md", lang: a.lang }, text: true });
       return { markdown };
     }),
+  );
+
+  // ---- archive ---------------------------------------------------------------
+
+  server.registerTool(
+    "cortex_archive",
+    {
+      description:
+        "Keep memory lean: take knowledge and records that no longer apply out of search, the brief and the tree " +
+        "(a solved one-off server problem, a superseded decision, a branch for code that is gone). " +
+        "action 'candidates' lists finished items untouched for a while and deprecated knowledge. " +
+        "action 'propose' archives refs (item ids or knowledge paths) with a reason; from an AI it becomes drafts a person approves. " +
+        "Only finished items can be archived (an accepted decision still applies). Archived records stay in the files and in " +
+        "cortex_search with archived: true. Never propose archiving something only because it is old: say why it no longer applies.",
+      inputSchema: {
+        action: z.enum(["candidates", "propose"]),
+        refs: z.array(z.string()).max(50).optional().describe("For propose: item ids or knowledge paths"),
+        reason: z.string().max(500).optional().describe("For propose: why these no longer apply (required from an AI)"),
+      },
+    },
+    wrap((a: { action: "candidates" | "propose"; refs?: string[]; reason?: string }) =>
+      a.action === "candidates" ? get("/archive/candidates") : api.call("POST", "/archive", { body: { refs: a.refs ?? [], reason: a.reason } }),
+    ),
   );
 
   // ---- discussions -----------------------------------------------------------
