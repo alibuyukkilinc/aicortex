@@ -97,9 +97,7 @@ function RuleEditor({ name }: { name: string }) {
   return (
     <div className="card doc">
       <div className="row" style={{ marginBottom: 10 }}>
-        <h2 className="mono" style={{ flex: 1 }}>
-          .cortex/rules/{data?.file}
-        </h2>
+        <h2 className="mono grow">.cortex/rules/{data?.file}</h2>
         <button className="btn primary" disabled={!dirty || !can("edit_rules")} onClick={() => void save()}>
           {t("common.save")}
         </button>

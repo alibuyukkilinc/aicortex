@@ -194,17 +194,17 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
             {item.fields?.blocking === true && <span className="chip danger">{t("item.blocking")}</span>}
           </div>
           <h2>{item.title}</h2>
-          <div className="row muted" style={{ gap: 6, marginTop: 6, fontSize: 12 }}>
+          <div className="row muted" style={{ gap: 6, marginTop: 6, fontSize: "var(--text-xs)" }}>
             {t("common.by")} <ActorChip id={item.author} actors={actors} /> · <Ago iso={item.created_at} />
           </div>
         </>
       }
     >
       <div className="row" style={{ marginBottom: 16 }}>
-        <label htmlFor="items-item-status" className="muted" style={{ fontSize: 12 }}>
+        <label htmlFor="items-item-status" className="muted text-xs">
           {t("item.status")}
         </label>
-        <select id="items-item-status" className="select" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && void move(e.target.value)}>
+        <select id="items-item-status" className="select w-auto" value="" onChange={(e) => e.target.value && void move(e.target.value)}>
           <option value="">{label.status(item.status)} →</option>
           {next.map((s) => (
             <option key={s} value={s}>
@@ -213,10 +213,10 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
             </option>
           ))}
         </select>
-        <label htmlFor="items-item-assignee" className="muted" style={{ fontSize: 12 }}>
+        <label htmlFor="items-item-assignee" className="muted text-xs">
           {t("item.assignee")}
         </label>
-        <select id="items-item-assignee" className="select" style={{ width: "auto" }} value={item.assignee ?? ""} onChange={(e) => void assign(e.target.value)}>
+        <select id="items-item-assignee" className="select w-auto" value={item.assignee ?? ""} onChange={(e) => void assign(e.target.value)}>
           <option value="">{t("common.unassigned")}</option>
           <option value="@humans">@humans</option>
           <option value="@ai">@ai</option>
@@ -233,13 +233,11 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       </div>
 
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <span className="muted" style={{ fontSize: 12 }}>
-          {t("item.claim")}
-        </span>
+        <span className="muted text-xs">{t("item.claim")}</span>
         {item.claimed_by ? (
           <>
             <ActorChip id={item.claimed_by} actors={actors} />
-            <span className="muted" style={{ fontSize: 11 }}>
+            <span className="muted" style={{ fontSize: "var(--text-2xs)" }}>
               <Ago iso={item.claimed_at!} />
             </span>
             {item.claimed_by === me.id && (
@@ -262,7 +260,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
         {drop.dragging && <div className="drop-hint">{t("att.dropHere")}</div>}
         <div className="section desc">
           <div className="row" style={{ marginBottom: 6 }}>
-            <h3 style={{ margin: 0 }}>
+            <h3 className="m-0">
               <Icon name="text" size={14} /> {t("item.body")}
             </h3>
             <span className="spacer" />
@@ -309,7 +307,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
         />
       </div>
       {item.handoff_note && (
-        <p className="muted" style={{ fontSize: 12, fontStyle: "italic" }}>
+        <p className="muted" style={{ fontSize: "var(--text-xs)", fontStyle: "italic" }}>
           {t("item.handoffNote")}: {item.handoff_note}
         </p>
       )}
@@ -417,7 +415,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
           )}
           <ErrorBox error={err} />
           <div className="row" style={{ marginTop: 10 }}>
-            <select className="select" style={{ width: "auto" }} value={replyStatus} onChange={(e) => setReplyStatus(e.target.value)}>
+            <select className="select w-auto" value={replyStatus} onChange={(e) => setReplyStatus(e.target.value)}>
               <option value="">{label.status(item.status)}</option>
               {next.map((s) => (
                 <option key={s} value={s}>
@@ -462,7 +460,7 @@ function FieldRow({ name, value }: { name: string; value: unknown }) {
   return (
     <>
       <dt>{label.field(name)}</dt>
-      <dd style={{ whiteSpace: "pre-wrap" }}>{text}</dd>
+      <dd className="pre-wrap">{text}</dd>
     </>
   );
 }
@@ -569,11 +567,7 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
             </select>
           </div>
         </div>
-        {schema?.description && (
-          <p className="muted" style={{ marginTop: 0 }}>
-            {label.description(kind, schema.description)}
-          </p>
-        )}
+        {schema?.description && <p className="muted mt-0">{label.description(kind, schema.description)}</p>}
         <div className="field">
           <label htmlFor="items-item-title">
             {t("item.title")} <span className="req">*</span>
@@ -642,7 +636,7 @@ export function AskDialog({ about, label, onClose }: { about: string; label: str
 
   return (
     <Modal onClose={onClose} title={t("ask.title")}>
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted mt-0">
         {t("ask.about")}: <strong>{label}</strong>
       </p>
       <div className="field">

@@ -48,15 +48,31 @@ export function Board({ type }: { type: string }) {
   return (
     <>
       <div className="page-head">
-        <h1>{t("nav.board")}</h1>
-        <select className="select" style={{ width: "auto" }} value={type} onChange={(e) => go(`board/${e.target.value}`)} aria-label={t("board.type")}>
+        <div>
+          <h1>{t("nav.board")}</h1>
+          {schema?.description && (
+            <p>
+              {label.description(type, schema.description)} <span className="faint">· {t("board.dropHint")}</span>
+            </p>
+          )}
+        </div>
+        {(type === "question" ? can("ask") : can("write_items")) && (
+          <div className="page-actions">
+            <button className="btn primary" onClick={() => setCreating(true)}>
+              <Icon name="plus" /> {t("board.new")}
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="toolbar board-filters" role="group" aria-label={t("board.filters")}>
+        <select className="select w-auto" value={type} onChange={(e) => go(`board/${e.target.value}`)} aria-label={t("board.type")}>
           {itemTypes.map((x) => (
             <option key={x} value={x}>
               {label.type(x)}
             </option>
           ))}
         </select>
-        <select className="select" style={{ width: "auto" }} value={branch} onChange={(e) => setBranch(e.target.value)} aria-label={t("board.branch")}>
+        <select className="select w-auto" value={branch} onChange={(e) => setBranch(e.target.value)} aria-label={t("board.branch")}>
           <option value="">
             {t("board.branch")}: {t("board.all")}
           </option>
@@ -64,7 +80,7 @@ export function Board({ type }: { type: string }) {
             <option key={b}>{b}</option>
           ))}
         </select>
-        <select className="select" style={{ width: "auto" }} value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label={t("item.assignee")}>
+        <select className="select w-auto" value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label={t("item.assignee")}>
           <option value="">
             {t("item.assignee")}: {t("board.all")}
           </option>
@@ -74,18 +90,7 @@ export function Board({ type }: { type: string }) {
             <option key={a.id}>{a.id}</option>
           ))}
         </select>
-        <span className="spacer" />
-        {(type === "question" ? can("ask") : can("write_items")) && (
-          <button className="btn primary" onClick={() => setCreating(true)}>
-            <Icon name="plus" /> {t("board.new")}
-          </button>
-        )}
       </div>
-      {schema?.description && (
-        <p className="muted" style={{ margin: "-6px 0 14px" }}>
-          {label.description(type, schema.description)} <span className="faint">· {t("board.dropHint")}</span>
-        </p>
-      )}
       {error && <ErrorBox error={error} />}
       {loading || !schema ? (
         <Loading />
@@ -123,7 +128,7 @@ export function Board({ type }: { type: string }) {
                 </div>
                 <div className="column-body">
                   {items.length === 0 && (
-                    <div className="faint" style={{ padding: "8px 4px", fontSize: 12 }}>
+                    <div className="faint" style={{ padding: "8px 4px", fontSize: "var(--text-xs)" }}>
                       {t("board.empty")}
                     </div>
                   )}

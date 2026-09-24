@@ -4,7 +4,7 @@ import { api, useApi } from "../api";
 import { diffLines } from "../diff";
 import { useT } from "../i18n";
 import type { Draft } from "../types";
-import { ActorChip, Ago, Drawer, ErrorBox, Loading, Markdown, TypeChip, go, useSession, useToast, ListRow } from "../ui";
+import { ActorChip, Ago, Drawer, EmptyState, ErrorBox, go, ListRow, Loading, Markdown, TypeChip, useSession, useToast } from "../ui";
 
 type BulkResult = { done: string[]; failed: { id: string; code: string; message: string }[]; stale_after_approval?: string[] };
 
@@ -69,7 +69,7 @@ export function Approvals() {
         <div className="card" style={{ padding: "12px 16px", marginBottom: 12, borderColor: "var(--danger)" }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("approvals.bulkFailed").replace("{n}", String(failed.length))}</div>
           {failed.map((f) => (
-            <div key={f.id} className="muted" style={{ fontSize: 12.5 }}>
+            <div key={f.id} className="muted" style={{ fontSize: "var(--text-sm)" }}>
               {drafts.find((d) => d.id === f.id)?.title ?? f.id}: {f.message}
             </div>
           ))}
@@ -79,7 +79,7 @@ export function Approvals() {
         <Loading />
       ) : (
         <div className="card list">
-          {drafts.length === 0 && <div className="empty">{t("approvals.empty")}</div>}
+          {drafts.length === 0 && <EmptyState icon="check" title={t("approvals.empty")} card={false} />}
           {drafts.length > 0 && can("approve") && (
             <div className="bulk-bar">
               <label htmlFor="approvals-approvals-selectall" className="check">
@@ -115,7 +115,7 @@ export function Approvals() {
                 onClick={(e) => e.stopPropagation()}
                 onChange={() => toggle(d.id)}
               />
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="grow">
                 <div className="title">{d.title}</div>
                 <div className="meta">
                   <TypeChip type={d.kind} />
@@ -124,7 +124,7 @@ export function Approvals() {
                   {d.reason && <span>“{d.reason}”</span>}
                 </div>
               </div>
-              <span className="faint" style={{ fontSize: 11.5 }}>
+              <span className="faint text-xs">
                 <Ago iso={d.proposed_at} />
               </span>
             </ListRow>
@@ -296,7 +296,7 @@ function DocView({ doc, other, side }: { doc: Doc; other?: Doc; side: "old" | "n
         </p>
       )}
       {doc.status && <p className="mono faint">status: {doc.status}</p>}
-      {doc.fields && Object.keys(doc.fields).length > 0 && <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(doc.fields, null, 2)}</pre>}
+      {doc.fields && Object.keys(doc.fields).length > 0 && <pre className="pre-wrap">{JSON.stringify(doc.fields, null, 2)}</pre>}
       {other ? (
         <div className="body-diff">
           {lines

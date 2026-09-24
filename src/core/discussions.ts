@@ -220,7 +220,21 @@ export class DiscussionService {
     if (!options(item).includes(option)) throw new CortexError("invalid_request", "Pick one of the discussion's options.", 400, { options: options(item) });
 
     const previous = typeof item.fields.outcome === "string" ? this.c.itemStore.read(item.fields.outcome) : null;
-    if (previous?.status === "proposed") this.c.items.update(actor, previous.id, { status: "rejected", reason: `Overridden in discussion ${id}` });
+    if (previous?.status === "proposed") {
+      // Picking the option the majority already proposed accepts that proposal; a second, identical decision
+      // next to a rejected first one only clutters the record. The option is the first line of its body.
+      if (previous.body.split("\n")[0]?.trim() === option) {
+        this.c.items.update(actor, previous.id, { status: "accepted" });
+        return {
+          applied: true,
+          id,
+          status: "decided",
+          decision: { applied: true, id: previous.id, status: "accepted", message: "decision accepted." },
+          message: `Decided: "${option}".`,
+        };
+      }
+      this.c.items.update(actor, previous.id, { status: "rejected", reason: `Overridden in discussion ${id}` });
+    }
 
     const d = this.createDecision(actor, item, replies, option, tally(item, replies));
     this.c.items.update(actor, id, { status: "voted", fields: { outcome: d.id } }, { internal: true });

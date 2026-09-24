@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { qs, useApi } from "../api";
 import { useLabels, useT } from "../i18n";
 import type { Activity as Entry } from "../types";
-import { Ago, Avatar, ErrorBox, Icon, Loading, routeQuery, useSession } from "../ui";
+import { Ago, Avatar, EmptyState, ErrorBox, Icon, Loading, routeQuery, useSession } from "../ui";
 
 export function Activity() {
   const t = useT();
@@ -33,7 +33,7 @@ export function Activity() {
       <div className="page-head">
         <h1>{t("activity.title")}</h1>
         <span className="spacer" />
-        <select className="select" style={{ width: "auto" }} value={actor} onChange={(e) => setActor(e.target.value)}>
+        <select className="select w-auto" value={actor} onChange={(e) => setActor(e.target.value)}>
           <option value="">{t("board.all")}</option>
           {actors.map((a) => (
             <option key={a.id}>{a.id}</option>
@@ -48,7 +48,7 @@ export function Activity() {
         <Loading />
       ) : (
         <div className="card timeline">
-          {data?.entries.length === 0 && <div className="empty">{t("activity.empty")}</div>}
+          {data?.entries.length === 0 && <EmptyState icon="activity" title={t("activity.empty")} card={false} />}
           {data?.entries.map((a) => (
             <div
               key={a.id}
@@ -82,7 +82,7 @@ export function Activity() {
                   </div>
                 )}
               </div>
-              <div style={{ textAlign: "right", fontSize: 11.5 }} className="faint">
+              <div style={{ textAlign: "right", fontSize: "var(--text-xs)" }} className="faint">
                 <Ago iso={a.at} />
                 {!a.system && (
                   <div style={{ marginTop: 4 }}>

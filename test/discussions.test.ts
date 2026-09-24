@@ -176,6 +176,22 @@ test("a tie leaves the call to a person, who decides; an overridden proposal is 
   }
 });
 
+test("deciding for the option the majority proposed accepts that proposal instead of making a second one", () => {
+  const { t, ai2, id, view } = setup();
+  try {
+    view(t.ai, OPTS[0]!);
+    view(ai2, OPTS[0]!);
+    const proposed = t.cortex.discussions.closeVote(t.human, id).decision!.id;
+    const d = t.cortex.discussions.decide(t.human, id, OPTS[0]!);
+    assert.equal(d.decision.id, proposed);
+    assert.equal(t.cortex.itemStore.read(proposed)!.status, "accepted");
+    assert.equal(t.cortex.itemStore.read(id)!.status, "decided");
+    assert.equal(t.cortex.items.list({ type: "decision" }).total, 1);
+  } finally {
+    t.cleanup();
+  }
+});
+
 test("a person overriding a proposed majority rejects that proposal", () => {
   const { t, ai2, id, view } = setup();
   try {

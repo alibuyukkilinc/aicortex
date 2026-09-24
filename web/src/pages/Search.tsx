@@ -2,7 +2,7 @@ import { qs, useApi } from "../api";
 import type { Key } from "../i18n";
 import { useLabels, useT } from "../i18n";
 import type { SearchHit } from "../types";
-import { Ago, ErrorBox, Loading, StatusChip, go, useSession, ListRow } from "../ui";
+import { Ago, EmptyState, ErrorBox, go, ListRow, Loading, StatusChip, useSession } from "../ui";
 
 interface SearchResponse {
   mode: "hybrid" | "keyword";
@@ -38,13 +38,13 @@ export function Search({ q }: { q: string }) {
         <Loading />
       ) : (
         <div className="card list">
-          {data?.results.length === 0 && <div className="empty">{t("search.none")}</div>}
+          {data?.results.length === 0 && <EmptyState icon="search" title={t("search.none")} card={false} />}
           {data?.results.map((h) => (
             <ListRow key={`${h.kind}-${h.draft_id ?? h.id ?? h.path}`} onPress={() => open(h)}>
               <span className={`chip ${h.kind === "activity" ? "ai" : h.kind === "item" ? "accent" : ""}`} style={{ minWidth: 64, justifyContent: "center" }}>
                 {label.type(h.kind === "item" ? (h.type ?? "item") : h.kind)}
               </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="grow">
                 <div className="title">{h.title ?? h.summary}</div>
                 <div className="meta">
                   {h.path !== undefined && <span className="mono">{h.path || "(root)"}</span>}

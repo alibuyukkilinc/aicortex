@@ -231,7 +231,7 @@ export function HubFrame({ me, children }: { me: HubMe; children: ReactNode }) {
   return (
     <div className="hub">
       <header className="topbar">
-        <a href="/" style={{ color: "inherit", textDecoration: "none" }}>
+        <a href="/" className="plain-link">
           <Brand sub={me.org} />
         </a>
         <div className="topbar-right">
@@ -322,9 +322,7 @@ function Secret({ title, value, hint, onClose }: { title: string; value: string;
   const toast = useToast();
   return (
     <Modal onClose={onClose} title={title}>
-      <p className="muted" style={{ marginTop: 0 }}>
-        {hint}
-      </p>
+      <p className="muted mt-0">{hint}</p>
       <div className="secret">
         <code>{value}</code>
         <button
@@ -880,7 +878,7 @@ export function MembersPage({ canManage }: { canManage: boolean }) {
           </table>
         </div>
       )}
-      <p className="faint" style={{ fontSize: 12, marginTop: 14, maxWidth: "80ch" }}>
+      <p className="faint" style={{ fontSize: "var(--text-xs)", marginTop: 14, maxWidth: "80ch" }}>
         {t("hub.rolesHelp")}
       </p>
       {adding && (
@@ -963,9 +961,7 @@ function AddToProject({
 
   return (
     <Modal onClose={onClose} title={t(kind === "human" ? "hub.invitePerson" : "hub.newAgent")}>
-      <p className="muted" style={{ marginTop: 0 }}>
-        {t(kind === "human" ? "hub.inviteHint" : "hub.agentHint")}
-      </p>
+      <p className="muted mt-0">{t(kind === "human" ? "hub.inviteHint" : "hub.agentHint")}</p>
       <ErrorBox error={err} />
       <div className="field">
         <label htmlFor="hub-who-2">{t(kind === "human" ? "hub.email" : "hub.agentId")}</label>
@@ -1215,7 +1211,7 @@ function UsageTab() {
               </tbody>
             </table>
           </div>
-          <p className="faint" style={{ fontSize: 12, maxWidth: "80ch" }}>
+          <p className="faint" style={{ fontSize: "var(--text-xs)", maxWidth: "80ch" }}>
             {t("usage.estimate")}
           </p>
         </>
@@ -1235,7 +1231,7 @@ function Tile({ label, value, sub, small, icon, tone }: { label: string; value: 
         )}
         <div className="label">{label}</div>
       </div>
-      <div className={`value${tone ? ` ${tone}` : ""}`} style={small ? { fontSize: 16, fontWeight: 600 } : undefined}>
+      <div className={`value${tone ? ` ${tone}` : ""}`} style={small ? { fontSize: "var(--text-md)", fontWeight: 600 } : undefined}>
         {value}
       </div>
       {sub && <div className="sub">{sub}</div>}

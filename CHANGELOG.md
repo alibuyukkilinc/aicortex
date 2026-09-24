@@ -5,6 +5,32 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+The first round of the design work the "can the design go further?" discussion decided on (decision
+`01M3AJ1SRRPTM51GFWVBVT78PS`): the same look, applied with one system on every screen.
+
+### Changed
+
+- **One type scale and one spacing scale.** `styles.css` used 14 different font sizes, two of them below
+  the 11px floor. Every size is now one of eight `--text-*` steps (11 to 26px), with `--space-1..6` (4px
+  steps) for new spacing. Colors that were written out (toasts, diff highlights, board labels, text on a
+  colored fill) became theme tokens, so each can differ between light and dark. Breakpoints are down to
+  three widths (600 / 860 / 1100px).
+- **Loading shows the shape of what is coming.** Pages showed a line of "Loading…"; they now show pulsing
+  placeholder rows (still announced as loading to screen readers, still for reduced motion).
+- **Empty pages say what to do.** Notifications, Discussions, Search, Activity, Approvals and Stale
+  knowledge show an icon, what the emptiness means and, where there is one, the next step (Discussions
+  offers "New discussion").
+- **The menu is grouped** into Work (notifications, board, discussions, approvals), Memory (knowledge, stale
+  knowledge, activity) and Project (reports, rules, members, guide). On a phone it stays one strip.
+- **The board's title and its main action sit apart from the filters**, which have a row of their own.
+- **Fewer inline styles:** 45 of 142 became shared classes (`.grow`, `.w-auto`, `.text-xs`…); the inline
+  font sizes left use the scale.
+
+### Fixed
+
+- **Deciding a discussion for the option the majority proposed accepts that proposal.** It used to reject
+  the proposal and create a second, identical decision, leaving a rejected copy next to the accepted one.
+
 ## [0.3.0] - 2026-09-24
 
 Discussions: a question put to people and AI agents together, argued out on its own screen and settled

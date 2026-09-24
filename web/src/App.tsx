@@ -154,17 +154,24 @@ function useLive() {
   return { version, connected, last, pulse };
 }
 
-const NAV: { key: Key; route: string; icon: string }[] = [
-  { key: "nav.inbox", route: "inbox", icon: "inbox" },
-  { key: "nav.board", route: "board", icon: "board" },
-  { key: "nav.discussions", route: "discussions", icon: "debate" },
-  { key: "nav.knowledge", route: "knowledge", icon: "tree" },
-  { key: "nav.activity", route: "activity", icon: "activity" },
-  { key: "nav.approvals", route: "approvals", icon: "check" },
-  { key: "nav.stale", route: "stale", icon: "alert" },
-  { key: "nav.reports", route: "reports", icon: "report" },
-  { key: "nav.rules", route: "rules", icon: "rules" },
-  { key: "nav.guide", route: "guide", icon: "ask" },
+// Grouped by what a person comes for: today's work, the project's memory, and running the project.
+type NavGroup = "work" | "memory" | "project";
+const NAV: { key: Key; route: string; icon: string; group: NavGroup }[] = [
+  { key: "nav.inbox", route: "inbox", icon: "inbox", group: "work" },
+  { key: "nav.board", route: "board", icon: "board", group: "work" },
+  { key: "nav.discussions", route: "discussions", icon: "debate", group: "work" },
+  { key: "nav.approvals", route: "approvals", icon: "check", group: "work" },
+  { key: "nav.knowledge", route: "knowledge", icon: "tree", group: "memory" },
+  { key: "nav.stale", route: "stale", icon: "alert", group: "memory" },
+  { key: "nav.activity", route: "activity", icon: "activity", group: "memory" },
+  { key: "nav.reports", route: "reports", icon: "report", group: "project" },
+  { key: "nav.rules", route: "rules", icon: "rules", group: "project" },
+  { key: "nav.guide", route: "guide", icon: "ask", group: "project" },
+];
+const NAV_GROUPS: { id: NavGroup; key: Key }[] = [
+  { id: "work", key: "nav.groupWork" },
+  { id: "memory", key: "nav.groupMemory" },
+  { id: "project", key: "nav.groupProject" },
 ];
 
 // Collapsed to an icon rail, or pinned open. Remembered per browser; hovering the rail opens it temporarily.
@@ -296,7 +303,7 @@ function TopBar({ me, live, hubMe, rail, onToggleRail }: { me: Me; live: ReturnT
       >
         <Icon name="sidebar" />
       </button>
-      <a className="brand" href="#/inbox" style={{ color: "inherit", textDecoration: "none" }}>
+      <a className="brand plain-link" href="#/inbox">
         <span className="brand-mark">
           <Icon name="activity" size={14} />
         </span>
@@ -386,19 +393,29 @@ function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
 
   return (
     <nav ref={navRef} id="sidebar" className={`sidebar${held ? " held" : ""}`} aria-label="main">
-      {NAV.filter((n) => n.route !== "reports" || !me.restricted)
-        .concat(hubMe ? [{ key: "nav.members", route: "members", icon: "user" }] : [])
-        .map((n) => (
-          <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`} title={t(n.key)}>
-            <Icon name={n.icon} />
-            <span className="nav-label">{t(n.key)}</span>
-            {counts[n.route] ? (
-              <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`} aria-label={`${counts[n.route]}`}>
-                {counts[n.route]}
-              </span>
-            ) : null}
-          </a>
-        ))}
+      {NAV_GROUPS.map((g) => {
+        const links = NAV.filter((n) => n.route !== "reports" || !me.restricted)
+          .concat(hubMe ? [{ key: "nav.members", route: "members", icon: "user", group: "project" as const }] : [])
+          .filter((n) => n.group === g.id);
+        return (
+          <div className="nav-group" key={g.id} role="group" aria-label={t(g.key)}>
+            <span className="nav-group-label" aria-hidden>
+              {t(g.key)}
+            </span>
+            {links.map((n) => (
+              <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`} title={t(n.key)}>
+                <Icon name={n.icon} />
+                <span className="nav-label">{t(n.key)}</span>
+                {counts[n.route] ? (
+                  <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`} aria-label={`${counts[n.route]}`}>
+                    {counts[n.route]}
+                  </span>
+                ) : null}
+              </a>
+            ))}
+          </div>
+        );
+      })}
       {!hubMe && (
         <div className="sidebar-foot">
           <button className="btn ghost sm" onClick={() => setLang(lang === "tr" ? "en" : "tr")} title={t("lang.toggle")}>

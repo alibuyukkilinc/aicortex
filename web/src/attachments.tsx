@@ -282,7 +282,7 @@ export function AttachmentGrid({
   return (
     <div className="section">
       <div className="row" style={{ marginBottom: 8 }}>
-        <h3 style={{ margin: 0 }}>
+        <h3 className="m-0">
           <Icon name="clip" size={14} /> {t("att.title")} {files.length > 0 && <span className="faint">({files.length})</span>}
         </h3>
         <span className="spacer" />

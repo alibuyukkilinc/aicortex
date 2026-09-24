@@ -192,9 +192,51 @@ export function Term({ w, children }: { w: keyof typeof GLOSSARY | string; child
   );
 }
 
-export function Loading() {
+// A placeholder in the shape of what is coming (rows of text), so the page does not jump when it arrives.
+// Screen readers hear "Loading…"; the bars are decoration.
+export function Loading({ rows = 3 }: { rows?: number }) {
   const t = useT();
-  return <div className="empty">{t("common.loading")}</div>;
+  return (
+    <div className="skeleton" role="status" aria-live="polite">
+      <span className="sr-only">{t("common.loading")}</span>
+      {Array.from({ length: rows }, (_, i) => (
+        <div className="skeleton-row" key={i} aria-hidden>
+          <span className="skeleton-bar" />
+          <span className="skeleton-bar short" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// "Nothing here" that says what it means and, when there is one, what to do next.
+export function EmptyState({
+  icon = "inbox",
+  title,
+  hint,
+  action,
+  card = true,
+}: {
+  icon?: string;
+  title: string;
+  hint?: string;
+  action?: { label: string; run: () => void };
+  card?: boolean;
+}) {
+  return (
+    <div className={`empty-state${card ? " card" : ""}`}>
+      <span className="empty-icon" aria-hidden>
+        <Icon name={icon} size={20} />
+      </span>
+      <p className="empty-title">{title}</p>
+      {hint && <p className="empty-hint">{hint}</p>}
+      {action && (
+        <button className="btn primary sm" onClick={action.run}>
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function ErrorBox({ error }: { error: unknown }) {
@@ -293,7 +335,7 @@ export function Drawer({ onClose, head, children }: { onClose: () => void; head:
       <div className="overlay" onClick={onClose} aria-hidden="true" />
       <aside className="drawer" role="dialog" aria-modal>
         <div className="drawer-head">
-          <div style={{ flex: 1, minWidth: 0 }}>{head}</div>
+          <div className="grow">{head}</div>
           <button className="icon-btn" onClick={onClose} aria-label={t("common.close")}>
             <Icon name="x" />
           </button>
@@ -348,7 +390,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.error ? "error" : ""}`}>
             <Icon name={t.error ? "alert" : "check"} size={16} />
-            <span style={{ flex: 1 }}>{t.text}</span>
+            <span className="grow">{t.text}</span>
             {t.action && (
               <button
                 className="btn sm"

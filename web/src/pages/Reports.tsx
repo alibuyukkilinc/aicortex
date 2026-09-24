@@ -164,7 +164,7 @@ export function Reports() {
                   </span>
                 </div>
                 <span className="spacer" />
-                <label htmlFor="reports-rep-table" className="check" style={{ fontSize: 12 }}>
+                <label htmlFor="reports-rep-table" className="check text-xs">
                   <input id="reports-rep-table" type="checkbox" checked={asTable} onChange={(e) => setAsTable(e.target.checked)} /> {t("rep.table")}
                 </label>
               </div>
@@ -208,7 +208,7 @@ export function Reports() {
             <section className="card chart-card">
               <div className="chart-head">
                 <h2>{t("rep.aging")}</h2>
-                <span className="faint" style={{ fontSize: 12 }}>
+                <span className="faint text-xs">
                   {r.attention.open_issues} {t("rep.openIssues")}
                 </span>
               </div>
@@ -244,7 +244,7 @@ export function Reports() {
             <Panel title={t("rep.whatAi")} empty={!r.highlights.ai_changes.length}>
               {r.highlights.ai_changes.map((c) => (
                 <div key={c.id} className="list-row" style={{ cursor: "default" }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="grow">
                     <div className="title">{c.summary}</div>
                     {c.why && <div className="tl-why">{c.why}</div>}
                     <div className="meta">
@@ -274,9 +274,7 @@ export function Reports() {
               <Group title={t("rep.blocking")} n={r.attention.blocking_questions.length}>
                 {r.attention.blocking_questions.map((q) => (
                   <ListRow key={q.id} onPress={() => openItem(q.id)}>
-                    <span className="title" style={{ flex: 1 }}>
-                      {q.title}
-                    </span>
+                    <span className="title grow">{q.title}</span>
                     <span className="chip danger">
                       {q.age_days} {t("rep.d")}
                     </span>
@@ -285,10 +283,8 @@ export function Reports() {
               </Group>
               <Group title={t("rep.drafts")} n={r.attention.pending_approvals.length}>
                 {r.attention.pending_approvals.map((d) => (
-                  <a key={d.draft_id} className="list-row" href="#/approvals" style={{ color: "inherit", textDecoration: "none" }}>
-                    <span className="title" style={{ flex: 1 }}>
-                      {d.title}
-                    </span>
+                  <a key={d.draft_id} className="list-row plain-link" href="#/approvals">
+                    <span className="title grow">{d.title}</span>
                     <ActorChip id={d.proposed_by} actors={actors} />
                     <span className="chip">
                       {d.age_days} {t("rep.d")}
@@ -298,13 +294,9 @@ export function Reports() {
               </Group>
               <Group title={t("rep.stale")} n={r.attention.stale_nodes.length}>
                 {r.attention.stale_nodes.map((s) => (
-                  <a key={s.path} className="list-row" href={`#/knowledge/${s.path}`} style={{ color: "inherit", textDecoration: "none" }}>
-                    <span className="mono" style={{ flex: 1 }}>
-                      {s.path}
-                    </span>
-                    <span className="faint mono" style={{ fontSize: 11.5 }}>
-                      {s.files.join(", ")}
-                    </span>
+                  <a key={s.path} className="list-row plain-link" href={`#/knowledge/${s.path}`}>
+                    <span className="mono grow">{s.path}</span>
+                    <span className="faint mono text-xs">{s.files.join(", ")}</span>
                   </a>
                 ))}
               </Group>
@@ -324,9 +316,7 @@ export function Reports() {
             <Panel title={t("rep.decisionsMade")} empty={!r.highlights.decisions.length}>
               {r.highlights.decisions.map((d) => (
                 <ListRow key={d.id} onPress={() => openItem(d.id)}>
-                  <span className="title" style={{ flex: 1 }}>
-                    {d.title}
-                  </span>
+                  <span className="title grow">{d.title}</span>
                   <StatusChip status={d.status} />
                   <ActorChip id={d.by} actors={actors} />
                 </ListRow>
@@ -335,11 +325,9 @@ export function Reports() {
             <Panel title={t("rep.closedIssues")} empty={!r.highlights.closed_issues.length}>
               {r.highlights.closed_issues.map((i) => (
                 <ListRow key={i.id} onPress={() => openItem(i.id)}>
-                  <span className="title" style={{ flex: 1 }}>
-                    {i.title}
-                  </span>
+                  <span className="title grow">{i.title}</span>
                   {i.resolution && <span className="chip ok">{i.resolution}</span>}
-                  <span className="faint" style={{ fontSize: 11.5 }}>
+                  <span className="faint text-xs">
                     {t("rep.openFor")} {i.days_open} {t("rep.d")}
                   </span>
                 </ListRow>
@@ -416,7 +404,7 @@ function Group({ title, n, children }: { title: string; n: number; children: Rea
   if (!n) return null;
   return (
     <div>
-      <div className="faint" style={{ padding: "8px 16px 0", fontSize: 11.5, fontWeight: 600 }}>
+      <div className="faint" style={{ padding: "8px 16px 0", fontSize: "var(--text-xs)", fontWeight: 600 }}>
         {title} ({n})
       </div>
       {children}

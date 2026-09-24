@@ -3,7 +3,7 @@ import { api, useApi } from "../api";
 import type { Key } from "../i18n";
 import { useT } from "../i18n";
 import type { Severity, StaleInfo } from "../types";
-import { ErrorBox, Loading, go, useSession, useToast } from "../ui";
+import { EmptyState, ErrorBox, go, Loading, useSession, useToast } from "../ui";
 import { SeverityChip, StaleBanner } from "./Knowledge";
 
 // Knowledge whose code moved on, as a work list: the node on the left, what changed on the right, and
@@ -49,9 +49,7 @@ export function Stale() {
         <a href={`#/knowledge/${n.path}`} className="title">
           {n.title ?? n.path}
         </a>
-        <div className="faint mono" style={{ fontSize: 11.5 }}>
-          {n.path || "(root)"}
-        </div>
+        <div className="faint mono text-xs">{n.path || "(root)"}</div>
         <SeverityChip severity={n.severity} />
       </div>
       <StaleBanner info={n} path={n.path} compact onEdit={() => go(`knowledge/${n.path}`)} onChanged={reload} />
@@ -68,7 +66,7 @@ export function Stale() {
           </p>
         </div>
       </div>
-      {data.enabled && awake.length === 0 && <div className="empty">{t("stale.empty")}</div>}
+      {data.enabled && awake.length === 0 && <EmptyState icon="check" title={t("stale.empty")} />}
       {GROUPS.map((g) => {
         const nodes = awake.filter((n) => n.severity === g.severity);
         if (!nodes.length) return null;
@@ -84,7 +82,7 @@ export function Stale() {
                 </button>
               )}
             </div>
-            <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: "var(--text-sm)" }}>
               {t(g.why)}
             </p>
             {nodes.map(row)}

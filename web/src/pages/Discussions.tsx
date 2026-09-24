@@ -4,7 +4,7 @@ import type { Key } from "../i18n";
 import { useLabels, useT } from "../i18n";
 import { useBranches } from "../items";
 import type { Item, Reply } from "../types";
-import { ActorChip, Ago, Avatar, ErrorBox, Icon, Loading, Markdown, Modal, Pressable, StatusChip, go, useSession, useToast } from "../ui";
+import { ActorChip, Ago, Avatar, EmptyState, ErrorBox, go, Icon, Loading, Markdown, Modal, Pressable, StatusChip, useSession, useToast } from "../ui";
 
 // Discussions: a question put to people and AI agents. Its own screens, apart from the board: a list of
 // discussions, and one discussion laid out as a table of views per option with the vote and the decision.
@@ -86,7 +86,12 @@ export function Discussions() {
       {loading ? (
         <Loading />
       ) : rows.length === 0 ? (
-        <div className="card empty">{t("disc.empty")}</div>
+        <EmptyState
+          icon="debate"
+          title={t("disc.empty")}
+          hint={t("disc.aiHint")}
+          action={can("write_items") ? { label: t("disc.new"), run: () => setCreating(true) } : undefined}
+        />
       ) : (
         <div className="disc-grid">
           {rows.map((r) => (
@@ -299,7 +304,7 @@ function NewDiscussionDialog({ onClose }: { onClose: () => void }) {
       <label htmlFor="disc-blind" className="check">
         <input id="disc-blind" type="checkbox" checked={blind} onChange={(e) => setBlind(e.target.checked)} /> {t("disc.blind")}
       </label>
-      <p className="faint" style={{ margin: "4px 0 0 24px", fontSize: 12.5 }}>
+      <p className="faint" style={{ margin: "4px 0 0 24px", fontSize: "var(--text-sm)" }}>
         {t("disc.blindWhy")}
       </p>
       <ErrorBox error={err} />
@@ -523,7 +528,7 @@ function ByOption({ options, replies }: { options: string[]; replies: View[] }) 
   }
   const sealed = replies.filter((r) => r.sealed);
   const loose = replies.filter((r) => !r.sealed && (kindOf(r) === "synthesis" || kindOf(r) === "comment"));
-  if (!replies.length) return <div className="card empty">{t("disc.noViewsYet")}</div>;
+  if (!replies.length) return <EmptyState icon="chat" title={t("disc.noViewsYet")} />;
   return (
     <>
       <div className="disc-columns">
@@ -563,7 +568,7 @@ function ByOption({ options, replies }: { options: string[]; replies: View[] }) 
 
 function Timeline({ options, replies }: { options: string[]; replies: View[] }) {
   const t = useT();
-  if (!replies.length) return <div className="card empty">{t("disc.noViewsYet")}</div>;
+  if (!replies.length) return <EmptyState icon="chat" title={t("disc.noViewsYet")} />;
   return (
     <div className="disc-timeline">
       {replies.map((r) => (

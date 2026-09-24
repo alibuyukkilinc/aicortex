@@ -3,7 +3,7 @@ import { useApi } from "../api";
 import type { Key } from "../i18n";
 import { useT } from "../i18n";
 import type { Draft, ItemSummary, StaleInfo } from "../types";
-import { ActorChip, Ago, ErrorBox, Icon, Loading, StatusChip, TypeChip, go, useSession, ListRow } from "../ui";
+import { ActorChip, Ago, EmptyState, ErrorBox, go, Icon, ListRow, Loading, StatusChip, TypeChip, useSession } from "../ui";
 import { SeverityChip } from "./Knowledge";
 
 // Notifications: everything waiting for this person, counted and explained in plain words.
@@ -42,7 +42,7 @@ export function Inbox() {
 
   const itemRow = (i: ItemSummary) => (
     <ListRow key={i.id} onPress={() => (i.type === "discussion" ? go(`discussions/${i.id}`) : openItem(i.id))}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="grow">
         <div className="title">{i.title}</div>
         <div className="meta">
           <TypeChip type={i.type} />
@@ -74,7 +74,7 @@ export function Inbox() {
       {items.loading ? (
         <Loading />
       ) : total === 0 ? (
-        <div className="card empty">{t("notif.nothing")}</div>
+        <EmptyState icon="check" title={t("notif.nothing")} hint={t("inbox.empty")} />
       ) : (
         <div className="notif-groups">
           <Group title={t("notif.blocking")} why={t("notif.blockingWhy")} tone="danger" rows={blocking.map(itemRow)} />
@@ -90,7 +90,7 @@ export function Inbox() {
             action={{ label: t("notif.review"), run: () => go("approvals") }}
             rows={pending.map((d) => (
               <ListRow key={d.id} onPress={() => go("approvals")}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="grow">
                   <div className="title">{d.title}</div>
                   <div className="meta">
                     <TypeChip type={d.kind} />
@@ -111,7 +111,7 @@ export function Inbox() {
             tone="warn"
             rows={outdated.map((s) => (
               <a className="list-row" key={s.path} href={`#/knowledge/${s.path}`} style={{ color: "inherit" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="grow">
                   <div className="title">
                     {s.title ?? s.path} <SeverityChip severity={s.severity} />
                   </div>
