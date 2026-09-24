@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["dist/cli.js", "start", "--port", "4748"],
       "port": 4748
+    },
+    {
+      "name": "cortex-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:web"],
+      "port": 5173
     }
   ]
 }

@@ -160,7 +160,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 var(--font);
+  font: 13.5px/1.5 var(--font);
   letter-spacing: -0.006em;
   font-feature-settings: "cv11", "ss01"; /* Inter only: single-storey a, open digits */
   -webkit-font-smoothing: antialiased;
@@ -179,7 +179,7 @@ code,
 pre,
 kbd {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 h1,
 h2,
@@ -189,18 +189,18 @@ h3 {
 }
 h1 {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.025em;
 }
 h2 {
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 h3 {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--faint);
   text-transform: uppercase;
@@ -328,7 +328,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   max-width: 380px;
   white-space: nowrap;
@@ -395,7 +395,7 @@ textarea {
 }
 .nav-count {
   margin-left: auto;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
@@ -497,7 +497,7 @@ textarea {
     border-radius: 0;
     background: none;
     color: var(--faint);
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .app.rail .sidebar:hover:not(.held) .nav-count.warn,
   .app.rail .sidebar:focus-within .nav-count.warn {
@@ -555,7 +555,7 @@ textarea {
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   font-weight: 500;
-  font-size: 13.5px;
+  font-size: 13px;
   white-space: nowrap;
   transition:
     background 0.15s var(--ease),
@@ -603,7 +603,7 @@ textarea {
 .btn.sm {
   height: var(--control-sm);
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .icon-btn {
   display: inline-grid;
@@ -680,7 +680,7 @@ textarea {
 }
 .textarea.code {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   min-height: 420px;
   tab-size: 2;
 }
@@ -691,12 +691,12 @@ textarea {
   margin-bottom: 14px;
 }
 .field > label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 550;
   color: var(--text);
 }
 .field .hint {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--faint);
 }
 .req {
@@ -738,7 +738,7 @@ textarea {
   height: 20px;
   padding: 0 7px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   line-height: 1;
   background: var(--fill);
@@ -771,7 +771,7 @@ textarea {
 }
 .chip.mono {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 450;
 }
 /* Type: a quiet label, not a badge. */
@@ -828,7 +828,7 @@ textarea {
   flex-wrap: wrap;
   align-items: center;
   margin-top: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .empty {
@@ -855,7 +855,7 @@ textarea {
 }
 .mono {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 /* ---- board ------------------------------------------------------------------------ */
@@ -890,7 +890,7 @@ textarea {
   gap: 8px;
   padding: 12px 14px 10px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .column-head .count {
   color: var(--faint);
@@ -908,6 +908,27 @@ textarea {
   gap: 8px;
   overflow-y: auto;
   min-height: 60px;
+}
+/* Cards keep their own height: flex children shrink by default, so a full column used to squeeze
+   its cards (and clip their text) instead of scrolling. */
+.column-body > * {
+  flex-shrink: 0;
+}
+/* The board page fills the window and the columns scroll inside it, so a full column always has a
+   scrollbar and "Add a card" stays in reach. The max-height above is the fallback where :has is not
+   supported. */
+.main:has(> .board) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.main > .board {
+  flex: 1;
+  min-height: 0;
+  grid-auto-rows: 100%; /* a definite row height, so a column can cap itself against it */
+}
+.main:has(> .board) .column {
+  max-height: 100%;
 }
 .kcard {
   background: var(--raised);
@@ -1030,7 +1051,7 @@ button.chip {
   background: var(--surface);
   color: var(--muted);
   font: inherit;
-  font-size: 11.5px;
+  font-size: 11px;
   cursor: pointer;
 }
 .sr-only {
@@ -1053,10 +1074,10 @@ button.chip {
   padding: 28px 32px;
 }
 .doc h1 {
-  font-size: 24px;
+  font-size: 22px;
 }
 .doc .summary {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--muted);
   margin: 10px 0 18px;
   max-width: 72ch;
@@ -1075,7 +1096,7 @@ button.chip {
   flex-wrap: wrap;
 }
 .breadcrumbs {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--faint);
   display: flex;
   gap: 4px;
@@ -1104,10 +1125,10 @@ button.chip {
   margin: 1.4em 0 0.5em;
 }
 .md h2 {
-  font-size: 16px;
+  font-size: 15px;
 }
 .md h3 {
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .md ul,
 .md ol {
@@ -1133,7 +1154,7 @@ button.chip {
 .md pre code {
   background: none;
   padding: 0;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .md blockquote {
   margin: 0;
@@ -1175,7 +1196,7 @@ button.chip {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 650;
   color: #fff;
   background: var(--human);
@@ -1189,7 +1210,7 @@ button.chip {
   padding: 8px 12px;
   border-radius: var(--radius);
   background: var(--fill);
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 .tl-files {
@@ -1242,7 +1263,7 @@ button.chip {
   border-bottom: 1px solid var(--border);
 }
 .drawer-head h2 {
-  font-size: 18px;
+  font-size: 17px;
   margin-top: 4px;
 }
 .drawer-body {
@@ -1312,7 +1333,7 @@ button.chip {
   display: grid;
   grid-template-columns: 140px 1fr;
   gap: 8px 12px;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .kv dt {
   color: var(--muted);
@@ -1331,7 +1352,7 @@ button.chip {
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   margin-bottom: 8px;
   flex-wrap: wrap;
@@ -1357,7 +1378,7 @@ button.chip {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: var(--shadow-lg);
-  font-size: 13.5px;
+  font-size: 13px;
   animation: pop-in 0.22s var(--ease);
 }
 .toast > svg {
@@ -1511,7 +1532,7 @@ button.chip {
 }
 .stale-group-head h2 {
   margin: 0 0 4px;
-  font-size: 15px;
+  font-size: 14px;
 }
 .stale-group-head .btn {
   margin-left: auto;
@@ -1564,7 +1585,7 @@ button.chip {
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 550;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 .segmented button:hover {
@@ -1621,12 +1642,12 @@ button.chip {
   color: var(--human);
 }
 .kpi .label {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   font-weight: 500;
 }
 .kpi .value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 650;
   margin-top: 4px;
   line-height: 1.2;
@@ -1640,7 +1661,7 @@ button.chip {
   color: var(--human);
 }
 .kpi .sub {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--faint);
   margin-top: 4px;
   display: flex;
@@ -1674,7 +1695,7 @@ button.chip {
   position: relative;
 }
 .chart-card h2 {
-  font-size: 13.5px;
+  font-size: 13px;
 }
 .chart-head {
   display: flex;
@@ -1686,7 +1707,7 @@ button.chip {
 .legend {
   display: flex;
   gap: 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
 }
 .legend i {
@@ -1710,7 +1731,7 @@ button.chip {
   box-shadow: var(--shadow-lg);
   border-radius: var(--radius);
   padding: 8px 10px;
-  font-size: 12.5px;
+  font-size: 12px;
   z-index: 5;
   min-width: 120px;
 }
@@ -1738,7 +1759,7 @@ button.chip {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .table th,
 .table td {
@@ -1752,7 +1773,7 @@ button.chip {
 .table th {
   color: var(--faint);
   font-weight: 600;
-  font-size: 11.5px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -1786,7 +1807,7 @@ button.chip {
   position: sticky;
   top: 0;
   z-index: 2;
-  font-size: 13.5px;
+  font-size: 13px;
   background: var(--surface);
   border-top-left-radius: inherit;
   border-top-right-radius: inherit;
@@ -1819,19 +1840,19 @@ button.chip {
   margin-bottom: 28px;
 }
 .auth-card h1 {
-  font-size: 24px;
+  font-size: 22px;
   margin-bottom: 18px;
 }
 .auth-foot {
   margin: 16px 0 0;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--faint);
   text-align: center;
 }
 .btn.wide {
   width: 100%;
   height: 38px;
-  font-size: 14px;
+  font-size: 13.5px;
   margin-top: 6px;
 }
 
@@ -1848,7 +1869,7 @@ button.chip {
   place-items: center;
   background: var(--fill-strong);
   color: var(--text);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.02em;
 }
@@ -1880,7 +1901,7 @@ button.chip {
   padding: 8px 10px 10px;
   margin-bottom: 4px;
   border-bottom: 0.5px solid var(--border-strong);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .menu-item {
   display: flex;
@@ -1893,7 +1914,7 @@ button.chip {
   border-radius: 7px;
   background: transparent;
   color: var(--text);
-  font-size: 13.5px;
+  font-size: 13px;
   cursor: pointer;
   text-align: left;
 }
@@ -1964,11 +1985,11 @@ button.chip {
   background: var(--fill-strong);
   font-family: var(--font-display);
   font-weight: 650;
-  font-size: 18px;
+  font-size: 17px;
 }
 .project-name {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .toolbar {
@@ -2010,7 +2031,7 @@ button.chip {
 .secret code {
   flex: 1;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 @media (max-width: 860px) {
   .hub-main {
@@ -2041,7 +2062,7 @@ button.chip {
   gap: 8px;
 }
 .notif-head .count {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
@@ -2055,7 +2076,7 @@ button.chip {
 .notif-head p {
   margin: 0;
   color: var(--faint);
-  font-size: 13px;
+  font-size: 12.5px;
   flex: 1;
 }
 .notif-head .btn {
@@ -2112,12 +2133,12 @@ button.chip {
   color: var(--text);
   text-transform: none;
   letter-spacing: normal;
-  font-size: 14px;
+  font-size: 13.5px;
   margin-bottom: 6px;
 }
 .guide-card p {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 .glossary {
   margin-top: 12px;
@@ -2156,7 +2177,7 @@ button.chip {
   color: var(--muted);
 }
 .body-diff {
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -2206,7 +2227,7 @@ button.chip {
   min-width: 36px;
   padding: 1px 8px;
   border-radius: 4px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
   color: #fff;
   background: var(--faint);
@@ -2230,7 +2251,7 @@ button.chip {
   height: 20px;
   padding: 0 4px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--muted);
 }
 .kbadge.due.late {
@@ -2256,7 +2277,7 @@ button.chip {
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   cursor: pointer;
   text-align: left;
 }
@@ -2331,7 +2352,7 @@ button.chip {
   padding: 4px 10px;
   border-radius: 6px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   cursor: pointer;
 }
@@ -2341,7 +2362,7 @@ button.chip {
   font-weight: 600;
 }
 .md-busy {
-  font-size: 12px;
+  font-size: 11.5px;
   margin-right: 6px;
 }
 .md-preview {
@@ -2357,11 +2378,11 @@ button.chip {
 }
 .att-tip {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 .att-empty {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 .att-grid {
   display: grid;
@@ -2413,7 +2434,7 @@ button.chip {
   display: flex;
   flex-direction: column;
   padding: 6px 8px 8px;
-  font-size: 12px;
+  font-size: 11.5px;
   min-width: 0;
 }
 .att-name {
@@ -2463,7 +2484,7 @@ button.chip {
   place-self: stretch;
   margin: 0;
   white-space: pre-wrap;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 @media (hover: none) {
   .att-actions {

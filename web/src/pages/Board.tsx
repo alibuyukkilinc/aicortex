@@ -123,7 +123,7 @@ export function Board({ type }: { type: string }) {
                 </div>
                 <div className="column-body">
                   {items.length === 0 && (
-                    <div className="faint" style={{ padding: "8px 4px", fontSize: 12.5 }}>
+                    <div className="faint" style={{ padding: "8px 4px", fontSize: 12 }}>
                       {t("board.empty")}
                     </div>
                   )}

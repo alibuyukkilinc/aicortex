@@ -15,10 +15,22 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ### Fixed
 
+- **A full board column scrolls again.** Cards are flex children, so a column that ran out of room
+  squeezed them instead of showing a scrollbar: ten cards were flattened into the height of three, with
+  their text clipped. Cards keep their own height now, and the board page fills the window, so every
+  column caps itself against the visible area, scrolls inside, and keeps "Add a card" at the bottom.
+- **Moving an item no longer needs a sentence.** Under the reply box, picking a status with nothing
+  written moves the item (the same request a board card makes) instead of leaving the button disabled.
+  The button says which move it will make.
 - **Large docs folders are listed whole.** The markdown list stopped at 50 files, so a disaster-recovery
   runbook was left out on a project with 51; the limit is now 200.
 - **`init --agent-files` adds the hint once.** A `CLAUDE.md` that only imports `AGENTS.md` (`@AGENTS.md`)
   is left alone; the hint goes to `AGENTS.md`, instead of Claude reading it twice.
+
+### Changed
+
+- **Text is slightly smaller** everywhere on the board: the base size goes from 14px to 13.5px and each
+  step of the scale follows it down, with the smallest labels left at 11px.
 
 ## [0.2.2] - 2026-09-24
 

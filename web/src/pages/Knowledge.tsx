@@ -133,7 +133,7 @@ function NodeView({ path }: { path: string }) {
       <h1>{n.title}</h1>
       <p className="summary">{n.summary}</p>
       {data.staleness && <StaleBanner info={data.staleness} path={n.path} onEdit={() => setEditing("edit")} onChanged={reload} />}
-      <div className="row muted" style={{ fontSize: 12.5, gap: 6, marginBottom: 16 }}>
+      <div className="row muted" style={{ fontSize: 12, gap: 6, marginBottom: 16 }}>
         <StatusChip status={n.status} />
         {t("tree.updated")} <ActorChip id={n.updated_by} actors={actors} /> · <Ago iso={n.updated_at} />
         {n.tags?.map((tag) => (
@@ -323,7 +323,7 @@ export function StaleBanner({
                     )}
                     {c.formatting_only && <span className="chip">{t("stale.formatting")}</span>}
                     {c.last && (
-                      <div className="faint" style={{ fontSize: 12.5 }}>
+                      <div className="faint" style={{ fontSize: 12 }}>
                         {c.commits} {t("stale.commits")} · <span className="mono">{c.last.hash.slice(0, 7)}</span> “{c.last.subject}” — {c.last.author},{" "}
                         <Ago iso={c.last.date} />
                       </div>
@@ -333,7 +333,7 @@ export function StaleBanner({
               </ul>
             </>
           )}
-          <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>
+          <div className="faint" style={{ fontSize: 11.5, marginTop: 6 }}>
             {t("stale.verifiedAt")}: <span className="mono">{info.verified_at_commit.slice(0, 7)}</span>
             {info.snoozed && (
               <>

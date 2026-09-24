@@ -49,7 +49,7 @@ export function Stale() {
         <a href={`#/knowledge/${n.path}`} className="title">
           {n.title ?? n.path}
         </a>
-        <div className="faint mono" style={{ fontSize: 12 }}>
+        <div className="faint mono" style={{ fontSize: 11.5 }}>
           {n.path || "(root)"}
         </div>
         <SeverityChip severity={n.severity} />
@@ -84,7 +84,7 @@ export function Stale() {
                 </button>
               )}
             </div>
-            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
               {t(g.why)}
             </p>
             {nodes.map(row)}

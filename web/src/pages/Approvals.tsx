@@ -69,7 +69,7 @@ export function Approvals() {
         <div className="card" style={{ padding: "12px 16px", marginBottom: 12, borderColor: "var(--danger)" }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{t("approvals.bulkFailed").replace("{n}", String(failed.length))}</div>
           {failed.map((f) => (
-            <div key={f.id} className="muted" style={{ fontSize: 13 }}>
+            <div key={f.id} className="muted" style={{ fontSize: 12.5 }}>
               {drafts.find((d) => d.id === f.id)?.title ?? f.id}: {f.message}
             </div>
           ))}
@@ -124,7 +124,7 @@ export function Approvals() {
                   {d.reason && <span>“{d.reason}”</span>}
                 </div>
               </div>
-              <span className="faint" style={{ fontSize: 12 }}>
+              <span className="faint" style={{ fontSize: 11.5 }}>
                 <Ago iso={d.proposed_at} />
               </span>
             </ListRow>

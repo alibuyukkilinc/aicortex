@@ -164,7 +164,7 @@ export function Reports() {
                   </span>
                 </div>
                 <span className="spacer" />
-                <label htmlFor="reports-rep-table" className="check" style={{ fontSize: 12.5 }}>
+                <label htmlFor="reports-rep-table" className="check" style={{ fontSize: 12 }}>
                   <input id="reports-rep-table" type="checkbox" checked={asTable} onChange={(e) => setAsTable(e.target.checked)} /> {t("rep.table")}
                 </label>
               </div>
@@ -208,7 +208,7 @@ export function Reports() {
             <section className="card chart-card">
               <div className="chart-head">
                 <h2>{t("rep.aging")}</h2>
-                <span className="faint" style={{ fontSize: 12.5 }}>
+                <span className="faint" style={{ fontSize: 12 }}>
                   {r.attention.open_issues} {t("rep.openIssues")}
                 </span>
               </div>
@@ -302,7 +302,7 @@ export function Reports() {
                     <span className="mono" style={{ flex: 1 }}>
                       {s.path}
                     </span>
-                    <span className="faint mono" style={{ fontSize: 12 }}>
+                    <span className="faint mono" style={{ fontSize: 11.5 }}>
                       {s.files.join(", ")}
                     </span>
                   </a>
@@ -339,7 +339,7 @@ export function Reports() {
                     {i.title}
                   </span>
                   {i.resolution && <span className="chip ok">{i.resolution}</span>}
-                  <span className="faint" style={{ fontSize: 12 }}>
+                  <span className="faint" style={{ fontSize: 11.5 }}>
                     {t("rep.openFor")} {i.days_open} {t("rep.d")}
                   </span>
                 </ListRow>
@@ -416,7 +416,7 @@ function Group({ title, n, children }: { title: string; n: number; children: Rea
   if (!n) return null;
   return (
     <div>
-      <div className="faint" style={{ padding: "8px 16px 0", fontSize: 12, fontWeight: 600 }}>
+      <div className="faint" style={{ padding: "8px 16px 0", fontSize: 11.5, fontWeight: 600 }}>
         {title} ({n})
       </div>
       {children}

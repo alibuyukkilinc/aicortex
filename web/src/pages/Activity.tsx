@@ -82,7 +82,7 @@ export function Activity() {
                   </div>
                 )}
               </div>
-              <div style={{ textAlign: "right", fontSize: 12 }} className="faint">
+              <div style={{ textAlign: "right", fontSize: 11.5 }} className="faint">
                 <Ago iso={a.at} />
                 {!a.system && (
                   <div style={{ marginTop: 4 }}>

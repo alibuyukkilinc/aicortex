@@ -151,15 +151,21 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
     }
   };
 
+  // A status picked with nothing written is a plain move: the same PATCH the board cards use, so
+  // "I am done with this" never forces a sentence nobody needs.
   const sendReply = async () => {
     setBusy(true);
     setErr(null);
     try {
-      await api(`/api/items/${id}/replies`, { method: "POST", body: { body, fields: replyFields, ...(replyStatus ? { status: replyStatus } : {}) } });
+      if (!body.trim() && replyStatus) {
+        await move(replyStatus);
+      } else {
+        await api(`/api/items/${id}/replies`, { method: "POST", body: { body, fields: replyFields, ...(replyStatus ? { status: replyStatus } : {}) } });
+        reload();
+      }
       setBody("");
       setReplyFields({});
       setReplyStatus("");
-      reload();
     } catch (e) {
       setErr(e);
     } finally {
@@ -179,14 +185,14 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
             {item.fields?.blocking === true && <span className="chip danger">{t("item.blocking")}</span>}
           </div>
           <h2>{item.title}</h2>
-          <div className="row muted" style={{ gap: 6, marginTop: 6, fontSize: 12.5 }}>
+          <div className="row muted" style={{ gap: 6, marginTop: 6, fontSize: 12 }}>
             {t("common.by")} <ActorChip id={item.author} actors={actors} /> · <Ago iso={item.created_at} />
           </div>
         </>
       }
     >
       <div className="row" style={{ marginBottom: 16 }}>
-        <label htmlFor="items-item-status" className="muted" style={{ fontSize: 12.5 }}>
+        <label htmlFor="items-item-status" className="muted" style={{ fontSize: 12 }}>
           {t("item.status")}
         </label>
         <select id="items-item-status" className="select" style={{ width: "auto" }} value="" onChange={(e) => e.target.value && void move(e.target.value)}>
@@ -198,7 +204,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
             </option>
           ))}
         </select>
-        <label htmlFor="items-item-assignee" className="muted" style={{ fontSize: 12.5 }}>
+        <label htmlFor="items-item-assignee" className="muted" style={{ fontSize: 12 }}>
           {t("item.assignee")}
         </label>
         <select id="items-item-assignee" className="select" style={{ width: "auto" }} value={item.assignee ?? ""} onChange={(e) => void assign(e.target.value)}>
@@ -218,13 +224,13 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
       </div>
 
       <div className="row" style={{ marginBottom: 16, gap: 8 }}>
-        <span className="muted" style={{ fontSize: 12.5 }}>
+        <span className="muted" style={{ fontSize: 12 }}>
           {t("item.claim")}
         </span>
         {item.claimed_by ? (
           <>
             <ActorChip id={item.claimed_by} actors={actors} />
-            <span className="muted" style={{ fontSize: 11.5 }}>
+            <span className="muted" style={{ fontSize: 11 }}>
               <Ago iso={item.claimed_at!} />
             </span>
             {item.claimed_by === me.id && (
@@ -294,7 +300,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
         />
       </div>
       {item.handoff_note && (
-        <p className="muted" style={{ fontSize: 12.5, fontStyle: "italic" }}>
+        <p className="muted" style={{ fontSize: 12, fontStyle: "italic" }}>
           {t("item.handoffNote")}: {item.handoff_note}
         </p>
       )}
@@ -411,8 +417,8 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
               ))}
             </select>
             <span className="spacer" />
-            <button className="btn primary" disabled={busy || !body.trim()} onClick={() => void sendReply()}>
-              {t("item.reply")}
+            <button className="btn primary" disabled={busy || (!body.trim() && !replyStatus)} onClick={() => void sendReply()}>
+              {body.trim() || !replyStatus ? t("item.reply") : `${t("board.moveTo")}: ${label.status(replyStatus)}`}
             </button>
           </div>
         </div>

@@ -880,7 +880,7 @@ export function MembersPage({ canManage }: { canManage: boolean }) {
           </table>
         </div>
       )}
-      <p className="faint" style={{ fontSize: 12.5, marginTop: 14, maxWidth: "80ch" }}>
+      <p className="faint" style={{ fontSize: 12, marginTop: 14, maxWidth: "80ch" }}>
         {t("hub.rolesHelp")}
       </p>
       {adding && (
@@ -1215,7 +1215,7 @@ function UsageTab() {
               </tbody>
             </table>
           </div>
-          <p className="faint" style={{ fontSize: 12.5, maxWidth: "80ch" }}>
+          <p className="faint" style={{ fontSize: 12, maxWidth: "80ch" }}>
             {t("usage.estimate")}
           </p>
         </>
@@ -1235,7 +1235,7 @@ function Tile({ label, value, sub, small, icon, tone }: { label: string; value: 
         )}
         <div className="label">{label}</div>
       </div>
-      <div className={`value${tone ? ` ${tone}` : ""}`} style={small ? { fontSize: 17, fontWeight: 600 } : undefined}>
+      <div className={`value${tone ? ` ${tone}` : ""}`} style={small ? { fontSize: 16, fontWeight: 600 } : undefined}>
         {value}
       </div>
       {sub && <div className="sub">{sub}</div>}
