@@ -45,6 +45,10 @@ jobs:
       # the smoke test's own "✖ ..." line says which step of the install broke, and on which OS.
       - name: Install smoke test
         shell: bash
+        # A shared runner downloads and unpacks slower than a laptop; what Cortex itself does after the
+        # install has its own, unadjustable budget inside the script.
+        env:
+          SMOKE_LIMIT_MS: "300000"
         run: |
           set -o pipefail
           if npm run smoke 2>&1 | tee smoke.log; then exit 0; fi

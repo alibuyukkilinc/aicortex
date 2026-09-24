@@ -6,7 +6,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const LIMIT_MS = 120_000;
+// Two budgets. The acceptance criterion is about a clean machine: install, init and start inside two
+// minutes. `npm install` on a shared CI runner is network and disk, not Cortex, so that total is
+// adjustable there (SMOKE_LIMIT_MS); what Cortex itself does after the install is not.
+const LIMIT_MS = Number(process.env.SMOKE_LIMIT_MS ?? 120_000);
+const CORTEX_LIMIT_MS = 45_000;
 const repo = resolve(import.meta.dirname, "..");
 const work = mkdtempSync(join(tmpdir(), "cortexboard-smoke-"));
 const app = join(work, "app");
@@ -40,6 +44,7 @@ try {
   execFileSync(process.execPath, ["-e", "require('fs').mkdirSync(process.argv[1])", app]);
   writeFileSync(join(app, "package.json"), JSON.stringify({ name: "smoke-app", private: true }));
   npm(["install", "--no-audit", "--no-fund", tarball], app);
+  const installed = Date.now();
   step("installed into an empty folder");
 
   const init = npm(["exec", "--no", "--", "cortexboard", "init", "--name", "smoke", "--lang", "en", "--branches", "backend,frontend"], app);
@@ -78,9 +83,17 @@ try {
   step("brief, language rule and board OK");
 
   const elapsed = Date.now() - t0;
-  console.log(`\n✔ pack + install + init + start in ${(elapsed / 1000).toFixed(1)} s (limit ${LIMIT_MS / 1000} s)`);
-  if (elapsed > LIMIT_MS) {
-    console.error("✖ Slower than the acceptance limit.");
+  const cortexMs = Date.now() - installed;
+  console.log(
+    `
+✔ pack + install + init + start in ${(elapsed / 1000).toFixed(1)} s (limit ${LIMIT_MS / 1000} s), ` +
+      `of which Cortex's own init + start ${(cortexMs / 1000).toFixed(1)} s (limit ${CORTEX_LIMIT_MS / 1000} s)`,
+  );
+  if (cortexMs > CORTEX_LIMIT_MS) {
+    console.error(`✖ init + start took ${(cortexMs / 1000).toFixed(1)} s, over the ${CORTEX_LIMIT_MS / 1000} s budget.`);
+    process.exitCode = 1;
+  } else if (elapsed > LIMIT_MS) {
+    console.error(`✖ The whole run took ${(elapsed / 1000).toFixed(1)} s, over the ${LIMIT_MS / 1000} s limit (install included).`);
     process.exitCode = 1;
   }
 } catch (e) {

@@ -12,6 +12,11 @@ a terminal, a refusal says who was refused, and the board stops re-reading lists
 
 ### Fixed
 
+- **The install smoke test measures two things apart.** It failed a release on a Windows CI runner for
+  being 3 seconds over two minutes, almost all of it `npm install` downloading. Cortex's own init + start
+  now has its own budget (45 s, not adjustable); the whole-run limit stays 120 s on a developer machine
+  and is raised in CI through `SMOKE_LIMIT_MS`, where the download is the runner's, not ours. Measured
+  here: 15.7 s total, 6.5 s of it Cortex.
 - **Two records written in the same millisecond keep their order.** Ids are ULIDs, but the random part was
   redrawn on every call, so entries sharing a millisecond sorted at random: a report's "newest first" came
   out differently on different machines, and CI caught it on one leg of the matrix. The random part is now
