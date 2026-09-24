@@ -43,9 +43,8 @@ async function main() {
   if (nodeTooOld()) throw new Error(NODE_TOO_OLD_MESSAGE());
   const [cmd, ...rest] = process.argv.slice(2);
   if (cmd === "version" || cmd === "--version" || cmd === "-v") {
-    // dist/cli.js and src/cli.ts both sit one level below package.json.
-    const { readFileSync } = await import("node:fs");
-    console.log((JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string }).version);
+    const { packageVersion } = await import("./util/version.js");
+    console.log(packageVersion());
     return;
   }
   const { values, positionals } = parseArgs({

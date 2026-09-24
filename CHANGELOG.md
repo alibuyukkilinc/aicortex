@@ -5,6 +5,12 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Fixed
+
+- **The MCP server announces the version it ships as.** Its `serverInfo` was pinned to `0.1.0` in the
+  code, so every client (and every MCP log) saw the wrong number. The CLI's `--version` and the MCP
+  handshake now read the same `package.json`.
+
 ### Performance
 
 - **The sidebar badges cost one small request.** The three numbers next to Notifications, Approvals and

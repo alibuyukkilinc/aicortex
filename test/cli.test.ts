@@ -130,7 +130,10 @@ test("cli: `mcp` speaks MCP over stdio and lists the tools", async () => {
       method: "initialize",
       params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "cli-test", version: "1" } },
     });
-    assert.ok((await reply(1)).result?.serverInfo, "handshake answered");
+    const info = (await reply(1)).result?.serverInfo as { name?: string; version?: string } | undefined;
+    assert.ok(info, "handshake answered");
+    // The server announces the version it ships as, not a number left behind in the code.
+    assert.equal(info?.version, JSON.parse(readFileSync("package.json", "utf8")).version);
     send({ jsonrpc: "2.0", method: "notifications/initialized" });
     send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
     const tools = (await reply(2)).result?.tools?.map((t) => t.name) ?? [];

@@ -6,6 +6,7 @@ import type { ActivityInput } from "../core/activity.js";
 import type { ClaimInput, CreateItemInput, ReplyInput, UpdateItemInput } from "../core/items.js";
 import type { DocKind } from "../index/db.js";
 import type { McpApi } from "./client.js";
+import { packageVersion } from "../util/version.js";
 import { isSafeImage, isText, mediaType } from "../store/attachments.js";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // what an AI client comfortably takes as one image
@@ -33,7 +34,7 @@ const path = (p: string) => (p ? `/${p.split("/").map(encodeURIComponent).join("
 export function buildMcpServer(api: McpApi): McpServer {
   const get = (p: string, q?: Record<string, unknown>) => api.call("GET", p, { query: q });
   const server = new McpServer(
-    { name: "cortex", version: "0.1.0" },
+    { name: "cortex", version: packageVersion() },
     {
       instructions:
         `Cortex is the shared brain of ${api.where}. Call cortex_brief first, then cortex_inbox. Navigate with cortex_tree (summaries only), ` +
