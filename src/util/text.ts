@@ -44,6 +44,12 @@ export function shorten(text: string, max: number): string {
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 // ULID: time-sortable, collision-safe ids so parallel writers never clash in git.
+// Monotonic inside a millisecond: the random part is incremented instead of redrawn, so ids sort in the
+// order they were made. Without it, two entries written in the same millisecond (a fast machine logging
+// twice) sorted at random, and a report's "newest first" came out in a different order on each machine.
+let lastMs = -1;
+let lastRand: number[] = [];
+
 export function ulid(now = Date.now()): string {
   let time = "";
   let t = now;
@@ -51,10 +57,19 @@ export function ulid(now = Date.now()): string {
     time = CROCKFORD[t % 32] + time;
     t = Math.floor(t / 32);
   }
-  const bytes = randomBytes(16);
-  let rand = "";
-  for (let i = 0; i < 16; i++) rand += CROCKFORD[bytes[i] % 32];
-  return time + rand;
+  if (now === lastMs) {
+    for (let i = lastRand.length - 1; i >= 0; i--) {
+      if (lastRand[i] < 31) {
+        lastRand[i]++;
+        break;
+      }
+      lastRand[i] = 0; // carry; 32^16 ids in one millisecond is not a real case
+    }
+  } else {
+    lastMs = now;
+    lastRand = [...randomBytes(16)].map((b) => b % 32);
+  }
+  return time + lastRand.map((i) => CROCKFORD[i]).join("");
 }
 
 export function shortHash(input: string): string {

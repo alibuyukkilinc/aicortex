@@ -6,7 +6,7 @@ import { initProject } from "../src/core/init.js";
 import { Cortex } from "../src/core/cortex.js";
 import { loadProject } from "../src/core/project.js";
 import type { CortexError } from "../src/core/types.js";
-import { estimateTokens } from "../src/util/text.js";
+import { estimateTokens, ulid } from "../src/util/text.js";
 import { tempProject } from "./helpers.js";
 
 const code = (fn: () => unknown) => {
@@ -17,6 +17,17 @@ const code = (fn: () => unknown) => {
   }
   return "no_error";
 };
+
+test("ids made in the same millisecond still sort in the order they were made", () => {
+  const now = Date.now();
+  const sameMs = Array.from({ length: 50 }, () => ulid(now));
+  assert.deepEqual(sameMs, [...sameMs].sort(), 'a report\'s "newest first" must not depend on the machine');
+  assert.equal(new Set(sameMs).size, 50);
+  assert.ok(ulid(now) < ulid(now + 1), "later milliseconds still sort later");
+
+  const burst = Array.from({ length: 2000 }, () => ulid());
+  assert.deepEqual(burst, [...burst].sort());
+});
 
 test("init creates the layout, default branches and git-ignored secrets", () => {
   const t = tempProject();

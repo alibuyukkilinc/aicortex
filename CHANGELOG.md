@@ -10,6 +10,13 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 Connecting an AI agent to a team server, without the board getting in the way: access can be granted from
 a terminal, a refusal says who was refused, and the board stops re-reading lists it only wanted to count.
 
+### Fixed
+
+- **Two records written in the same millisecond keep their order.** Ids are ULIDs, but the random part was
+  redrawn on every call, so entries sharing a millisecond sorted at random: a report's "newest first" came
+  out differently on different machines, and CI caught it on one leg of the matrix. The random part is now
+  incremented inside a millisecond, the way the ULID spec describes.
+
 ### Added
 
 - **`cortexboard hub member <project> <who>`** gives a person or an AI agent access to a project from the
