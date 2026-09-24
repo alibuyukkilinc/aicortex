@@ -76,7 +76,7 @@ function SearchMode({ data }: { data: SearchResponse }) {
   }
   return (
     <p>
-      {t("search.keywordOnly")} <code>npx aicortex semantic on</code>
+      {t("search.keywordOnly")} <code>npx cortexboard semantic on</code>
     </p>
   );
 }

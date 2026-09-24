@@ -61,7 +61,7 @@ function ensureMergeRule(dir: string): void {
 export function loadProject(start?: string): Project {
   const root = findProjectRoot(start);
   if (!root) {
-    throw new CortexError("not_initialized", "No .cortex folder found. Run `npx aicortex init` first.", 404);
+    throw new CortexError("not_initialized", "No .cortex folder found. Run `npx cortexboard init` first.", 404);
   }
   const dir = join(root, CORTEX_DIR);
   ensureMergeRule(dir);

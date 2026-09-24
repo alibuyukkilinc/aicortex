@@ -1,5 +1,5 @@
 {
-  "name": "aicortex",
+  "name": "cortexboard",
   "version": "0.2.0",
   "description": "Shared project brain for humans and AIs: knowledge tree, board, decisions and AI activity in one place.",
   "author": "alibuyukkilinc",
@@ -63,7 +63,7 @@
   },
   "bin": {
     "cortex": "dist/cli.js",
-    "aicortex": "dist/cli.js"
+    "cortexboard": "dist/cli.js"
   },
   "files": [
     "dist",

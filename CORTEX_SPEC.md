@@ -2,7 +2,7 @@
 
 > Bu dosya Cortex'in **ana spesifikasyonudur** ve kodla uyumlu tutulur. Bir AI'a veya geliştiriciye verildiğinde sistemi sıfırdan kurabilecek kadar net olmalıdır.
 > Ayrıntılı ve güncel proje bilgisi (hangi dosya ne yapar, neden böyle karar verdik) Cortex'in kendi bilgi ağacındadır: `.cortex/`.
-> Durum: v1 tamam (6 dilim) · Paket: `aicortex` · Lisans: MIT · Dil: kod/API İngilizce; arayüz ve README İngilizce + Türkçe; projeye yazılan içerik projenin seçtiği dilde
+> Durum: v1 tamam (6 dilim) · Paket: `cortexboard` · Lisans: MIT · Dil: kod/API İngilizce; arayüz ve README İngilizce + Türkçe; projeye yazılan içerik projenin seçtiği dilde
 
 ---
 
@@ -18,7 +18,7 @@ Bugün AI ile yazılım geliştirirken:
 ## 2. Temel ilkeler (pazarlık dışı)
 
 1. **Token dostu:** AI hiçbir zaman "her şeyi" çekmez. Önce özet alır, sonra ihtiyaç duyduğu dala iner (kademeli yükleme). Sistemin kendisi hiçbir LLM çağrısı yapmaz.
-2. **Tek komutla ayağa kalkar:** `npx aicortex init` ve `npx aicortex start` yeterlidir. Harici veritabanı, Docker veya API anahtarı gerekmez.
+2. **Tek komutla ayağa kalkar:** `npx cortexboard init` ve `npx cortexboard start` yeterlidir. Harici veritabanı, Docker veya API anahtarı gerekmez.
 3. **Git dostu:** Veri projenin içindeki `.cortex/` klasöründe, okunabilir dosyalar olarak durur. Git ile versiyonlanır, diff alınır, merge edilir.
 4. **Kontrol insanda:** Kuralları, şemaları, yazım dilini ve onay politikalarını insan belirler. AI'ın kritik değişiklikleri onaya düşer.
 5. **Şeffaflık:** AI'ın her anlamlı eylemi (ne, neden, hangi dosya, hangi commit) kaydedilir ve insan tarafından sorgulanabilir.
@@ -29,11 +29,11 @@ Bugün AI ile yazılım geliştirirken:
 
 | Katman | Seçim | Not |
 |---|---|---|
-| Çalışma ortamı | Node.js ≥ 22.16 (TypeScript; yerleşik SQLite FTS5 ile ilk bu sürümde geliyor) | `npx aicortex` ile dağıtım; komut `cortex` adıyla da gelir |
+| Çalışma ortamı | Node.js ≥ 22.16 (TypeScript; yerleşik SQLite FTS5 ile ilk bu sürümde geliyor) | `npx cortexboard` ile dağıtım; komut `cortex` adıyla da gelir |
 | HTTP API | Fastify | Yalnızca 127.0.0.1 |
 | MCP | `@modelcontextprotocol/sdk` | stdio |
 | İndeks | Node'un yerleşik `node:sqlite` modülü + FTS5 | **Yeniden üretilebilir önbellektir**, git'e girmez. Yerel derleme gerektiren paket yok |
-| Anlamla arama | `@huggingface/transformers` + `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (q8) | İsteğe bağlı: `aicortex semantic on` bilgisayar başına bir kez `~/.cortex` altına kurar. Vektörler SQLite'ta saklanır, arama bellekte çarpım taramasıdır |
+| Anlamla arama | `@huggingface/transformers` + `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (q8) | İsteğe bağlı: `cortexboard semantic on` bilgisayar başına bir kez `~/.cortex` altına kurar. Vektörler SQLite'ta saklanır, arama bellekte çarpım taramasıdır |
 | Web pano | React + Vite | Derlenmiş hâli pakete gömülü gelir |
 | Dosya formatı | Markdown + YAML frontmatter, aktivite için JSONL | İnsan okuyabilir, diff alınabilir |
 | Kimlik | ULID | Paralel yazımda çakışma olmaz |
@@ -233,9 +233,9 @@ GET    /api/events                 (panonun canlı güncelleme akışı, SSE)
 
 ### 12.2 MCP sunucusu
 Aynı çekirdeğin ince bir sarmalayıcısıdır: `cortex_brief`, `cortex_tree`, `cortex_node`, `cortex_search`, `cortex_code_context`, `cortex_verify_node`, `cortex_update_node`, `cortex_rules`, `cortex_inbox`, `cortex_items`, `cortex_item`, `cortex_create_item`, `cortex_update_item`, `cortex_reply`, `cortex_ask`, `cortex_log_activity`, `cortex_activity`, `cortex_report`.
-Kurulum: `npx aicortex mcp --actor ai-agent` (stdio). Örnek: `claude mcp add cortex -- npx aicortex mcp --actor ai-agent`.
+Kurulum: `npx cortexboard mcp --actor ai-agent` (stdio). Örnek: `claude mcp add cortex -- npx cortexboard mcp --actor ai-agent`.
 Merkezde ayrıca HTTP ucu vardır: `POST <url>/mcp/p/<proje>`, `Authorization: Bearer <ajan tokenı>` (durumsuz JSON-RPC). Bu bilgisayarda çalışmayan AI'lar (ör. ChatGPT) böyle bağlanır; token, rol ve görünürlük REST ile aynı boru hattından geçer.
-Ekip sunucusundaki bir proje için: `npx aicortex mcp --hub <url> --project <id> --token <ajan tokenı>` (ya da `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN`). Araçlar birebir aynıdır: MCP araçları proje REST API'sini konuşur (yerelde süreç içinde, merkezde HTTP ile), böylece kurallar, rol ve görünürlük iki yolda da aynen uygulanır.
+Ekip sunucusundaki bir proje için: `npx cortexboard mcp --hub <url> --project <id> --token <ajan tokenı>` (ya da `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN`). Araçlar birebir aynıdır: MCP araçları proje REST API'sini konuşur (yerelde süreç içinde, merkezde HTTP ile), böylece kurallar, rol ve görünürlük iki yolda da aynen uygulanır.
 
 ### 12.3 Web pano (`http://localhost:4747`)
 - **Bildirimler:** seni bekleyen her şey sayıyla ve düz cümleyle: işi durduran sorular, sana atananlar, grubunu bekleyenler, cevaplanan soruların, yeni yanıtlar, onay bekleyen kararlar ve taslaklar, eskimiş olabilecek bilgi.
@@ -251,14 +251,14 @@ Ekip sunucusundaki bir proje için: `npx aicortex mcp --hub <url> --project <id>
 ## 13. İlk kurulum akışı
 
 ```bash
-npx aicortex init      # .cortex/ oluşturur: dalları sorar, varsayılan kuralları koyar
-npx aicortex start     # API + pano + dosya izleyici
+npx cortexboard init      # .cortex/ oluşturur: dalları sorar, varsayılan kuralları koyar
+npx cortexboard start     # API + pano + dosya izleyici
 ```
 - `init` seçenekleri: `--lang tr` (AI'ların yazım dili; varsayılan bilgisayarın dili), `--branches backend,frontend,odeme` (terminalde sormadan dal seçimi; şablon: backend, frontend, server, mobile, security, seo, code-structure; yeni adlar da kabul edilir), `--agent-files`. Rapor saat dilimi bilgisayardan alınıp `cortex.config.yaml`'a yazılır.
 
 `init` sonrasında:
 1. Mevcut `.md` dosyaları (README, docs/, CLAUDE.md vb.) taranır ve "içe aktarım adayları" olarak listelenir.
-2. `aicortex bootstrap`, kullanıcının kendi AI'ına verilecek hazır bir görev yazdırır: "Projeyi tara, ağacı kur, her dala özet yaz, kararları çıkar, çelişkileri soru olarak aç." Görev yazım dilini de söyler. AI bu görevi API/MCP üzerinden yapar; bilgi yazımları taslak olarak düşer.
+2. `cortexboard bootstrap`, kullanıcının kendi AI'ına verilecek hazır bir görev yazdırır: "Projeyi tara, ağacı kur, her dala özet yaz, kararları çıkar, çelişkileri soru olarak aç." Görev yazım dilini de söyler. AI bu görevi API/MCP üzerinden yapar; bilgi yazımları taslak olarak düşer.
 3. İnsan panelden (toplu) onaylar. Uymayan dalları siler.
 4. `--agent-files` verilmişse projedeki mevcut `CLAUDE.md` veya `AGENTS.md` dosyasına **tek bir kısa blok** eklenir: "Bu projede bilgi kaynağı Cortex'tir. Oturum başında `cortex_brief` çağır, değişiklikten önce `cortex_search` yap, değişiklikten sonra `cortex_log_activity` gönder." Bundan sonra `.md` dosyalarında doküman güncellenmez.
 
@@ -275,11 +275,11 @@ npx aicortex start     # API + pano + dosya izleyici
 
 - Dönem: `7d`, `30d`, `90d`, `2w` veya tarih aralığı; en fazla 366 gün. Göreli dönemler **projenin saat diliminde** takvim gününe hizalıdır ("7 gün" = bugün + önceki 6 gün). Saat dilimi `cortex.config.yaml` → `timezone` (ör. `Europe/Istanbul`); yoksa UTC.
 - İçerik: AI ve insan aktivitesi (günlük), AI'ın gerekçeli/gerekçesiz değişiklikleri, açılan/kapanan kayıtlar, soruların cevaplanma süresi, kararlar, AI taslak onay oranı (güven göstergesi), issue yaşı, bekleyen onaylar, eskimiş ve belgelenmemiş bilgi, aktör bazında tablo.
-- Hepsi sayılarak hesaplanır, LLM yok. Erişim: pano (grafikler + tablo görünümü), REST (JSON veya TR/EN markdown), MCP `cortex_report`, CLI `aicortex report`.
+- Hepsi sayılarak hesaplanır, LLM yok. Erişim: pano (grafikler + tablo görünümü), REST (JSON veya TR/EN markdown), MCP `cortex_report`, CLI `cortexboard report`.
 
 ## 16. Ekip sunucusu (hub)
 
-Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (tek proje, yalnızca localhost) olduğu gibi kalır.
+Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `cortexboard start` (tek proje, yalnızca localhost) olduğu gibi kalır.
 
 - **Veri:** Her projenin bilgisi kendi reposundaki `.cortex/` klasöründe kalır (git dostu ilke korunur). Merkez (`~/.cortex/hub`, hiçbir repoya girmez) SQLite'ta yalnızca kişileri, şifre özetlerini (scrypt), oturumları, tek kullanımlık davetleri, AI ajanlarını (token özetleri), kayıtlı proje klasörlerini ve proje üyeliklerini tutar.
 - **Giriş:** Kişiler e-posta + şifre (en az 10 karakter). Yönetici kişiyi ekler, sistem 48 saat geçerli tek kullanımlık bir davet bağlantısı üretir; kişi şifresini kendisi belirler. Aynı bağlantı şifre sıfırlama için de kullanılır ve diğer oturumları kapatır. Oturum çerezi httpOnly, SameSite=Lax; Secure bayrağı `cookie_secure` ayarıyla, verilmezse hub yalnızca loopback'te dinlemiyorsa açık (vekil arkasında `trust_proxy: true` ile `x-forwarded-proto: https` de sayılır); yazımlar CSRF başlığı ister. Aynı adres ve e-postadan 15 dakikada 10 hatalı şifre, aynı adresten 10 hatalı ajan token'ı (REST ve MCP) ya da 20 geçersiz davet bağlantısından sonra o kapı 15 dakika kapanır. `allowed_hosts` tanımlıysa listenin kendisidir; localhost için ayrıca istisna yoktur.
@@ -287,8 +287,8 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (
 - **Roller (proje başına):** İnsanlar için Sahip, Yönetici (her şey), Üye (kayıt ve bilgi yazar, taslak onaylar), İzleyici (okur, soru sorar ve cevaplar). AI için Okuyucu (okur), Katkıcı (kayıt yazar, bilgi yazımları taslağa düşer), Güvenilir (bilgiye doğrudan yazar). AI hiçbir rolde onaylayamaz, kural değiştiremez, üye yönetemez. Organizasyon yöneticileri her projede Sahip sayılır; projenin son sahibi çıkarılamaz, sahipliği yalnızca sahipler değiştirir.
 - **Görünürlük:** Her üyelik "her şeyi" ya da "yalnızca kendi kayıtlarını" (yazdığı, kendisine veya grubuna atanan) görür; isteğe bağlı dal kısıtı (ör. yalnızca `frontend`) bilgi ağacını, düğümleri, kayıtları, aramayı, aktiviteyi, gelen kutusunu, brief'i ve canlı olayları süzer. Gizli olan 404 döner; kısmi görünüm proje raporu alamaz.
 - **Web:** `/` projelerim, `/admin` organizasyon (kişiler, AI ajanları, projeler), `/p/<proje>/` proje panosu (proje değiştirici, Üyeler sayfası), `/invite/<token>` şifre belirleme.
-- **AI bağlantısı:** `aicortex mcp --hub <url> --project <id> --token <t>`; MCP araçları merkezdeki proje API'sini kullanır, rol ve görünürlük aynen geçerlidir.
-- **Komutlar:** `aicortex hub init | start | add-project <klasör> | invite <e-posta>`. İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılır ve `public_url` https adrese ayarlanır.
+- **AI bağlantısı:** `cortexboard mcp --hub <url> --project <id> --token <t>`; MCP araçları merkezdeki proje API'sini kullanır, rol ve görünürlük aynen geçerlidir.
+- **Komutlar:** `cortexboard hub init | start | add-project <klasör> | invite <e-posta>`. İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılır ve `public_url` https adrese ayarlanır.
 
 ## 17. Kapsam
 
@@ -305,7 +305,7 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (
 
 ## 18. Kabul kriterleri (v1 "bitti" sayılır, eğer)
 
-- [ ] Temiz bir Windows, macOS ve Linux makinede, yalnızca Node kuruluyken `npx aicortex init && npx aicortex start` 2 dakikadan kısa sürede çalışıyorsa — *CI ile doğrulanacak*
+- [ ] Temiz bir Windows, macOS ve Linux makinede, yalnızca Node kuruluyken `npx cortexboard init && npx cortexboard start` 2 dakikadan kısa sürede çalışıyorsa — *CI ile doğrulanacak*
 - [x] `brief` cevabı örnek bir projede 800 tokenin altında kalıyorsa — *testle korunuyor, 30 taslakla bile*
 - [x] Hibrit arama Türkçe ve İngilizce sorgularda ilgili düğümü ilk 3 sonuçta getiriyorsa — *sahte (deterministik) modelle test ediliyor*
 - [x] Şemaya aykırı bir yazım, ihlal edilen kural ve doğru örnekle reddediliyorsa
@@ -317,5 +317,5 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `aicortex start` (
 
 ## 19. Açık sorular
 
-- Komut adı: paket `aicortex`, komut hem `aicortex` hem `cortex`. Global kurulumda `cortex` başka bir araçla çakışabilir; kısa adı tutmaya devam edelim mi?
+- Komut adı: paket `cortexboard`, komut hem `cortexboard` hem `cortex`. Global kurulumda `cortex` başka bir araçla çakışabilir; kısa adı tutmaya devam edelim mi?
 - Sürümleme ve yayın süreci (değişiklik günlüğü, npm yayın yetkisi) henüz belirlenmedi.

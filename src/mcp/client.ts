@@ -30,7 +30,7 @@ function fail(status: number, payload: unknown): never {
   throw new CortexError(e?.code ?? "error", e?.message ?? `Request failed (${status}).`, status, e?.hint);
 }
 
-// Same process: no network, no token. Used by `aicortex mcp` inside a project.
+// Same process: no network, no token. Used by `cortexboard mcp` inside a project.
 export async function localApi(cortex: Cortex, actor: Actor): Promise<McpApi> {
   const app = Fastify({ logger: false });
   app.decorateRequest("cortex", null as unknown as Cortex);

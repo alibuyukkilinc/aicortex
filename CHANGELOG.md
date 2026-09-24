@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `aicortex`. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+All notable changes to `cortexboard`. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [semantic versioning](https://semver.org/) (while it is 0.x, a minor version may change behaviour).
 
 ## [Unreleased]
@@ -14,6 +14,9 @@ was measured, by how much.
 
 ### Changed
 
+- **The package is published as `cortexboard`.** The working name `aicortex` (never published) is
+  refused by the registry: npm compares names with punctuation removed, and `ai-cortex` already exists.
+  The command is still `cortex`, and `cortexboard` runs the same binary.
 - **Accepted decisions no longer count as open work.** They were settled but kept showing up in open-item
   counts, branch counters, the inbox and reports. A schema can now mark statuses as `resolved`
   (decisions: `accepted`); `accepted → superseded` stays allowed. On this repository: open items 19 → 6,

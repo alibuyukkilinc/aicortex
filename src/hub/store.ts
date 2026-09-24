@@ -68,7 +68,7 @@ export class HubStore {
   settings: HubSettings;
 
   constructor(readonly dir: string) {
-    if (!existsSync(join(dir, "hub.yaml"))) throw new CortexError("hub_not_initialized", `No hub in ${dir}. Run \`aicortex hub init\` first.`, 404);
+    if (!existsSync(join(dir, "hub.yaml"))) throw new CortexError("hub_not_initialized", `No hub in ${dir}. Run \`cortexboard hub init\` first.`, 404);
     this.settings = YAML.parse(readFileSync(join(dir, "hub.yaml"), "utf8")) as HubSettings;
     this.db = new DatabaseSync(join(dir, "hub.db"));
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");

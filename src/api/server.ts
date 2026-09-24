@@ -138,7 +138,7 @@ export function buildServer(cortex: Cortex): FastifyInstance {
       return reply
         .code(401)
         .type("text/html")
-        .send(page("Login link expired or invalid", "Run <code>npx aicortex login</code> in your project for a fresh link."));
+        .send(page("Login link expired or invalid", "Run <code>npx cortexboard login</code> in your project for a fresh link."));
     }
     // The cookie is a session key, never the API token: logging out (or `cortex logout`) really ends it.
     reply.setCookie(SESSION_COOKIE, sessions.create(actor.id), cookieOpts);

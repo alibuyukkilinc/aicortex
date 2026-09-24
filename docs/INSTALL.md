@@ -39,7 +39,7 @@ check `node -v`. It comes with `npm` and `npx`, which is all Cortex needs.
 | | **A. One project, your computer** | **B. Team server (hub)** |
 |---|---|---|
 | For | One person (and their AIs) on one or more repositories | A team: several people, several projects, AI agents |
-| Start with | `npx aicortex init` then `npx aicortex start` | `npx aicortex hub init` then `npx aicortex hub start` |
+| Start with | `npx cortexboard init` then `npx cortexboard start` | `npx cortexboard hub init` then `npx cortexboard hub start` |
 | Who can reach it | Only this computer (localhost) | Anyone you invite, over HTTPS |
 | Sign-in | A one-time link printed in the terminal, no password | Email + password (invite link), AI agents with tokens |
 | Roles | You (human) and your AI | Owner, Admin, Member, Viewer; AI Reader, Contributor, Trusted; per project |
@@ -49,14 +49,14 @@ check `node -v`. It comes with `npm` and `npx`, which is all Cortex needs.
 Start with **A**. You can move a project to a hub later without changing anything in it: the hub just
 registers the folder.
 
-**Running the commands: three ways.** All examples use `npx aicortex …`, which downloads the package on
+**Running the commands: three ways.** All examples use `npx cortexboard …`, which downloads the package on
 first use and needs no install. If you prefer:
 
 | | Command | When |
 |---|---|---|
-| `npx` (default) | `npx aicortex start` | Nothing to install; always runs the version you ask for |
-| Global | `npm install -g aicortex`, then `aicortex start` (or `cortex start`) | You use it daily in many projects |
-| Project dependency | `npm install -D aicortex`, then `npx aicortex start` | The whole team gets the same version from `package.json` |
+| `npx` (default) | `npx cortexboard start` | Nothing to install; always runs the version you ask for |
+| Global | `npm install -g cortexboard`, then `cortexboard start` (or `cortex start`) | You use it daily in many projects |
+| Project dependency | `npm install -D cortexboard`, then `npx cortexboard start` | The whole team gets the same version from `package.json` |
 
 ---
 
@@ -67,14 +67,14 @@ first use and needs no install. If you prefer:
 In your project folder:
 
 ```bash
-npx aicortex init
+npx cortexboard init
 ```
 
 It asks which top-level knowledge branches the project needs (backend, frontend, mobile…); press Enter
 for all of them, or answer with numbers and your own names. To skip the question:
 
 ```bash
-npx aicortex init --branches backend,frontend,payments --lang en
+npx cortexboard init --branches backend,frontend,payments --lang en
 ```
 
 `--lang` is the language your AIs will write knowledge in (`en`, `tr`, …; default: your computer's).
@@ -102,21 +102,21 @@ text, readable in any editor and reviewable in pull requests.
 ### 2. Open the board
 
 ```bash
-npx aicortex start
+npx cortexboard start
 ```
 
 It prints the address (`http://localhost:4747`) and a **login link**. Open the link in your browser: you
-are in, no password. The link works for 10 minutes; `npx aicortex login` prints a new one. Keep the
+are in, no password. The link works for 10 minutes; `npx cortexboard login` prints a new one. Keep the
 terminal open while you use the board (Ctrl+C stops it).
 
-Port 4747 taken? `npx aicortex start --port 4800`.
+Port 4747 taken? `npx cortexboard start --port 4800`.
 
 ### 3. Connect your AI and fill the tree
 
 [Connect your AI tool](#connect-your-ai-tool) (next section), then:
 
 ```bash
-npx aicortex bootstrap
+npx cortexboard bootstrap
 ```
 
 It prints a task. Paste it to your AI: it reads the codebase and writes the knowledge tree. Every page it
@@ -131,7 +131,7 @@ project, and asks you in **Notifications** when it is unsure.
 Cortex runs as an **MCP server** that your AI tool starts by itself. The command is always:
 
 ```
-npx aicortex mcp --actor ai-agent
+npx cortexboard mcp --actor ai-agent
 ```
 
 started **in the project folder** (or with `--dir <project folder>` when the tool starts it somewhere
@@ -140,7 +140,7 @@ else). Pick your tool:
 **Claude Code** (in the project folder):
 
 ```bash
-claude mcp add cortex -- npx aicortex mcp --actor ai-agent
+claude mcp add cortex -- npx cortexboard mcp --actor ai-agent
 ```
 
 **Cursor** (`.cursor/mcp.json` in the project) and **any tool that reads `.mcp.json`**:
@@ -148,7 +148,7 @@ claude mcp add cortex -- npx aicortex mcp --actor ai-agent
 ```json
 {
   "mcpServers": {
-    "cortex": { "command": "npx", "args": ["aicortex", "mcp", "--actor", "ai-agent"] }
+    "cortex": { "command": "npx", "args": ["cortexboard", "mcp", "--actor", "ai-agent"] }
   }
 }
 ```
@@ -158,7 +158,7 @@ claude mcp add cortex -- npx aicortex mcp --actor ai-agent
 ```json
 {
   "servers": {
-    "cortex": { "type": "stdio", "command": "npx", "args": ["aicortex", "mcp", "--actor", "ai-agent"] }
+    "cortex": { "type": "stdio", "command": "npx", "args": ["cortexboard", "mcp", "--actor", "ai-agent"] }
   }
 }
 ```
@@ -169,7 +169,7 @@ name the project folder:
 ```json
 {
   "mcpServers": {
-    "cortex": { "command": "npx", "args": ["aicortex", "mcp", "--actor", "ai-agent", "--dir", "C:/code/shop"] }
+    "cortex": { "command": "npx", "args": ["cortexboard", "mcp", "--actor", "ai-agent", "--dir", "C:/code/shop"] }
   }
 }
 ```
@@ -179,13 +179,13 @@ name the project folder:
 ```toml
 [mcp_servers.cortex]
 command = "npx"
-args = ["aicortex", "mcp", "--actor", "ai-agent", "--dir", "/home/me/code/shop"]
+args = ["cortexboard", "mcp", "--actor", "ai-agent", "--dir", "/home/me/code/shop"]
 ```
 
 > **Windows and `npx`:** if a tool says it cannot find `npx`, use `"command": "cmd"` and put
 > `"/c", "npx"` at the start of `args`.
 
-To help the AI use it well, `npx aicortex init --agent-files` adds a short Cortex section to an existing
+To help the AI use it well, `npx cortexboard init --agent-files` adds a short Cortex section to an existing
 `CLAUDE.md` / `AGENTS.md`. Check it works: ask your AI to *"call cortex_brief"*. It should answer with the
 project summary and branches.
 
@@ -202,7 +202,7 @@ knowledge in its own repository; the hub reads those folders.
 ### 1. Create the hub (on the server)
 
 ```bash
-npx aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" --public-url https://cortex.acme.com
+npx cortexboard hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" --public-url https://cortex.acme.com
 ```
 
 It stores its data in `~/.cortex/hub` (change with `--dir` or `CORTEX_HUB`): people, password hashes,
@@ -214,8 +214,8 @@ password (valid 48 hours).
 The server needs a checkout of each repository. Then:
 
 ```bash
-npx aicortex hub add-project /srv/repos/shop            # already has .cortex/
-npx aicortex hub add-project /srv/repos/blog --init     # creates .cortex/ first
+npx cortexboard hub add-project /srv/repos/shop            # already has .cortex/
+npx cortexboard hub add-project /srv/repos/blog --init     # creates .cortex/ first
 ```
 
 or on the board: **Organization → Projects → Add project**.
@@ -243,7 +243,7 @@ allowed_hosts: [cortex.acme.com]  # answer only to this name
 Start it (keep it running with systemd, pm2 or your platform's service manager):
 
 ```bash
-npx aicortex hub start            # listens on 127.0.0.1:4747
+npx cortexboard hub start            # listens on 127.0.0.1:4747
 ```
 
 <details>
@@ -257,7 +257,7 @@ After=network.target
 
 [Service]
 User=cortex
-ExecStart=/usr/bin/npx --yes aicortex@0.2.0 hub start
+ExecStart=/usr/bin/npx --yes cortexboard@0.2.0 hub start
 Restart=on-failure
 
 [Install]
@@ -295,7 +295,7 @@ On the board, **Organization**:
 On a developer's machine (the tool starts it; no project folder needed):
 
 ```bash
-claude mcp add cortex -- npx aicortex mcp --hub https://cortex.acme.com --project shop --token <agent token>
+claude mcp add cortex -- npx cortexboard mcp --hub https://cortex.acme.com --project shop --token <agent token>
 ```
 
 or with environment variables `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN`. An AI that does not run
@@ -311,7 +311,7 @@ Keyword search works out of the box and understands Turkish characters. To also 
 **meaning** (across languages), run once per machine:
 
 ```bash
-npx aicortex semantic on
+npx cortexboard semantic on
 ```
 
 It downloads a local model (~420 MB, once, under `~/.cortex`, shared by every project). Nothing leaves
@@ -322,8 +322,8 @@ your machine. `semantic status` shows progress, `semantic off` turns it off.
 ## Upgrading
 
 ```bash
-npx aicortex@latest start      # npx: just ask for the new version
-npm install -g aicortex@latest # global install
+npx cortexboard@latest start      # npx: just ask for the new version
+npm install -g cortexboard@latest # global install
 ```
 
 Your `.cortex/` folder is plain files and is read by every version; the search cache rebuilds itself
@@ -339,19 +339,19 @@ once to `.cortex/.gitattributes` (commit it).
 |---|---|
 | `Cortex needs Node.js 22.16 or newer` | Install the current LTS from nodejs.org, open a new terminal. |
 | `No .cortex folder found` | Run the command inside the project folder, or pass `--dir <project folder>`. |
-| `address already in use` / port taken | `npx aicortex start --port 4800` |
-| The login link says expired | `npx aicortex login` prints a fresh one (10 minutes). |
+| `address already in use` / port taken | `npx cortexboard start --port 4800` |
+| The login link says expired | `npx cortexboard login` prints a fresh one (10 minutes). |
 | The board opens but says "open the board from the terminal" | Your sign-in ended; use a new login link. |
 | The AI tool shows no `cortex_*` tools | Restart the tool after adding the server; check the command runs by hand in the project folder. On Windows try the `cmd /c npx` form. |
 | "Stale knowledge" never appears | The project is not a git repository, or the change is not committed yet (only commits count). |
 | Hub sign-in does not stick over plain http | Expected: use HTTPS (see [Setup B](#3-run-it-behind-https)). |
-| Anything else | `npx aicortex --version`, then open an issue with what you ran and what you saw. |
+| Anything else | `npx cortexboard --version`, then open an issue with what you ran and what you saw. |
 
 ---
 
 ## Removing Cortex
 
 - Remove the MCP entry from your AI tool (`claude mcp remove cortex`, or delete it from the JSON).
-- `npm uninstall -g aicortex` if you installed it globally.
+- `npm uninstall -g cortexboard` if you installed it globally.
 - `.cortex/` is **your project's knowledge**; delete it only if you really want it gone (it stays in git
   history). `~/.cortex/` holds the optional search model and, on a server, the hub's data.

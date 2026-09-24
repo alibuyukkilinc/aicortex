@@ -19,8 +19,8 @@ export function Guide() {
   const origin = location.origin;
 
   const mcpCommand = hub
-    ? `claude mcp add cortex -- npx aicortex mcp --hub ${origin} --project ${project} --token <TOKEN>`
-    : "claude mcp add cortex -- npx aicortex mcp --actor ai-agent";
+    ? `claude mcp add cortex -- npx cortexboard mcp --hub ${origin} --project ${project} --token <TOKEN>`
+    : "claude mcp add cortex -- npx cortexboard mcp --actor ai-agent";
 
   return (
     <div className="guide">

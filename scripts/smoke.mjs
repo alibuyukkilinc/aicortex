@@ -1,6 +1,6 @@
 // Install smoke test: the spec's "a clean machine with only Node runs init + start in under 2 minutes".
 // Packs this repo (run `npm run build` first), installs the tarball into an empty folder, then runs
-// `aicortex init` through the npm bin shim and `aicortex start`, and checks the API, the brief and the board.
+// `cortexboard init` through the npm bin shim and `cortexboard start`, and checks the API, the brief and the board.
 import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,7 +8,7 @@ import { join, resolve } from "node:path";
 
 const LIMIT_MS = 120_000;
 const repo = resolve(import.meta.dirname, "..");
-const work = mkdtempSync(join(tmpdir(), "aicortex-smoke-"));
+const work = mkdtempSync(join(tmpdir(), "cortexboard-smoke-"));
 const app = join(work, "app");
 const t0 = Date.now();
 const step = (msg) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${msg}`);
@@ -42,13 +42,16 @@ try {
   npm(["install", "--no-audit", "--no-fund", tarball], app);
   step("installed into an empty folder");
 
-  const init = npm(["exec", "--no", "--", "aicortex", "init", "--name", "smoke", "--lang", "en", "--branches", "backend,frontend"], app);
+  const init = npm(["exec", "--no", "--", "cortexboard", "init", "--name", "smoke", "--lang", "en", "--branches", "backend,frontend"], app);
   if (!init.includes("Cortex initialized")) throw new Error(`init did not report success:\n${init}`);
-  step("aicortex init");
+  step("cortexboard init");
 
   const port = 4800 + Math.floor(Math.random() * 500);
-  const bin = JSON.parse(readFileSync(join(app, "node_modules/aicortex/package.json"), "utf8")).bin.aicortex;
-  server = spawn(process.execPath, [join(app, "node_modules/aicortex", bin), "start", "--port", String(port)], { cwd: app, stdio: ["ignore", "pipe", "pipe"] });
+  const bin = JSON.parse(readFileSync(join(app, "node_modules/cortexboard/package.json"), "utf8")).bin.cortexboard;
+  server = spawn(process.execPath, [join(app, "node_modules/cortexboard", bin), "start", "--port", String(port)], {
+    cwd: app,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   let out = "";
   server.stdout.on("data", (d) => (out += d));
   server.stderr.on("data", (d) => (out += d));
@@ -63,7 +66,7 @@ try {
     if (server.exitCode !== null || i > 300) throw new Error(`The server did not come up:\n${out}`);
     await new Promise((r) => setTimeout(r, 100));
   }
-  step("aicortex start: API is up");
+  step("cortexboard start: API is up");
 
   const token = /owner:\s*(\S+)/.exec(readFileSync(join(app, ".cortex/.secrets.yaml"), "utf8"))[1];
   const brief = await (await fetch(`${base}/api/brief`, { headers: { authorization: `Bearer ${token}` } })).json();

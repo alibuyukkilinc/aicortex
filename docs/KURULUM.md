@@ -39,7 +39,7 @@ Yanında `npm` ve `npx` gelir; Cortex'in ihtiyacı olan bu kadar.
 | | **A. Kendi bilgisayarında tek proje** | **B. Ekip sunucusu (hub)** |
 |---|---|---|
 | Kimin için | Tek kişi (ve AI'ları), bir ya da birkaç repo | Ekip: birden çok kişi, birden çok proje, AI ajanları |
-| Başlangıç | `npx aicortex init`, sonra `npx aicortex start` | `npx aicortex hub init`, sonra `npx aicortex hub start` |
+| Başlangıç | `npx cortexboard init`, sonra `npx cortexboard start` | `npx cortexboard hub init`, sonra `npx cortexboard hub start` |
 | Kim erişir | Yalnızca bu bilgisayar (localhost) | Davet ettiğin herkes, HTTPS üzerinden |
 | Giriş | Terminalin yazdığı tek kullanımlık bağlantı, şifre yok | E-posta + şifre (davet bağlantısı), AI ajanları token ile |
 | Roller | Sen (insan) ve AI'ın | Sahip, Yönetici, Üye, İzleyici; AI Okuyucu, Katkıcı, Güvenilir; proje başına |
@@ -49,14 +49,14 @@ Yanında `npm` ve `npx` gelir; Cortex'in ihtiyacı olan bu kadar.
 **A ile başla.** Bir projeyi sonradan hiçbir şeyini değiştirmeden hub'a taşıyabilirsin: hub yalnızca
 klasörü kaydeder.
 
-**Komutları çalıştırmanın üç yolu.** Örneklerin hepsi `npx aicortex …` kullanır: paketi ilk seferde
+**Komutları çalıştırmanın üç yolu.** Örneklerin hepsi `npx cortexboard …` kullanır: paketi ilk seferde
 indirir, kurulum gerektirmez. İstersen:
 
 | | Komut | Ne zaman |
 |---|---|---|
-| `npx` (varsayılan) | `npx aicortex start` | Hiçbir şey kurulmaz; istediğin sürüm çalışır |
-| Genel kurulum | `npm install -g aicortex`, sonra `aicortex start` (ya da `cortex start`) | Birçok projede her gün kullanıyorsan |
-| Proje bağımlılığı | `npm install -D aicortex`, sonra `npx aicortex start` | Ekibin tamamı `package.json`'dan aynı sürümü alsın |
+| `npx` (varsayılan) | `npx cortexboard start` | Hiçbir şey kurulmaz; istediğin sürüm çalışır |
+| Genel kurulum | `npm install -g cortexboard`, sonra `cortexboard start` (ya da `cortex start`) | Birçok projede her gün kullanıyorsan |
+| Proje bağımlılığı | `npm install -D cortexboard`, sonra `npx cortexboard start` | Ekibin tamamı `package.json`'dan aynı sürümü alsın |
 
 ---
 
@@ -67,14 +67,14 @@ indirir, kurulum gerektirmez. İstersen:
 Proje klasöründe:
 
 ```bash
-npx aicortex init
+npx cortexboard init
 ```
 
 Projenin hangi üst bilgi dallarına ihtiyacı olduğunu sorar (backend, frontend, mobil…); hepsi için Enter'a
 bas ya da numaralarla ve kendi adlarınla cevap ver. Soruyu atlamak için:
 
 ```bash
-npx aicortex init --branches backend,frontend,odeme --lang tr
+npx cortexboard init --branches backend,frontend,odeme --lang tr
 ```
 
 `--lang`, AI'ların bilgiyi hangi dilde yazacağıdır (`tr`, `en`, …; verilmezse bilgisayarının dili).
@@ -102,21 +102,21 @@ metindir; her düzenleyicide okunur, pull request'lerde incelenir.
 ### 2. Panoyu aç
 
 ```bash
-npx aicortex start
+npx cortexboard start
 ```
 
 Adresi (`http://localhost:4747`) ve bir **giriş bağlantısı** yazdırır. Bağlantıyı tarayıcıda aç: şifre
-yok, doğrudan içeridesin. Bağlantı 10 dakika geçerli; `npx aicortex login` yenisini yazar. Panoyu
+yok, doğrudan içeridesin. Bağlantı 10 dakika geçerli; `npx cortexboard login` yenisini yazar. Panoyu
 kullandığın sürece terminal açık kalsın (Ctrl+C durdurur).
 
-4747 portu dolu mu? `npx aicortex start --port 4800`.
+4747 portu dolu mu? `npx cortexboard start --port 4800`.
 
 ### 3. AI'ını bağla ve ağacı doldur
 
 [AI aracını bağla](#ai-aracını-bağla) (sonraki bölüm), sonra:
 
 ```bash
-npx aicortex bootstrap
+npx cortexboard bootstrap
 ```
 
 Bir görev yazdırır. Bunu AI'ına yapıştır: kod tabanını okur ve bilgi ağacını yazar. Yazdığı her sayfa
@@ -131,7 +131,7 @@ sorar.
 Cortex, AI aracının kendisinin başlattığı bir **MCP sunucusu** olarak çalışır. Komut hep aynıdır:
 
 ```
-npx aicortex mcp --actor ai-agent
+npx cortexboard mcp --actor ai-agent
 ```
 
 **proje klasöründe** başlatılır (araç onu başka bir yerde başlatıyorsa `--dir <proje klasörü>` ile).
@@ -140,7 +140,7 @@ Aracını seç:
 **Claude Code** (proje klasöründe):
 
 ```bash
-claude mcp add cortex -- npx aicortex mcp --actor ai-agent
+claude mcp add cortex -- npx cortexboard mcp --actor ai-agent
 ```
 
 **Cursor** (projede `.cursor/mcp.json`) ve **`.mcp.json` okuyan her araç**:
@@ -148,7 +148,7 @@ claude mcp add cortex -- npx aicortex mcp --actor ai-agent
 ```json
 {
   "mcpServers": {
-    "cortex": { "command": "npx", "args": ["aicortex", "mcp", "--actor", "ai-agent"] }
+    "cortex": { "command": "npx", "args": ["cortexboard", "mcp", "--actor", "ai-agent"] }
   }
 }
 ```
@@ -158,7 +158,7 @@ claude mcp add cortex -- npx aicortex mcp --actor ai-agent
 ```json
 {
   "servers": {
-    "cortex": { "type": "stdio", "command": "npx", "args": ["aicortex", "mcp", "--actor", "ai-agent"] }
+    "cortex": { "type": "stdio", "command": "npx", "args": ["cortexboard", "mcp", "--actor", "ai-agent"] }
   }
 }
 ```
@@ -169,7 +169,7 @@ yüzden proje klasörünü yaz:
 ```json
 {
   "mcpServers": {
-    "cortex": { "command": "npx", "args": ["aicortex", "mcp", "--actor", "ai-agent", "--dir", "C:/kod/magaza"] }
+    "cortex": { "command": "npx", "args": ["cortexboard", "mcp", "--actor", "ai-agent", "--dir", "C:/kod/magaza"] }
   }
 }
 ```
@@ -179,13 +179,13 @@ yüzden proje klasörünü yaz:
 ```toml
 [mcp_servers.cortex]
 command = "npx"
-args = ["aicortex", "mcp", "--actor", "ai-agent", "--dir", "/home/ben/kod/magaza"]
+args = ["cortexboard", "mcp", "--actor", "ai-agent", "--dir", "/home/ben/kod/magaza"]
 ```
 
 > **Windows ve `npx`:** bir araç `npx`'i bulamadığını söylerse `"command": "cmd"` yaz ve `args`'ın başına
 > `"/c", "npx"` ekle.
 
-AI'ın Cortex'i iyi kullanması için `npx aicortex init --agent-files`, var olan `CLAUDE.md` / `AGENTS.md`
+AI'ın Cortex'i iyi kullanması için `npx cortexboard init --agent-files`, var olan `CLAUDE.md` / `AGENTS.md`
 dosyasına kısa bir Cortex bölümü ekler. Çalıştığını denemek için AI'ına *"cortex_brief'i çağır"* de; proje
 özetiyle ve dallarla cevap vermeli.
 
@@ -203,7 +203,7 @@ tutar; hub o klasörleri okur.
 ### 1. Hub'ı oluştur (sunucuda)
 
 ```bash
-npx aicortex hub init --org "Acme" --admin-email sen@acme.com --admin-name "Adın" --public-url https://cortex.acme.com
+npx cortexboard hub init --org "Acme" --admin-email sen@acme.com --admin-name "Adın" --public-url https://cortex.acme.com
 ```
 
 Verisini `~/.cortex/hub` altında tutar (`--dir` ya da `CORTEX_HUB` ile değişir): kişiler, şifre özetleri,
@@ -215,8 +215,8 @@ bağlantı yazdırır (48 saat geçerli).
 Sunucuda her reponun bir kopyası olmalı. Sonra:
 
 ```bash
-npx aicortex hub add-project /srv/repos/magaza            # .cortex/ zaten var
-npx aicortex hub add-project /srv/repos/blog --init       # önce .cortex/ oluşturur
+npx cortexboard hub add-project /srv/repos/magaza            # .cortex/ zaten var
+npx cortexboard hub add-project /srv/repos/blog --init       # önce .cortex/ oluşturur
 ```
 
 ya da panoda: **Organizasyon → Projeler → Proje ekle**.
@@ -244,7 +244,7 @@ allowed_hosts: [cortex.acme.com]  # yalnızca bu ada cevap ver
 Başlat (systemd, pm2 ya da platformunun servis yöneticisiyle açık tut):
 
 ```bash
-npx aicortex hub start            # 127.0.0.1:4747'de dinler
+npx cortexboard hub start            # 127.0.0.1:4747'de dinler
 ```
 
 <details>
@@ -258,7 +258,7 @@ After=network.target
 
 [Service]
 User=cortex
-ExecStart=/usr/bin/npx --yes aicortex@0.2.0 hub start
+ExecStart=/usr/bin/npx --yes cortexboard@0.2.0 hub start
 Restart=on-failure
 
 [Install]
@@ -296,7 +296,7 @@ Panoda, **Organizasyon**:
 Bir geliştiricinin bilgisayarında (araç kendisi başlatır; proje klasörü gerekmez):
 
 ```bash
-claude mcp add cortex -- npx aicortex mcp --hub https://cortex.acme.com --project magaza --token <ajan token'ı>
+claude mcp add cortex -- npx cortexboard mcp --hub https://cortex.acme.com --project magaza --token <ajan token'ı>
 ```
 
 ya da `CORTEX_HUB_URL`, `CORTEX_PROJECT`, `CORTEX_TOKEN` ortam değişkenleriyle. Senin makinelerinde
@@ -312,7 +312,7 @@ Kelime araması hazır gelir ve Türkçe harfleri anlar. Bir şeyi **anlamıyla*
 bilgisayar başına bir kez:
 
 ```bash
-npx aicortex semantic on
+npx cortexboard semantic on
 ```
 
 Yerel bir model indirir (~420 MB, bir kez, `~/.cortex` altında, bütün projeler ortak kullanır). Hiçbir şey
@@ -323,8 +323,8 @@ bilgisayarından çıkmaz. `semantic status` durumu gösterir, `semantic off` ka
 ## Güncelleme
 
 ```bash
-npx aicortex@latest start      # npx: yeni sürümü istemen yeterli
-npm install -g aicortex@latest # genel kurulum
+npx cortexboard@latest start      # npx: yeni sürümü istemen yeterli
+npm install -g cortexboard@latest # genel kurulum
 ```
 
 `.cortex/` klasörün düz dosyalardır ve her sürüm onları okur; arama önbelleği biçimi değişince kendini
@@ -340,19 +340,19 @@ eklenir (commit'le).
 |---|---|
 | `Cortex needs Node.js 22.16 or newer` | nodejs.org'dan güncel LTS'yi kur, yeni terminal aç. |
 | `No .cortex folder found` | Komutu proje klasöründe çalıştır ya da `--dir <proje klasörü>` ver. |
-| `address already in use` / port dolu | `npx aicortex start --port 4800` |
-| Giriş bağlantısı süresi dolmuş diyor | `npx aicortex login` yenisini yazar (10 dakika). |
+| `address already in use` / port dolu | `npx cortexboard start --port 4800` |
+| Giriş bağlantısı süresi dolmuş diyor | `npx cortexboard login` yenisini yazar (10 dakika). |
 | Pano açılıyor ama "panoyu terminalden açın" diyor | Oturumun bitmiş; yeni bir giriş bağlantısı kullan. |
 | AI aracında `cortex_*` araçları görünmüyor | Sunucuyu ekledikten sonra aracı yeniden başlat; komutun proje klasöründe elle çalıştığını kontrol et. Windows'ta `cmd /c npx` biçimini dene. |
 | "Eskimiş bilgi" hiç çıkmıyor | Proje bir git deposu değil ya da değişiklik henüz commit'lenmedi (yalnızca commit'ler sayılır). |
 | Hub'a düz http ile giriş tutunmuyor | Beklenen davranış: HTTPS kullan ([Kurulum B](#3-https-arkasında-çalıştır)). |
-| Başka bir şey | `npx aicortex --version`, sonra ne çalıştırdığını ve ne gördüğünü yazarak bir issue aç. |
+| Başka bir şey | `npx cortexboard --version`, sonra ne çalıştırdığını ve ne gördüğünü yazarak bir issue aç. |
 
 ---
 
 ## Cortex'i kaldırmak
 
 - MCP kaydını AI aracından kaldır (`claude mcp remove cortex` ya da JSON'dan sil).
-- Genel kurduysan `npm uninstall -g aicortex`.
+- Genel kurduysan `npm uninstall -g cortexboard`.
 - `.cortex/` **projenin bilgisidir**; gerçekten gitmesini istiyorsan sil (git geçmişinde kalır).
   `~/.cortex/` isteğe bağlı arama modelini ve sunucudaysa hub'ın verisini tutar.

@@ -5,7 +5,7 @@ Knowledge tree, decisions, questions and AI activity in one place, versioned in 
 
 > 🇹🇷 Türkçe açıklama aşağıda · **Kurulum rehberi: [docs/KURULUM.md](docs/KURULUM.md)**
 
-> **Status:** early (v0.2). Package: `aicortex` (the CLI is also available as `cortex`). MIT licensed; contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+> **Status:** early (v0.2). Package: `cortexboard` (the CLI is also available as `cortex`). MIT licensed; contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **New here? The [installation guide](docs/INSTALL.md) walks through everything from installing Node.js to connecting Claude Code, Cursor, VS Code, Claude Desktop or Codex, and explains the two setups (one project on your computer, or a team server).**
 
@@ -20,27 +20,27 @@ Humans stay in control: AI writes to knowledge become **drafts** until a human a
 Requires Node.js 22.16 or newer. Nothing else: no database, no Docker, no API key.
 
 ```bash
-npx aicortex init          # creates .cortex/ in your repo; asks which knowledge branches you need
+npx cortexboard init          # creates .cortex/ in your repo; asks which knowledge branches you need
                              # (--branches backend,frontend --lang tr|en to skip the questions)
-npx aicortex start         # API + web board on http://localhost:4747
+npx cortexboard start         # API + web board on http://localhost:4747
 ```
 
-`start` prints a one-time login link for the board (run `npx aicortex login` for a fresh one). No passwords: the link is signed with your actor token and expires in 10 minutes.
+`start` prints a one-time login link for the board (run `npx cortexboard login` for a fresh one). No passwords: the link is signed with your actor token and expires in 10 minutes.
 
 Connect your AI tool over MCP (Claude Code example; other tools and `--dir` for tools that do not start in your project: [installation guide](docs/INSTALL.md#connect-your-ai-tool)):
 
 ```bash
-claude mcp add cortex -- npx aicortex mcp --actor ai-agent
+claude mcp add cortex -- npx cortexboard mcp --actor ai-agent
 ```
 
-Then fill the tree: `npx aicortex bootstrap` prints a task you hand to your AI.
+Then fill the tree: `npx cortexboard bootstrap` prints a task you hand to your AI.
 
 ### Search by meaning (optional)
 
 Keyword search (Turkish-aware) works out of the box. To also search by **meaning** — so "why were orders confirmed twice?" finds the webhook fix even without shared words, across Turkish and English — run once per machine:
 
 ```bash
-npx aicortex semantic on
+npx cortexboard semantic on
 ```
 
 It installs a local model runtime and a multilingual model (~420 MB, one time, under `~/.cortex`, shared by all projects). Nothing leaves your machine and no tokens are spent. Results are ranked by keyword and meaning together (Reciprocal Rank Fusion); each result says whether it matched by `keyword`, `semantic` or `both`. If the model is missing or fails, search quietly falls back to keywords. `semantic status` shows the state, `semantic off` turns it off; a project can opt out with `search: { semantic: false }` in `cortex.config.yaml`.
@@ -125,9 +125,9 @@ Everything is plain markdown with YAML frontmatter: readable, diffable, mergeabl
 `cortex start` is one project on your own machine. For a team, run the **hub**: one server, many projects, people who sign in with email and password, AI agents with tokens, and roles per project.
 
 ```bash
-npx aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "You" --public-url https://cortex.acme.com
-npx aicortex hub start --host 0.0.0.0     # put it behind HTTPS (reverse proxy)
-npx aicortex hub add-project /srv/repos/shop
+npx cortexboard hub init --org "Acme" --admin-email you@acme.com --admin-name "You" --public-url https://cortex.acme.com
+npx cortexboard hub start --host 0.0.0.0     # put it behind HTTPS (reverse proxy)
+npx cortexboard hub add-project /srv/repos/shop
 ```
 
 `init` prints a link to set your password. Then, on the board (**Organization**): add people (they get a one-time invite link), add AI agents (their token is shown once), register project folders. Each project keeps its knowledge in its own repository's `.cortex/`; the hub (default `~/.cortex/hub`, never committed) holds only people, password hashes, sessions, agents and memberships.
@@ -146,7 +146,7 @@ Every membership also says what the member **sees**: everything, or only their o
 AI agents on a hub connect the same way as anywhere else, over MCP:
 
 ```bash
-claude mcp add cortex -- npx aicortex mcp --hub https://cortex.acme.com --project shop --token <agent token>
+claude mcp add cortex -- npx cortexboard mcp --hub https://cortex.acme.com --project shop --token <agent token>
 ```
 
 The tools are identical to a local project; the agent's role and visibility apply to them. An AI that does not run on the team's machines (ChatGPT, a hosted agent) connects to the same tools over HTTP at `https://cortex.acme.com/mcp/p/<project>` with the agent token as a bearer header. Anything that cannot speak MCP can use the same REST API under `/api/p/<project>/` with `Authorization: Bearer <token>`.
@@ -215,13 +215,13 @@ npm run dev:web        # board with hot reload on :5173, proxied to :4747
 **Kurulum** (yalnızca Node.js 22.16+ gerekir; adım adım rehber, kurulum türleri ve AI araçlarının bağlanması: **[docs/KURULUM.md](docs/KURULUM.md)**):
 
 ```bash
-npx aicortex init
-npx aicortex start
+npx cortexboard init
+npx cortexboard start
 ```
 
-`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx aicortex semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx aicortex bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx cortexboard semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx cortexboard bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
 
-**Ekip için:** `npx aicortex hub init` ile tek sunucuda birden çok proje yönetilir. Kişiler e-posta ve şifreyle, AI ajanları token ile girer; her projede rol (Sahip, Yönetici, Üye, İzleyici; AI için Okuyucu, Katkıcı, Güvenilir) ve görünürlük (her şey / yalnızca kendi kayıtları, isteğe bağlı dal kısıtı) ayrı ayrı verilir. Proje bilgisi yine kendi reposundaki `.cortex/` klasöründe kalır.
+**Ekip için:** `npx cortexboard hub init` ile tek sunucuda birden çok proje yönetilir. Kişiler e-posta ve şifreyle, AI ajanları token ile girer; her projede rol (Sahip, Yönetici, Üye, İzleyici; AI için Okuyucu, Katkıcı, Güvenilir) ve görünürlük (her şey / yalnızca kendi kayıtları, isteğe bağlı dal kısıtı) ayrı ayrı verilir. Proje bilgisi yine kendi reposundaki `.cortex/` klasöründe kalır.
 
 **Eskiyen bilgi:** Bilgi düğümleri koda bağlanır. Bağlı kod (satır aralığı verildiyse yalnızca o satırlar) sonradan bir commit ile değişirse düğüm "eskimiş olabilir" diye işaretlenir; hangi dosyanın, hangi commit ile, kim tarafından değiştiği gösterilir. Bu bilgi git geçmişinden hesaplanır, dosyalarınıza hiçbir şey yazılmaz.
 

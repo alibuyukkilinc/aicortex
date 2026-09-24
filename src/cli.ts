@@ -102,10 +102,10 @@ async function main() {
       }
       console.log(`
 Next steps:
-  1. npx aicortex start                   start the local API on http://localhost:4747
+  1. npx cortexboard start                start the local API on http://localhost:4747
   2. Add the MCP server to your AI tool, e.g. Claude Code:
-       claude mcp add cortex -- npx aicortex mcp --actor ai-agent
-  3. npx aicortex bootstrap               give the printed task to your AI to fill the tree
+       claude mcp add cortex -- npx cortexboard mcp --actor ai-agent
+  3. npx cortexboard bootstrap            give the printed task to your AI to fill the tree
 `);
       if (r.markdownCandidates.length) {
         console.log(`Found ${r.markdownCandidates.length} markdown file(s) the bootstrap task will import.`);
@@ -205,7 +205,7 @@ Next steps:
         console.log(`runtime:          ${rt.runtimeInstalled() ? "installed" : "not installed"}`);
         console.log(`model:            ${rt.MODEL} (${rt.modelDownloaded() ? "downloaded" : "not downloaded"})`);
         console.log(`location:         ${rt.cortexHome()}`);
-        if (!rt.semanticEnabled()) console.log("\nSearch is keyword-only. Turn on meaning-based search with: npx aicortex semantic on");
+        if (!rt.semanticEnabled()) console.log("\nSearch is keyword-only. Turn on meaning-based search with: npx cortexboard semantic on");
         break;
       }
       if (sub === "off") {
@@ -270,7 +270,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
     const email = str("admin-email");
     const name = str("admin-name");
     if (!email || !name)
-      throw new Error('Usage: aicortex hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" [--public-url https://cortex.acme.com]');
+      throw new Error('Usage: cortexboard hub init --org "Acme" --admin-email you@acme.com --admin-name "Your Name" [--public-url https://cortex.acme.com]');
     const port = Number(str("port") ?? 4747);
     const store = HubStore.init(dir, {
       org: str("org") ?? "My organization",
@@ -282,9 +282,9 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
     const url = `${store.settings.public_url ?? `http://localhost:${port}`}/invite/${store.createInvite(admin.id)}`;
     store.close();
     console.log(`✔ Hub created in ${dir} (keep this folder private: it holds password hashes)\n`);
-    console.log(`Start it:            aicortex hub start`);
+    console.log(`Start it:            cortexboard hub start`);
     console.log(`Then set your password (link valid 48 hours):\n  ${url}\n`);
-    console.log(`Add a project:       aicortex hub add-project <folder>   (or from the board: Organization → Projects)`);
+    console.log(`Add a project:       cortexboard hub add-project <folder>   (or from the board: Organization → Projects)`);
     return;
   }
 
@@ -307,7 +307,7 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       return; // keep running
     }
     if (sub === "add-project") {
-      if (!arg) throw new Error("Usage: aicortex hub add-project <folder> [--id shop] [--name Shop] [--init]");
+      if (!arg) throw new Error("Usage: cortexboard hub add-project <folder> [--id shop] [--name Shop] [--init]");
       const path = resolve(arg);
       const name = str("name") ?? basename(path);
       if (!existsSync(join(path, ".cortex", "cortex.config.yaml"))) {
@@ -326,13 +326,13 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
     }
     if (sub === "invite") {
       const u = arg ? store.userByEmail(arg) : null;
-      if (!u) throw new Error("Usage: aicortex hub invite <email of an existing user>");
+      if (!u) throw new Error("Usage: cortexboard hub invite <email of an existing user>");
       console.log(`${store.settings.public_url ?? `http://localhost:${store.settings.port}`}/invite/${store.createInvite(u.id)}`);
       console.log("Valid 48 hours, once. Setting a password ends that user's other sessions.");
       store.close();
       return;
     }
-    throw new Error("Usage: aicortex hub init | start | add-project <folder> | invite <email>");
+    throw new Error("Usage: cortexboard hub init | start | add-project <folder> | invite <email>");
   } catch (e) {
     store.close();
     throw e;
