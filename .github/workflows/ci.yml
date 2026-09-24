@@ -41,4 +41,13 @@ jobs:
       - run: npm run test:ci
       - run: npm run build
       # The spec's acceptance criterion: a clean machine installs, inits and starts Cortex in under 2 minutes.
-      - run: npm run smoke
+      # Reading a workflow log needs a signed-in GitHub account, so a failure is repeated as an annotation:
+      # the smoke test's own "✖ ..." line says which step of the install broke, and on which OS.
+      - name: Install smoke test
+        shell: bash
+        run: |
+          set -o pipefail
+          if npm run smoke 2>&1 | tee smoke.log; then exit 0; fi
+          why=$(grep -aE '^(✖|Error|npm error)' smoke.log | head -3 | paste -sd ' ' - | cut -c1-600)
+          echo "::error title=smoke failed (${{ matrix.os }}, Node ${{ matrix.node }})::${why:-npm run smoke exited non-zero}"
+          exit 1
