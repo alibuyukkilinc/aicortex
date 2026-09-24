@@ -165,7 +165,30 @@ const NAV: { key: Key; route: string; icon: string }[] = [
   { key: "nav.guide", route: "guide", icon: "ask" },
 ];
 
+// Collapsed to an icon rail, or pinned open. Remembered per browser; hovering the rail opens it temporarily.
+function useRail(): [boolean, (v: boolean) => void] {
+  const [rail, set] = useState(() => {
+    try {
+      return localStorage.getItem("cortex.rail") === "1";
+    } catch {
+      return false; // storage blocked: start with the menu open
+    }
+  });
+  return [
+    rail,
+    (v: boolean) => {
+      set(v);
+      try {
+        localStorage.setItem("cortex.rail", v ? "1" : "0");
+      } catch {
+        // storage blocked: the choice lasts for this tab only
+      }
+    },
+  ];
+}
+
 function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
+  const [rail, setRail] = useRail();
   const live = useLive();
   const route = useRoute();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -234,8 +257,8 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
   return (
     <SessionContext.Provider value={session}>
       <LiveContext.Provider value={live.version}>
-        <div className="app">
-          <TopBar me={me} live={live} hubMe={hubMe} />
+        <div className={`app${rail ? " rail" : ""}`}>
+          <TopBar me={me} live={live} hubMe={hubMe} rail={rail} onToggleRail={() => setRail(!rail)} />
           <SideBar page={page} hubMe={hubMe} me={me} />
           <main className="main">{content}</main>
         </div>
@@ -246,7 +269,7 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
   );
 }
 
-function TopBar({ me, live, hubMe }: { me: Me; live: ReturnType<typeof useLive>; hubMe?: HubMe }) {
+function TopBar({ me, live, hubMe, rail, onToggleRail }: { me: Me; live: ReturnType<typeof useLive>; hubMe?: HubMe; rail: boolean; onToggleRail: () => void }) {
   const t = useT();
   const [q, setQ] = useState(routeQuery().get("q") ?? "");
   const submit = (e: FormEvent) => {
@@ -257,6 +280,16 @@ function TopBar({ me, live, hubMe }: { me: Me; live: ReturnType<typeof useLive>;
 
   return (
     <header className="topbar">
+      <button
+        className="icon-btn rail-toggle"
+        onClick={onToggleRail}
+        aria-pressed={rail}
+        aria-controls="sidebar"
+        title={t(rail ? "nav.expand" : "nav.collapse")}
+        aria-label={t(rail ? "nav.expand" : "nav.collapse")}
+      >
+        <Icon name="sidebar" />
+      </button>
       <a className="brand" href="#/inbox" style={{ color: "inherit", textDecoration: "none" }}>
         <span className="brand-mark">
           <Icon name="activity" size={14} />
@@ -320,24 +353,52 @@ function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
     location.reload();
   };
 
+  // In rail mode the menu opens on hover. After a click it should get out of the way even though the
+  // pointer is still over it, so hover-opening is suppressed until the pointer leaves.
+  // Attached as listeners, not JSX handlers: they only watch the links' own clicks, the <nav> itself is not
+  // something to click, and saying so in JSX would tell assistive tech (and the a11y lint) otherwise.
+  const [held, setHeld] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const closeAfterClick = (e: MouseEvent) => {
+      const link = (e.target as HTMLElement).closest("a, button");
+      if (!link) return;
+      setHeld(true);
+      (link as HTMLElement).blur(); // otherwise :focus-within would hold it open
+    };
+    const release = () => setHeld(false);
+    nav.addEventListener("click", closeAfterClick, true);
+    nav.addEventListener("mouseleave", release);
+    return () => {
+      nav.removeEventListener("click", closeAfterClick, true);
+      nav.removeEventListener("mouseleave", release);
+    };
+  }, []);
+
   return (
-    <nav className="sidebar" aria-label="main">
+    <nav ref={navRef} id="sidebar" className={`sidebar${held ? " held" : ""}`} aria-label="main">
       {NAV.filter((n) => n.route !== "reports" || !me.restricted)
         .concat(hubMe ? [{ key: "nav.members", route: "members", icon: "user" }] : [])
         .map((n) => (
-          <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`}>
+          <a key={n.route} href={`#/${n.route}`} className={`nav-link ${page === n.route ? "active" : ""}`} title={t(n.key)}>
             <Icon name={n.icon} />
-            {t(n.key)}
-            {counts[n.route] ? <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`}>{counts[n.route]}</span> : null}
+            <span className="nav-label">{t(n.key)}</span>
+            {counts[n.route] ? (
+              <span className={`nav-count ${n.route === "stale" ? "warn" : ""}`} aria-label={`${counts[n.route]}`}>
+                {counts[n.route]}
+              </span>
+            ) : null}
           </a>
         ))}
       {!hubMe && (
         <div className="sidebar-foot">
-          <button className="btn ghost sm" onClick={() => setLang(lang === "tr" ? "en" : "tr")}>
-            <Icon name="globe" size={14} /> {t("lang.toggle")}
+          <button className="btn ghost sm" onClick={() => setLang(lang === "tr" ? "en" : "tr")} title={t("lang.toggle")}>
+            <Icon name="globe" size={14} /> <span className="nav-label">{t("lang.toggle")}</span>
           </button>
-          <button className="btn ghost sm" onClick={() => void logout()}>
-            <Icon name="logout" size={14} /> {t("logout")}
+          <button className="btn ghost sm" onClick={() => void logout()} title={t("logout")}>
+            <Icon name="logout" size={14} /> <span className="nav-label">{t("logout")}</span>
           </button>
         </div>
       )}

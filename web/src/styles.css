@@ -416,6 +416,101 @@ textarea {
   justify-content: flex-start;
   color: var(--muted);
 }
+.rail-toggle {
+  flex: none;
+}
+
+/* ---- icon rail ---------------------------------------------------------------------- */
+/* Collapsed the menu is 56px of icons. Hovering (or tabbing into) it slides the labels out
+   OVER the page, so nothing below reflows. `.held` is set on click: the menu gets out of the
+   way immediately even while the pointer is still on it, until the pointer leaves. */
+
+@media (min-width: 861px) {
+  .app {
+    position: relative;
+  }
+  .app.rail {
+    grid-template-columns: 56px 1fr;
+  }
+  .app.rail .sidebar {
+    position: absolute;
+    top: 52px;
+    left: 0;
+    bottom: 0;
+    width: 56px;
+    z-index: 4;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 14px 8px;
+    background: var(--surface); /* opaque: it slides over the page, nothing should read through */
+    transition:
+      width 0.13s var(--ease),
+      box-shadow 0.13s var(--ease);
+  }
+  /* The rail is out of flow, so the page content must be pinned to the second column itself. */
+  .app.rail .main {
+    grid-column: 2;
+  }
+  .app.rail .sidebar:hover:not(.held),
+  .app.rail .sidebar:focus-within {
+    width: 232px;
+    box-shadow: var(--shadow-lg);
+  }
+  /* Fixed link width keeps the icons still while the panel widens. */
+  .app.rail .nav-link,
+  .app.rail .sidebar-foot .btn {
+    width: 216px;
+    position: relative;
+  }
+  .app.rail .nav-label {
+    opacity: 0;
+    white-space: nowrap;
+    transition: opacity 0.1s var(--ease);
+  }
+  .app.rail .sidebar:hover:not(.held) .nav-label,
+  .app.rail .sidebar:focus-within .nav-label {
+    opacity: 1;
+  }
+  /* A pending count becomes a dot on the icon: still visible, no room needed. */
+  .app.rail .nav-count {
+    position: absolute;
+    left: 26px;
+    top: 5px;
+    margin: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: transparent;
+    font-size: 0;
+    overflow: hidden;
+  }
+  .app.rail .nav-count.warn {
+    background: var(--warn);
+  }
+  .app.rail .sidebar:hover:not(.held) .nav-count,
+  .app.rail .sidebar:focus-within .nav-count {
+    position: static;
+    margin-left: auto;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background: none;
+    color: var(--faint);
+    font-size: 12.5px;
+  }
+  .app.rail .sidebar:hover:not(.held) .nav-count.warn,
+  .app.rail .sidebar:focus-within .nav-count.warn {
+    color: var(--warn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.rail .sidebar,
+  .app.rail .nav-label {
+    transition: none;
+  }
+}
 
 .main {
   overflow: auto;
@@ -1332,6 +1427,9 @@ button.chip {
   .sidebar-foot {
     display: none;
   }
+  .rail-toggle {
+    display: none;
+  } /* the rail is a wide-screen affordance */
   .nav-link {
     white-space: nowrap;
   }

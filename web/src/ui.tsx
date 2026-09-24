@@ -56,6 +56,7 @@ const paths: Record<string, string> = {
   target: "M12 12m-9 0a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 12m-5 0a5 5 0 1 0 10 0 5 5 0 1 0-10 0M12 12m-1 0a1 1 0 1 0 2 0 1 1 0 1 0-2 0",
   percent: "M19 5L5 19M6.5 6.5m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0M17.5 17.5m-2 0a2 2 0 1 0 4 0 2 2 0 1 0-4 0",
   star: "M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z",
+  sidebar: "M4 5h16v14H4zM10 5v14",
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; size?: number }) {
