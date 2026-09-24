@@ -10,15 +10,16 @@ links:
     - file: src/core/init.ts
     - file: src/core/agentFiles.ts
     - file: src/util/runtime-check.ts
-verified_at_commit: da5966780fad6132cf36c160dd2acf10c664a69a
+verified_at_commit: 7bf1c4478535011c15b888c81a2092e4e2225766
 id: 01M34QY9W1VNPQMRXK141RRDFS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:57:58.296Z
+updated_at: 2026-09-24T08:08:02.771Z
 ---
 
 - Proje hangi klasörde: `--dir <klasör>`, yoksa `CORTEX_DIR`, yoksa çalışılan klasör (git gibi yukarı doğru aranır). Claude Desktop ve Codex MCP sunucularını proje klasöründe başlatmadığı için `mcp --dir` gerekir; `init --dir` projeyi o klasörde oluşturur (klasör yoksa açar). `hub` komutlarında `--dir` hub'ın veri klasörüdür (varsayılan `~/.cortex/hub`, `CORTEX_HUB`).
-- `init`: .cortex/ klasörünü, token'ları (`.secrets.yaml`, 0600), `.gitattributes` (LF + aktivite günlüğü için `merge=union`), varsayılan kuralları ve üst dalları oluşturur. Dalları terminalde numaralı listeyle sorar (Enter = hepsi); `--branches a,b,c` ile sormadan seçilir. `--lang tr` AI'ların yazım dilini belirler. `--agent-files` var olan CLAUDE.md/AGENTS.md dosyalarına kısa bir Cortex notu ekler (bir kez).
+- `init`: .cortex/ klasörünü, token'ları (`.secrets.yaml`, 0600), `.gitattributes` (LF + aktivite günlüğü için `merge=union`), varsayılan kuralları ve üst dalları oluşturur. Dalları terminalde numaralı listeyle sorar (Enter = hepsi); `--branches a,b,c` ile sormadan seçilir. `--agent-files` var olan CLAUDE.md/AGENTS.md dosyalarına kısa bir Cortex notu ekler (bir kez).
+- **`--lang tr` iki şey yapar:** AI'ların yazım dilini kurala yazar ve kurulumun ağaca koyduğu metinleri (dal başlıkları, özetleri, "(henüz belgelenmedi)" eki, kök düğümün yer tutucusu) o dilde yazar. Metinler `src/core/init.ts` içinde dil başına bir tabloda; şu an `en` ve `tr` var, tablosu olmayan dil İngilizce alır. `--lang` verilmezse makinenin dili kurala yazılır, ama tabloyu seçen her çağrı dili açıkça geçirir.
 - `bootstrap`: ağacı doldurması için AI'a verilecek görevi yazdırır (Cortex hiç token harcamaz).
 - `login`: pano için 10 dakika geçerli, imzalı bir giriş bağlantısı yazdırır (`--actor`, `--port`).
 - `logout [--actor <id>] [--all]`: pano oturumlarını bitirir; çalışan sunucu oturum dosyasını yeniden okur.

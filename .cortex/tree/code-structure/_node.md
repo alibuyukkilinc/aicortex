@@ -7,11 +7,11 @@ summary: src/{core,store,index,search,git,api,hub,mcp,util}, web/src, test/. ESM
 links:
   code:
     - file: test/helpers.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 7bf1c4478535011c15b888c81a2092e4e2225766
 id: 01M34Q1CBH9Y1DPA0KSNF0G7D3
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:51.661Z
+updated_at: 2026-09-24T08:08:02.721Z
 ---
 
 - `src/core`: iş mantığı. `src/store`: yalnızca dosya okuma/yazma (ekler dahil). `src/index`: SQLite önbelleği. `src/git`: git çağrıları ve biçim karşılaştırması. `src/hub`: ekip sunucusu. Arayüz katmanlarında mantık olmaz.

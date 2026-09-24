@@ -2,7 +2,7 @@
 id: 01M394RQ1X63F9WFT13A0512Z6
 type: issue
 title: init --lang tr kurulumunda dallar İngilizce açıklamayla geliyor
-status: open
+status: closed
 category_path: backend/cli
 author: ai-agent
 assignee: "@humans"
@@ -12,7 +12,7 @@ links:
 fields:
   severity: low
 created_at: 2026-09-24T07:23:34.845Z
-updated_at: 2026-09-24T07:23:34.845Z
+updated_at: 2026-09-24T08:03:13.792Z
 updated_by: ai-agent
 ---
 
