@@ -13,7 +13,11 @@ const lines = readFileSync(resolve(import.meta.dirname, "../CHANGELOG.md"), "utf
   .split("\n");
 // "## [0.2.0] - date" or "## 0.1.0 - date": the section runs to the next "## " heading or the link definitions.
 const heading = (l) => /^## /.test(l);
-const isThis = (l) => (heading(l) && l.replace(/^## \[?/, "").startsWith(`${version}]`)) || l.replace(/^## \[?/, "").startsWith(`${version} `);
+const isThis = (l) => {
+  if (!heading(l)) return false;
+  const rest = l.replace(/^## \[?/, "");
+  return rest.startsWith(`${version}]`) || rest.startsWith(`${version} `);
+};
 const start = lines.findIndex(isThis);
 let body = "";
 if (start >= 0) {
