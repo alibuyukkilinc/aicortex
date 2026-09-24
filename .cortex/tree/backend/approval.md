@@ -10,11 +10,11 @@ links:
       lines: 590-815
     - file: src/store/drafts.ts
     - file: web/src/pages/Approvals.tsx
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 2a7b14697ac1c6333ac1fac454eba0517827bf2d
 id: 01M34QY9GN6ZWRZ7CKCPF5SVBN
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:53.755Z
+updated_at: 2026-09-24T15:08:08.678Z
 ---
 
 - `init` sonrası varsayılan: `node: review`, diğerleri `auto`. Kararlar `auto` çünkü kabul ve ret zaten yalnızca insana ait.

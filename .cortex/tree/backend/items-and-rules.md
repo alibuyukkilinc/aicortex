@@ -1,9 +1,9 @@
 ---
 title: Kalemler, şemalar ve kurallar
-summary: 'Beş hazır kalem türü var: görev, issue, soru, not, karar. Her biri
-  düzenlenebilir bir rules/<tür>.schema.yaml dosyasıyla tanımlı. "Bitti" iki
-  ayrı şey: terminal ve resolved. assignee ile claimed_by ayrı; if_rev ve claim
-  eşzamanlı yazımı korur. Kalemler dosya eki taşır.'
+summary: 'Altı hazır kalem türü var: görev, issue, soru, not, karar, tartışma.
+  Her biri düzenlenebilir bir rules/<tür>.schema.yaml dosyasıyla tanımlı.
+  "Bitti" iki ayrı şey: terminal ve resolved. assignee ile claimed_by ayrı;
+  if_rev ve claim eşzamanlı yazımı korur. Kalemler dosya eki taşır.'
 links:
   code:
     - file: src/core/items.ts
@@ -11,22 +11,29 @@ links:
     - file: src/core/language.ts
     - file: src/core/types.ts
     - file: src/store/attachments.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+    - file: src/core/discussions.ts
+verified_at_commit: b2ffcf3274cd981a82cd0839e44e5d900cde3a64
 id: 01M34QY9EQ1V2FK6QYKKVTPEDB
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:54.167Z
+updated_at: 2026-09-24T20:09:05.557Z
 ---
 
-- Varsayılanlar `DEFAULT_SCHEMAS` içinde (`src/core/schema.ts`); `init` bunları `.cortex/rules/` altına yazar.
+- Varsayılanlar `DEFAULT_SCHEMAS` içinde (`src/core/schema.ts`); `init` bunları `.cortex/rules/` altına yazar. Dosyası olmayan eski projeler yerleşik varsayılanı kullanır (yeni `discussion` türü de böyle gelir).
 - Bir şemada şunlar var: durumlar, başlangıç ve bitiş durumları, izinli geçişler, yalnızca insanın koyabileceği durumlar, alanlar, yanıt kuralları ve AI'a düz dille talimatlar.
 - Yeni tür eklemek için `rules/<tür>.schema.yaml` dosyası bırakmak yeter.
 - Kuralları yalnızca insan değiştirebilir; kaydetmeden önce denetlenir (`validateRulesDoc`), bir yazım hatası tüm yazımları bozamaz.
 - `rules/_global.yaml` içindeki `language` alanı AI'ların hangi dilde yazacağını belirler; brief'te ilk kural olarak görünür.
 - `rules_version` = rules/ klasörünün özeti. Her cevapta `_meta` içinde gelir; AI kuralları yalnızca bu değişince yeniden okur.
-- Kalem kime atanabilir: bir aktör, `@humans` (insanlar) ya da `@ai`. Gelen kutusunda engelleyici sorular en üstte (`ItemService.inbox`); hub'da görünürlük sorgunun içinde uygulanır, `count` üyenin açabildiği sayıdır.
+- Kalem kime atanabilir: bir aktör, `@humans` (insanlar) ya da `@ai`. Gelen kutusunda engelleyici sorular en üstte (`ItemService.inbox`); hub'da görünürlük sorgunun içinde uygulanır, `count` üyenin açabildiği sayıdır. Gelen kutusu nedenleri: `assigned_to_you`, `assigned_to_group`, `your_question_answered`, `new_reply`, `decision_needs_review`, `discussion_needs_your_view`.
 - `ask(about, title)` soruyu, sorulan şeyi yapan kişiye yönlendirir.
 - Liste cevabı (`list`, pano kartı) kalemin özetini taşır: yanıt sayısı, ek sayısı (`files`), kapak resmi (`cover`), öncelik ya da önem (`level`), son tarih (`due`), açıklaması var mı (`has_body`). Hepsi indeksten gelir.
+
+### Türe özel kancalar: tartışma (`backend/discussions`)
+- `ItemService` `discussion` türünde `src/core/discussions.ts`'e danışır: oluştururken ve seçenek değişince `checkFields` (2+ farklı seçenek), yanıtta `checkReply` (aşama, katılımcı ve `stance` kuralları).
+- `voted` ve `decided` durumlarına yalnızca servis geçirir: `update(actor, id, input, { internal: true })`. Düz bir durum değişikliği `invalid_transition` alır.
+- Bir `decision` `accepted` olunca `DiscussionService.onDecisionAccepted` onu doğuran tartışmayı `decided` yapar.
+- `get(id, { viewer })`: okuyan verilirse kör turdaki görüşler süzülür ve cevap `discussion` özeti taşır. İçeriden yapılan okumalar `viewer` vermez, her şeyi görür.
 
 ### "Bitti"nin iki anlamı: terminal ve resolved (`src/core/schema.ts`)
 - `terminal`: bu durumdan çıkan geçiş yok. Geçiş kontrolünü ve raporlardaki "kapanan kayıt" sayımını bu belirler.

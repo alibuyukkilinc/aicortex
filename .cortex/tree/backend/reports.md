@@ -11,11 +11,11 @@ links:
     - file: web/src/pages/Reports.tsx
     - file: web/src/charts.tsx
     - file: src/util/time.ts
-verified_at_commit: 7bf1c4478535011c15b888c81a2092e4e2225766
+verified_at_commit: 2a7b14697ac1c6333ac1fac454eba0517827bf2d
 id: 01M34QY9PF26EEEGQRYECABXXH
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T08:08:02.823Z
+updated_at: 2026-09-24T15:08:08.883Z
 ---
 
 - `parsePeriod`: göreli dönemler projenin saat diliminde takvim gününe hizalı ("7d" = bugün + önceki 6 gün). Saat dilimi `cortex.config.yaml` → `timezone`, yoksa UTC. Gün hesabı `src/util/time.ts` içinde, yalnızca Intl ile; yaz saati geçişleri doğru. En fazla 366 gün.

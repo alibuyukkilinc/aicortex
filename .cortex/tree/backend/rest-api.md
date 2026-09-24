@@ -3,22 +3,27 @@ title: REST API
 summary: Proje rotaları src/api/routes.ts'de; tek projede /api altında (Bearer
   token veya pano oturumu, yalnızca localhost), hub'da /api/p/:project altında
   sunulur. Hub'da her rota rol yetkisini ve görünürlüğü denetler; liste
-  görünürlüğü SQL'de. Ekler ham gövdeyle yüklenir.
+  görünürlüğü SQL'de. Ekler ham gövdeyle yüklenir. Tartışmaların kendi uçları
+  var.
 links:
   code:
     - file: src/api/routes.ts
     - file: src/api/server.ts
     - file: src/api/access.ts
     - file: src/hub/access.ts
-verified_at_commit: da5966780fad6132cf36c160dd2acf10c664a69a
+verified_at_commit: b2ffcf3274cd981a82cd0839e44e5d900cde3a64
 id: 01M34QY9R9NE0TTWX5ZP3R74J1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:57:58.246Z
+updated_at: 2026-09-24T20:09:05.201Z
 ---
 
 - Rotalar `projectRoutes` içinde (`src/api/routes.ts`); `req.cortex` projeyi, `req.access` (yalnızca hub) rolü taşır. `need(req, perm)` yetkisi olmayanı 403 ile durdurur; gizli kayıtlar 404 döner. Tek proje sunucusu `buildServer`, ortak parçalar `baseServer` (`src/api/server.ts`, hub için `trustProxy` seçeneğiyle).
 - Görünürlük: `Access.seesItem` (bellekte) ve `Access.itemSql()` (aynı kural, SQL parçası). `/items`, `/inbox` ve brief'in gelen kutusu SQL parçasını `queryItems`'a geçirir; süzme LIMIT/OFFSET'ten ÖNCE olur. Arama, taslaklar, aktivite ve kod bağlamı hâlâ sonradan süzülür.
+- `GET /api/counts` → `{ inbox, approvals, stale, discussions }`: panonun kenar çubuğundaki rozetler (`discussions` = senden görüş bekleyen açık tartışmalar). Aynı görünürlük kuralları uygulanır (taslak süzgeci `/approvals` ile ortak `visibleDrafts` yardımcısından gelir; eskime sayısı yalnızca eyleme değer olanlar). Rozetler her canlı olayda yenilendiği için ucuz olması şart: 14 taslakla eski üç istek 5.856 bayttı, bu uç 75 bayt. Listeleri gösteren sayfalar kendi tam isteklerini yapmaya devam eder.
+- `GET /api/items/:id` okuyanı (`viewer: req.actor`) çekirdeğe geçirir: kör turdaki bir tartışmada başkalarının görüşleri `sealed` gelir ve cevap bir `discussion` özeti taşır.
+- Yanıt yazmak (`POST /items/:id/replies`) soru ve tartışmada `ask`, diğer türlerde `write_items` ister; hub'da izleyiciler de tartışmaya katılabilir.
+- Tartışmalar (`backend/discussions`): `GET /api/discussions?open=` (oy sayımı, kim yazdı, kim bekleniyor), `POST /api/discussions/:id/close-vote` (`write_items`; çoğunluk önerilen karar olur), `POST /api/discussions/:id/decide` `{ option }` (`approve`, yalnızca insan).
 - `GET /api/events` panonun canlı güncelleme akışı (SSE). Proje başına en fazla 50 akış (`CORTEX_SSE_LIMIT`), fazlası 503 + `Retry-After: 30`.
 - Toplu onay: `POST /api/approvals/approve` `{ ids, force?, verify_at_head? }`, toplu ret: `POST /api/approvals/reject` `{ ids, reason? }`.
 - Eskime: `GET /api/stale` (`actionable` sayısı + düğümler, derece ve başlıkla), `POST /api/verify/{yol}`, `POST /api/verify` `{ paths }`, `POST|DELETE /api/snooze/{yol}` (yalnızca insan).

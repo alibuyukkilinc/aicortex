@@ -6,11 +6,11 @@ summary: Node 22.16+ ve TypeScript 7. Tek bir Cortex çekirdek sınıfı var; RE
 links:
   code:
     - file: src/core/cortex.ts
-verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
+verified_at_commit: 2a7b14697ac1c6333ac1fac454eba0517827bf2d
 id: 01M34Q1CBCMK0W5QXHSQAY5PHG
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:30:10.784Z
+updated_at: 2026-09-24T15:08:06.133Z
 ---
 
 İki çalışma biçimi var: `cortexboard start` tek projeyi yalnızca localhost'ta sunar (`src/api/server.ts`, pano oturumları `src/api/sessions.ts`), `cortexboard hub start` çok projeyi ekip için sunar (`src/hub`). İkisi de aynı proje rotalarını kullanır (`src/api/routes.ts`).

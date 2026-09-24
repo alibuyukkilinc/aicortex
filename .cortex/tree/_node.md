@@ -1,19 +1,19 @@
 ---
 title: Cortex
 summary: İnsan ve AI için ortak proje beyni. Bilgi ağacı, pano, kararlar,
-  sorular, ekler ve AI'ın yaptıkları repodaki .cortex/ klasöründe durur. Tek
-  proje için yerel çalışır; ekip için bir sunucu (hub) çok projeyi, kişileri, AI
-  ajanlarını ve rolleri yönetir. Hiç LLM çağırmaz.
+  sorular, tartışmalar, ekler ve AI'ın yaptıkları repodaki .cortex/ klasöründe
+  durur. Tek proje için yerel çalışır; ekip için bir sunucu (hub) çok projeyi,
+  kişileri, AI ajanlarını ve rolleri yönetir. Hiç LLM çağırmaz.
 links:
   code:
     - file: src/core/cortex.ts
     - file: CORTEX_SPEC.md
     - file: README.md
-verified_at_commit: da5966780fad6132cf36c160dd2acf10c664a69a
+verified_at_commit: 0075bcc9666bd04ac2944f61708fce36ad012dac
 id: 01M34Q1CBAV6VRTFKAVCK99EC0
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:57:58.095Z
+updated_at: 2026-09-24T20:09:04.657Z
 ---
 
 ## Ne işe yarar?
@@ -28,7 +28,8 @@ Kontrol insandadır: AI'ın bilgiye yazdığı her şey önce taslak olur, insan
 - **Anlamla arama** (`src/search`): isteğe bağlı, bilgisayarda çalışan çok dilli model.
 - **Eskime tespiti** (`src/git`, `src/core/staleness.ts`): bağlı kod değişince bilgi derecesiyle (yüksek/orta/biçimsel) işaretlenir; panoda "Eskimiş bilgi" sayfası.
 - **Raporlar** (`src/core/reports.ts`): dosyalardan ve aktivite günlüğünden sayılır.
-- **Arayüzler**: REST (`src/api`), MCP (`src/mcp`, 20 araç), CLI (`src/cli.ts`), web pano (`web/`, Trello tarzı kartlar).
+- **Tartışmalar** (`src/core/discussions.ts`, `backend/discussions`): insanlar ve AI ajanları bir soruda seçenek destekleyen, kanıtlı görüş yazar; kör ilk tur, oy sayımı, çoğunluk önerilen karar olur, kararı insan verir. Cortex burada da LLM çağırmaz: her ajan kendi oturumundan MCP ile katılır.
+- **Arayüzler**: REST (`src/api`), MCP (`src/mcp`, 23 araç), CLI (`src/cli.ts`), web pano (`web/`, Trello tarzı kartlar, ayrı Tartışmalar ekranı).
 - **Ekip sunucusu** (`src/hub`): çok proje, e-posta + şifreyle giriş, AI ajanları için token, proje başına rol ve görünürlük.
 
 ## İlkeler (CORTEX_SPEC.md'den)

@@ -10,11 +10,11 @@ links:
     - file: src/git/formatting.ts
     - file: src/core/staleness.ts
     - file: web/src/pages/Stale.tsx
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 2a7b14697ac1c6333ac1fac454eba0517827bf2d
 id: 01M34QY9MHTMEP4XJH25MGX34H
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:54.784Z
+updated_at: 2026-09-24T15:08:09.080Z
 ---
 
 - `Git` (`src/git/git.ts`) git komutunu `-c core.quotepath=false` ile çağırır, çıktıyı NFC'ye çevirir; hata olursa "bilinmiyor" sayar.

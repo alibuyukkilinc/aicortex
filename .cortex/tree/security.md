@@ -15,11 +15,11 @@ links:
     - file: src/hub/limiter.ts
     - file: src/hub/crypto.ts
     - file: src/store/attachments.ts
-verified_at_commit: da5966780fad6132cf36c160dd2acf10c664a69a
+verified_at_commit: b2ffcf3274cd981a82cd0839e44e5d900cde3a64
 id: 01M34Q1CBF3AXG1Q0MKDJYKB6J
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:57:58.145Z
+updated_at: 2026-09-24T20:05:08.481Z
 ---
 
 - `onRequest` kancası localhost/127.0.0.1/[::1] dışındaki her Host'u reddeder.
@@ -37,5 +37,7 @@ updated_at: 2026-09-24T07:57:58.145Z
 - Deneme sınırı (`src/hub/limiter.ts`, 15 dakika): adres+e-posta başına 10 hatalı şifre; adres başına 10 hatalı ajan token'ı (REST ve MCP birlikte); adres başına 20 geçersiz davet bağlantısı. Bellek üst sınırlı.
 - `allowed_hosts` tanımlıysa listenin kendisidir: localhost için gizli istisna yok.
 - İnternete açılacaksa HTTPS arkasında çalıştırılmalı; `hub start` ağa açıkken HTTPS yoksa uyarır.
+- **Güven sınırı — hub'ın dosyaları:** `~/.cortex/hub` klasörünü okuyabilen kişi zaten şifre özetlerini ve token özetlerini görür, yani hub'ın sahibidir. `cortexboard hub member <proje> <kim>` bu yüzden ayrı bir yetki istemez: üyelik verme API'de insanlara ayrılmıştır (hiçbir AI rolü `manage_members` taşımaz), terminaldeki komut ise makinenin sahibinin elindedir. Uzaktan bağlanan bir ajan bu komutu çalıştıramaz; yalnızca dosyalara erişen çalıştırabilir.
+- Üyeliği olmayan bir istek 403 alır ve mesaj iki tarafı da yazar (`opencode is not a member of "arsa-back"`), çünkü bir ajanın hatası çoğu zaman başka birinin günlüğünde okunur. Geçerli token + eksik üyelik ile geçersiz token birbirine karışmasın diye ayrı kodlar: `unauthorized` ve `forbidden`.
 - Güvenlik bildirimi: `SECURITY.md` (GitHub özel açık bildirimi).
 - Henüz yok: SSO, iki adımlı doğrulama, e-postayla davet gönderimi.

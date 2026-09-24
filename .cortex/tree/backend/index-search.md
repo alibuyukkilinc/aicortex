@@ -1,26 +1,35 @@
 ---
 title: İndeks ve kelime araması
-summary: "node:sqlite önbelleği; düğümler, kalemler ve aktivite üzerinde FTS5
-  kelime araması. Türkçe harfler katlanır. İndeks artımlı güncellenir (yalnızca
-  değişen kayıt). Kalem satırı panonun kartını da taşır: açık iş, ek sayısı,
-  kapak, öncelik, son tarih."
+summary: node:sqlite önbelleği; düğümler, kalemler ve aktivite üzerinde FTS5
+  kelime araması. Türkçe harfler katlanır; tüm kelimeler yazıldığı gibi
+  bulunmazsa kökleriyle de aranır ("ertelemek" → "erteleme"). İndeks artımlı
+  güncellenir. Kalem satırı pano kartını da taşır.
 links:
   code:
     - file: src/index/db.ts
     - file: src/core/sync.ts
     - file: src/core/cortex.ts
     - file: src/store/activity.ts
-verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
+verified_at_commit: 0075bcc9666bd04ac2944f61708fce36ad012dac
 id: 01M34QY9AVGX8V5NP7DDB49TM1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:30:11.081Z
+updated_at: 2026-09-24T20:09:06.668Z
 ---
 
 - `src/index/db.ts`: `node:sqlite`, WAL, `INDEX_VERSION` (şu an 7) değişince tablolar düşürülüp dosyalardan yeniden kurulur. Gömme vektörleri (`embeddings`) bilerek bu silmenin dışında: yeniden hesaplamak pahalı.
 - FTS5 sanal tablosu `docs_fts`, `tokenize = 'unicode61 remove_diacritics 2'`. Türkçe harfler katlandığı için "kullanici" araması "Kullanıcı"yı bulur. Sıralama bm25, başlık ve özet daha ağır.
 - `items` tablosu: kalem alanlarının yanında kurallardan gelen `terminal` ve `open_work` bayrakları, `reply_count`, ve pano kartı için `attachment_count`, `cover` (ilk resim ekinin adı), `level` (`fields.priority`, issue'da `fields.severity`), `due` (`fields.due`), `has_body`. Ek bilgisi dosya sisteminden (`ItemStore.fileSummary`) her yazımda, senkronda ve yeniden kurulumda alınır.
+- Kalemin arama metni gövde + metin alanları + yanıtlardır. İstisna: kör turdaki bir tartışmanın (`isSealed`, `src/core/discussions.ts`) yanıtları indekse girmez, yoksa bir katılımcı başkalarının görüşünü aramayla okuyabilirdi. Tartışma `deliberating`'e geçince kayıt yeniden yazılır ve görüşler aranabilir olur. Kural `insertItem` içinde olduğu için yazım, senkron ve tam kurulumun hepsinde geçerli; anlamla arama da aynı metni kullanır.
 - `queryItems` `blocking DESC, updated_at DESC` sıralar; isteğe bağlı `visible` (bir `SqlFilter`, hub'da `Access.itemSql()`) LIMIT/OFFSET'ten önce uygulanır, böylece kısıtlı üyede sayfalar dolu ve `total` doğru.
+
+## Sorgu adımları (`Index.search`)
+Her kelime önek olarak aranır (`"kelime"*`). Sırayla:
+1. **Tüm kelimeler, yazıldığı gibi** (AND). Sonuç varsa biter.
+2. **Tüm kelimeler, kökleriyle** (AND; her kelime `("kelime"* OR "kök"*)`). `stem()`: sondan en çok 3 harf atar, 5 harfin altına inmez; 5 harf ve kısası hiç kesilmez. Türkçe ekler köke ekleniyor ("ertelemek" → "ertele" → "erteleme", "ertelenebilir"). Tam kelime iki koşula da uyduğu için yine önde çıkar.
+3. Sayfa dolmadıysa **herhangi bir kelime** (OR, yazıldığı gibi, dolgu sözcükleri hariç) kalan yeri doldurur.
+- Kökler bilerek yalnızca 2. adımda: 1. adımda ya da 3. adımda kullanılınca 20 sorguluk ölçümde sonuç kötüleşti (doğru olan eşleşmeleri genişletip aşağı itti). 2. adımdan sonra 3. adımın eklenmesi de şart: birkaç yanlış kök eşleşmesi, eskiden "herhangi bir kelime" ile gelen doğru kaydı saklıyordu. Ölçüm ve tablo: `docs/BENCHMARKS.md` (5. tur, commit 9b26efb).
+- Bilinen sınır: İngilizce soruyla Türkçe kaydı kelime araması bulamaz; ajanlar sorguyu Türkçeye çevirerek kapatıyor. Anlamla arama bu farkı ölçümde kapatmadı (`backend/semantic-search`).
 
 ## Artımlı güncelleme (`src/core/sync.ts`)
 Bir dosya değiştiğinde (elle düzenleme, `git pull`, başka bir Cortex süreci) yalnızca o dosyanın işaret ettiği kayıt yeniden indekslenir.

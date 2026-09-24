@@ -12,11 +12,11 @@ links:
     - file: src/hub/access.ts
     - file: src/hub/crypto.ts
     - file: src/hub/limiter.ts
-verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
+verified_at_commit: b2ffcf3274cd981a82cd0839e44e5d900cde3a64
 id: 01M34ZBMQDA04RDK228RSTYEHP
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:30:11.034Z
+updated_at: 2026-09-24T20:05:09.205Z
 ---
 
 ## Parçalar (`src/hub`)
@@ -32,20 +32,21 @@ updated_at: 2026-09-24T07:30:11.034Z
 - AI hiçbir rolde onaylayamaz, kural değiştiremez, üye yönetemez (rol listesinde yok, çekirdek de insan ister).
 - Görünürlük: scope `own` = yazdığı veya kendisine/grubuna (@humans, @ai) atanan kayıtlar; `branches` = yalnızca o dallar (atası olan dallar gezinmek için görünür). Gizli olan 404 döner.
 - Deneme sınırları (15 dakikalık pencere): adres+e-posta başına 10 hatalı şifre; adres başına 10 hatalı ajan token'ı (REST ve `/mcp/p/:project` birlikte); adres başına 20 geçersiz davet bağlantısı. Aşılınca 429.
-- Davet 48 saat, tek kullanım; şifre belirleyince diğer oturumlar kapanır.
-- `allowed_hosts` tanımlıysa listenin kendisidir; localhost için gizli istisna yok. Çerezin Secure bayrağı: `cookie_secure` verilmişse o, yoksa hub yalnızca loopback'te dinlemiyorsa açık; `trust_proxy: true` iken `X-Forwarded-Proto: https` de Secure yapar.
+- **Üyeliği olmayan istek:** 403 ve mesaj iki tarafı da yazar — `opencode is not a member of "arsa-back"`. Geçersiz token `unauthorized`, geçerli token + eksik üyelik `forbidden`; ikisi karışmasın diye ayrı.
+- **Dışarıdan verilen üyelik anında geçerli:** erişimi `members` satırı belirler (her istekte okunur), projenin bellekteki aktör listesi de tanımadığı bir üye gelince tazelenir (`syncActors`, proje kapsamının `preHandler`'ında). Yani `cortexboard hub member` ile verilen erişim için hub'ı yeniden başlatmak gerekmez.
 - **Organizasyon kavramı yok, tek düz hub:** `User.org_admin` sadece bir bayrak; true ise o kişi her projede otomatik Sahip sayılır. Birden fazla, birbirinden habersiz taraf hub'a girerse bu ayrı bir tur olarak ele alınmalı (bkz. karar `01M35AS75BZVM32EFWX3HBCW4H`: mobil ekip mevcut proje+üyelik modeliyle ayrı proje olarak katılabiliyor).
 - **`GET /api/p/:project/members/candidates`**: org_admin için tüm hub roster'ı; org_admin olmayan proje sahibi/yöneticisi için yalnızca başka bir projede de owner/admin olduğu kişi/ajanlarla sınırlı. E-posta ile davet bu listeden bağımsız.
 - Bilinen sınır: hub açtığı her projeyi yeniden başlayana kadar bellekte tutar (CHANGELOG'da yazılı).
 
 ## AI ajanları nasıl bağlanır
 `cortexboard mcp --hub <url> --project <id> --token <t>`: MCP araçları merkezdeki proje API'sini kullanır (`remoteApi`), ajanın rolü ve görünürlüğü aynen geçerlidir. Bu bilgisayarda çalışmayan AI'lar (ör. ChatGPT) için MCP'nin HTTP ucu: `POST <url>/mcp/p/<proje>`, `Authorization: Bearer <ajan tokenı>`, durumsuz (GET ve DELETE 405). İstek aynı proje rotalarına yeniden yollanır; token, rol ve görünürlük REST ile birebir aynıdır.
+**Ajanın çalıştığı istemcinin kendi yapılandırması ayrı bir konudur:** ajan bağlanamıyorsa sırayla bak — istemci hangi dosyayı okuyor (OpenCode `opencode.json(c)` içinde düz `mcp` haritası; `.mcp.json` Claude Code'undur), adres çözülüyor mu, token isteğe gidiyor mu, ajan o projeye üye mi.
 
 ## Ekranlar (kim neyi nereden yapar)
 - **Kişi ekleme:** Organizasyon → Kişiler → "Kişi ekle". Sistem 48 saatlik tek kullanımlık davet bağlantısı verir; "Yeni bağlantı" aynı zamanda şifre sıfırlamadır.
-- **AI ajanı ekleme:** Organizasyon → AI ajanları → "AI ajanı ekle". Token bir kez gösterilir; "Yeni token" eskisini geçersiz kılar.
+- **AI ajanı ekleme:** Organizasyon → AI ajanları → "AI ajanı ekle". Token bir kez gösterilir; "Yeni token" eskisini geçersiz kılar. Bu düğme *yeni* ajan oluşturur; var olan bir ajanı bir projeye eklemek için proje panosundaki Üyeler sayfasının açılır listesi ya da `cortexboard hub member` kullanılır.
 - **Proje ekleme:** Organizasyon → Projeler → "Proje ekle" ya da `cortexboard hub add-project <klasör>`.
-- **Üyelik ve görünürlük:** Proje panosunda Üyeler sayfası: rol, "her şeyi / yalnızca kendi kayıtlarını", dal kısıtı.
+- **Üyelik ve görünürlük:** Proje panosunda Üyeler sayfası: rol, "her şeyi / yalnızca kendi kayıtlarını", dal kısıtı. Terminalden aynısı: `cortexboard hub member <proje> <kim> [--role] [--scope] [--branches] [--remove]`.
 
 ## Rollerin yetkileri (`src/hub/roles.ts`)
 - Sahip ve Yönetici: hepsi (read, ask, write_items, write_knowledge, delete_knowledge, approve, edit_rules, manage_members, reports, log_activity).
@@ -55,4 +56,4 @@ updated_at: 2026-09-24T07:30:11.034Z
 - Hiçbir AI rolünde approve, edit_rules, manage_members yoktur. Ek dosya yüklemek write_items ister.
 
 ## Komutlar
-`cortexboard hub init | start | add-project | invite` (`src/cli.ts` → `hubCommand`).
+`cortexboard hub init | start | add-project | member | invite` (`src/cli.ts` → `hubCommand`).
