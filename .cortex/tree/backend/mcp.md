@@ -1,6 +1,6 @@
 ---
 title: MCP sunucusu
-summary: "`aicortex mcp` stdio üzerinden 20 araç sunar (en yenisi
+summary: "`cortexboard mcp` stdio üzerinden 20 araç sunar (en yenisi
   `cortex_item_file`: ekleri okur, resmi resim olarak döndürür); merkezde ayrıca
   HTTP ucu vardır (POST /mcp/p/&lt;proje&gt;). Araçlar proje REST API'sini
   konuşur; kurallar, rol ve görünürlük her yolda aynı."
@@ -9,11 +9,11 @@ links:
     - file: src/mcp/server.ts
     - file: src/mcp/client.ts
     - file: src/hub/mcpHttp.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY9T47QSX4Q0GQ8V6GPEH
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:53.342Z
+updated_at: 2026-09-24T07:30:10.985Z
 ---
 
 - Araçlar (`src/mcp/server.ts`) doğrudan çekirdeği değil `McpApi`yi çağırır (`src/mcp/client.ts`):

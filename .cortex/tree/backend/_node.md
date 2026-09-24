@@ -6,14 +6,14 @@ summary: Node 22.16+ ve TypeScript 7. Tek bir Cortex çekirdek sınıfı var; RE
 links:
   code:
     - file: src/core/cortex.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34Q1CBCMK0W5QXHSQAY5PHG
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:51.455Z
+updated_at: 2026-09-24T07:30:10.784Z
 ---
 
-İki çalışma biçimi var: `aicortex start` tek projeyi yalnızca localhost'ta sunar (`src/api/server.ts`, pano oturumları `src/api/sessions.ts`), `aicortex hub start` çok projeyi ekip için sunar (`src/hub`). İkisi de aynı proje rotalarını kullanır (`src/api/routes.ts`).
+İki çalışma biçimi var: `cortexboard start` tek projeyi yalnızca localhost'ta sunar (`src/api/server.ts`, pano oturumları `src/api/sessions.ts`), `cortexboard hub start` çok projeyi ekip için sunar (`src/hub`). İkisi de aynı proje rotalarını kullanır (`src/api/routes.ts`).
 
 Her iş `Cortex` sınıfından geçer (`src/core/cortex.ts`): okuma, düğüm yazma, taslak ve onay (onayda HEAD'e yeniden sabitleme), kurallar, arama, doğrulama.
 Kalemler, aktivite ve eskime için ayrı servisler var (`ItemService`, `ActivityService`, `StalenessService`), çekirdeğe bağlılar. Kalem ekleri `ItemService.attach/detach` üzerinden geçer.

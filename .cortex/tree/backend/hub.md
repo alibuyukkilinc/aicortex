@@ -12,11 +12,11 @@ links:
     - file: src/hub/access.ts
     - file: src/hub/crypto.ts
     - file: src/hub/limiter.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34ZBMQDA04RDK228RSTYEHP
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:52.913Z
+updated_at: 2026-09-24T07:30:11.034Z
 ---
 
 ## Parçalar (`src/hub`)
@@ -39,12 +39,12 @@ updated_at: 2026-09-24T03:22:52.913Z
 - Bilinen sınır: hub açtığı her projeyi yeniden başlayana kadar bellekte tutar (CHANGELOG'da yazılı).
 
 ## AI ajanları nasıl bağlanır
-`aicortex mcp --hub <url> --project <id> --token <t>`: MCP araçları merkezdeki proje API'sini kullanır (`remoteApi`), ajanın rolü ve görünürlüğü aynen geçerlidir. Bu bilgisayarda çalışmayan AI'lar (ör. ChatGPT) için MCP'nin HTTP ucu: `POST <url>/mcp/p/<proje>`, `Authorization: Bearer <ajan tokenı>`, durumsuz (GET ve DELETE 405). İstek aynı proje rotalarına yeniden yollanır; token, rol ve görünürlük REST ile birebir aynıdır.
+`cortexboard mcp --hub <url> --project <id> --token <t>`: MCP araçları merkezdeki proje API'sini kullanır (`remoteApi`), ajanın rolü ve görünürlüğü aynen geçerlidir. Bu bilgisayarda çalışmayan AI'lar (ör. ChatGPT) için MCP'nin HTTP ucu: `POST <url>/mcp/p/<proje>`, `Authorization: Bearer <ajan tokenı>`, durumsuz (GET ve DELETE 405). İstek aynı proje rotalarına yeniden yollanır; token, rol ve görünürlük REST ile birebir aynıdır.
 
 ## Ekranlar (kim neyi nereden yapar)
 - **Kişi ekleme:** Organizasyon → Kişiler → "Kişi ekle". Sistem 48 saatlik tek kullanımlık davet bağlantısı verir; "Yeni bağlantı" aynı zamanda şifre sıfırlamadır.
 - **AI ajanı ekleme:** Organizasyon → AI ajanları → "AI ajanı ekle". Token bir kez gösterilir; "Yeni token" eskisini geçersiz kılar.
-- **Proje ekleme:** Organizasyon → Projeler → "Proje ekle" ya da `aicortex hub add-project <klasör>`.
+- **Proje ekleme:** Organizasyon → Projeler → "Proje ekle" ya da `cortexboard hub add-project <klasör>`.
 - **Üyelik ve görünürlük:** Proje panosunda Üyeler sayfası: rol, "her şeyi / yalnızca kendi kayıtlarını", dal kısıtı.
 
 ## Rollerin yetkileri (`src/hub/roles.ts`)
@@ -55,4 +55,4 @@ updated_at: 2026-09-24T03:22:52.913Z
 - Hiçbir AI rolünde approve, edit_rules, manage_members yoktur. Ek dosya yüklemek write_items ister.
 
 ## Komutlar
-`aicortex hub init | start | add-project | invite` (`src/cli.ts` → `hubCommand`).
+`cortexboard hub init | start | add-project | invite` (`src/cli.ts` → `hubCommand`).

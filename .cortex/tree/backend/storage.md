@@ -13,11 +13,11 @@ links:
     - file: src/store/drafts.ts
     - file: src/store/frontmatter.ts
     - file: src/core/project.ts
-verified_at_commit: 3295916c724365d800427f9468950a5ad1f02895
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY98RMP56FT3WTB1B4Z09
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:14:17.404Z
+updated_at: 2026-09-24T07:30:11.190Z
 ---
 
 ```

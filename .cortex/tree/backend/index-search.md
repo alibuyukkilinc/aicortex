@@ -10,11 +10,11 @@ links:
     - file: src/core/sync.ts
     - file: src/core/cortex.ts
     - file: src/store/activity.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY9AVGX8V5NP7DDB49TM1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:53.120Z
+updated_at: 2026-09-24T07:30:11.081Z
 ---
 
 - `src/index/db.ts`: `node:sqlite`, WAL, `INDEX_VERSION` (şu an 7) değişince tablolar düşürülüp dosyalardan yeniden kurulur. Gömme vektörleri (`embeddings`) bilerek bu silmenin dışında: yeniden hesaplamak pahalı.
@@ -54,4 +54,4 @@ Darboğaz tam yeniden kurulumdu ve maliyeti **toplam geçmişle** büyüyordu. A
 `docs_fts`'te `kind` ve `ref` sütunları `UNINDEXED`, yani `deleteDoc` her çağrıldığında tüm FTS tablosunu tarar. Bu yüzden aktivite senkronunda zaten indekslenmiş kayıtlar `hasActivity` ile atlanır. Kalıcı çözüm (FTS satır numarasını `doc_text`'te tutmak) şema değişikliği ister, henüz yapılmadı.
 
 ## Henüz yapılmadı: açılışta artımlı olmak
-Süreç açılışında hâlâ tam kurulum var (`Cortex` kurucusu `reindex()` çağırır). `aicortex mcp` her AI oturumunda yeni süreç açtığı için asıl kazanç orada olurdu. Tasarım: `indexed_files(path, mtime, size)` manifestosu, açılışta `stat` karşılaştırması; manifest `INDEX_VERSION` atlamasında **mutlaka** düşürülmeli.
+Süreç açılışında hâlâ tam kurulum var (`Cortex` kurucusu `reindex()` çağırır). `cortexboard mcp` her AI oturumunda yeni süreç açtığı için asıl kazanç orada olurdu. Tasarım: `indexed_files(path, mtime, size)` manifestosu, açılışta `stat` karşılaştırması; manifest `INDEX_VERSION` atlamasında **mutlaka** düşürülmeli.

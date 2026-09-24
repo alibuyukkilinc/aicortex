@@ -1,20 +1,20 @@
 ---
 title: Komut satırı (CLI)
-summary: "`aicortex` (kısa adı `cortex`) komutları: init, start, login, logout,
-  mcp, bootstrap, reindex, semantic, report, version ve ekip sunucusu için hub
-  init | start | add-project | invite. Her proje komutu `--dir` ya da CORTEX_DIR
-  ile başka bir klasörü hedefleyebilir."
+summary: "`cortexboard` (kısa adı `cortex`) komutları: init, start, login,
+  logout, mcp, bootstrap, reindex, semantic, report, version ve ekip sunucusu
+  için hub init | start | add-project | invite. Her proje komutu `--dir` ya da
+  CORTEX_DIR ile başka bir klasörü hedefleyebilir."
 links:
   code:
     - file: src/cli.ts
     - file: src/core/init.ts
     - file: src/core/agentFiles.ts
     - file: src/util/runtime-check.ts
-verified_at_commit: cf33d86111def0bad04ff09a9cc3aaf3ab0927bd
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY9W1VNPQMRXK141RRDFS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:32:09.544Z
+updated_at: 2026-09-24T07:30:10.935Z
 ---
 
 - Proje hangi klasörde: `--dir <klasör>`, yoksa `CORTEX_DIR`, yoksa çalışılan klasör (git gibi yukarı doğru aranır). Claude Desktop ve Codex MCP sunucularını proje klasöründe başlatmadığı için `mcp --dir` gerekir; `init --dir` projeyi o klasörde oluşturur (klasör yoksa açar). `hub` komutlarında `--dir` hub'ın veri klasörüdür (varsayılan `~/.cortex/hub`, `CORTEX_HUB`).

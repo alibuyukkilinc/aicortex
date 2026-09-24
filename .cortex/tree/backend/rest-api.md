@@ -10,11 +10,11 @@ links:
     - file: src/api/server.ts
     - file: src/api/access.ts
     - file: src/hub/access.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY9R9NE0TTWX5ZP3R74J1
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:54.581Z
+updated_at: 2026-09-24T07:30:11.133Z
 ---
 
 - Rotalar `projectRoutes` içinde (`src/api/routes.ts`); `req.cortex` projeyi, `req.access` (yalnızca hub) rolü taşır. `need(req, perm)` yetkisi olmayanı 403 ile durdurur; gizli kayıtlar 404 döner. Tek proje sunucusu `buildServer`, ortak parçalar `baseServer` (`src/api/server.ts`, hub için `trustProxy` seçeneğiyle).

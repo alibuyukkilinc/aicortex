@@ -15,11 +15,11 @@ links:
     - file: src/hub/limiter.ts
     - file: src/hub/crypto.ts
     - file: src/store/attachments.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34Q1CBF3AXG1Q0MKDJYKB6J
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:52.076Z
+updated_at: 2026-09-24T07:30:10.834Z
 ---
 
 - `onRequest` kancası localhost/127.0.0.1/[::1] dışındaki her Host'u reddeder.

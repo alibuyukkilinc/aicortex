@@ -9,11 +9,11 @@ links:
     - file: src/search/semantic.ts
     - file: src/search/runtime.ts
     - file: src/search/embedder.ts
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY9CTKEHQ7G89037EAWVN
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:52.278Z
+updated_at: 2026-09-24T07:30:11.240Z
 ---
 
 - Model: `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (q8). Çalışma ortamı `@huggingface/transformers`, `~/.cortex/runtime` altına kurulur; npx paketiyle gelmez çünkü ~290 MB.

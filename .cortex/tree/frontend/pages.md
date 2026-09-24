@@ -12,11 +12,11 @@ links:
     - file: web/src/SchemaForm.tsx
     - file: web/src/hub.tsx
     - file: web/src/ui.tsx
-verified_at_commit: 3295916c724365d800427f9468950a5ad1f02895
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34QY9ZWPSMQ85J1ACFRTWTS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:14:17.674Z
+updated_at: 2026-09-24T07:30:11.288Z
 ---
 
 - Bildirimler (`pages/Inbox.tsx`): tek satırlık özet ve başlığı, sayısı, bir cümlelik açıklaması olan gruplar: işi durduran sorular, sana atananlar, grubunu bekleyenler, cevaplanan soruların, yeni yanıtlar, kararlar, onay bekleyen taslaklar, eskimiş bilgi (yalnızca yüksek ve orta derece).

@@ -9,11 +9,11 @@ links:
     - file: web/src/App.tsx
     - file: web/src/api.ts
     - file: web/src/hub.tsx
-verified_at_commit: fa153b59fc0e9e369e1ce074c760a26676778a6b
+verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
 id: 01M34Q1CBDWE3WNXKNMP6QK1W7
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T03:22:51.867Z
+updated_at: 2026-09-24T07:30:10.886Z
 ---
 
 - Sayfalar: Bildirimler, Pano, Bilgi, Aktivite, Onaylar, Eskimiş bilgi, Raporlar, Kurallar, Kılavuz (+ merkezde Üyeler). Ayrıntı: `frontend/pages`.
