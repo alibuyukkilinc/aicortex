@@ -171,6 +171,32 @@ test("search folds Turkish characters and ranks titles first", async () => {
   }
 });
 
+test("search reaches other forms of an inflected word, without displacing exact matches", async () => {
+  const t = tempProject();
+  try {
+    t.cortex.putNode(t.human, {
+      path: "backend/staleness",
+      title: "Eskime tespiti",
+      summary: "Eskimiş düğümler ertelenebilir; erteleme yalnızca insanlar içindir.",
+    });
+    t.cortex.putNode(t.human, { path: "frontend/pages", title: "Pano ekranları", summary: "Her sayfa ayrı bir dosyada." });
+    t.cortex.putNode(t.human, { path: "backend/items", title: "Kalemler", summary: "Kalem sayfalar halinde listelenir." });
+
+    // "ertelemek" appears nowhere as written; its stem "ertele" matches "erteleme" and "ertelenebilir".
+    assert.equal((await t.cortex.search("eskimiş bilgiyi ertelemek")).results[0]?.path, "backend/staleness");
+    assert.equal((await t.cortex.search("ertelemek")).results[0]?.path, "backend/staleness");
+    // Words as written win: "sayfalar" matches one node, so the stem "sayfa" (the other node) is never tried.
+    assert.deepEqual(
+      (await t.cortex.search("sayfalar")).results.map((r) => r.path),
+      ["backend/items"],
+    );
+    // Short words are never cut: "sayfa" matches as a prefix, as before.
+    assert.equal((await t.cortex.search("sayfa")).results.length, 2);
+  } finally {
+    t.cleanup();
+  }
+});
+
 test("the index is disposable: delete it, reopen, nothing is lost", async () => {
   const t = tempProject();
   try {

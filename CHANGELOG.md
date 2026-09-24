@@ -16,6 +16,10 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ### Fixed
 
+- **Keyword search finds other forms of a word.** When no record has every word as written, search
+  tries each word's stem too ("ertelemek" finds "erteleme" and "ertelenebilir"), and records matching
+  any word fill the rest of the page as before. Exact matches are never displaced: stems are only the
+  fallback, and words of five letters or fewer are never cut.
 - **A Turkish project no longer opens on an English tree.** `init --lang tr` now seeds the branch
   titles and summaries, and the root node's placeholder, in Turkish; a language with no seed still
   gets English, and the bootstrap task rewrites all of it anyway. Reports keep counting a seeded

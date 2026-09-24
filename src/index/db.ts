@@ -522,14 +522,28 @@ export class Index {
   search(query: string, opts: SearchOptions): SearchRow[] {
     const terms = fold(query).match(/[\p{L}\p{N}]+/gu) ?? [];
     if (terms.length === 0) return [];
-    const quote = (list: string[]) => list.map((t) => `"${t}"*`);
-    // Prefer documents matching every term.
-    const all = this.runSearch(quote(terms).join(" AND "), opts);
-    if (all.length > 0 || terms.length === 1) return all;
+    const exact = (list: string[]) => list.map((t) => `"${t}"*`);
+    // Each term or its stem: an inflected word finds its other forms ("ertelemek" finds "erteleme" and
+    // "ertelenebilir"), and the full word still ranks higher because it matches both.
+    const stemmed = (list: string[]) =>
+      list.map((t) => {
+        const s = stem(t);
+        return s === t ? `"${t}"*` : `("${t}"* OR "${s}"*)`;
+      });
+    // Prefer documents matching every term as written, then every term by its stem.
+    // Stems only as a fallback: used from the start they widen matches that were already right.
+    const all = this.runSearch(exact(terms).join(" AND "), opts);
+    if (all.length > 0) return all;
+    const allStemmed = this.runSearch(stemmed(terms).join(" AND "), opts);
+    if (allStemmed.length >= opts.limit || terms.length === 1) return allStemmed;
     // Then any term, but not filler words: "mı", "ve", "the" would match half the project.
+    // Whole words here: with stems, "any term" matches too much and pushes the right record down.
+    // A few stem matches must not hide these either, so they fill the rest of the page.
     const meaningful = terms.filter((t) => !STOPWORDS.has(t));
-    if (meaningful.length === 0) return [];
-    return this.runSearch(quote(meaningful).join(" OR "), opts);
+    if (meaningful.length === 0) return allStemmed;
+    const seen = new Set(allStemmed.map((r) => `${r.kind} ${r.ref}`));
+    const any = this.runSearch(exact(meaningful).join(" OR "), opts).filter((r) => !seen.has(`${r.kind} ${r.ref}`));
+    return [...allStemmed, ...any].slice(0, opts.limit);
   }
 
   private runSearch(match: string, opts: SearchOptions): SearchRow[] {
@@ -549,6 +563,14 @@ export class Index {
       .all(...args)
       .map((r) => ({ kind: r.kind as DocKind, ref: r.ref as string, score: Math.round(-(r.rank as number) * 1000) / 1000 }));
   }
+}
+
+// A crude, language-free stem for prefix search: Turkish piles suffixes onto a root ("erteleme-k",
+// "sayfa-lar-ı"), so dropping up to three trailing letters, never below five, reaches most roots.
+// Short words stay whole: four-letter prefixes match too much.
+const MIN_STEM = 5;
+export function stem(term: string): string {
+  return term.length <= MIN_STEM ? term : term.slice(0, Math.max(MIN_STEM, term.length - 3));
 }
 
 function toNode(r: Record<string, unknown>): IndexedNode {

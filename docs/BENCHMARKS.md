@@ -154,6 +154,23 @@ What this shows:
   and got 6 of 6 either way. For an AI caller, the search mode matters less than it seems; for a person
   typing into the board's search box, it matters more.
 
+### Follow-up: keyword stems (semantic search set aside)
+
+Semantic search was turned off again: it added a 420 MB download for no measured gain. Keyword search
+got the one fix the round pointed at: when no record has every word as written, each word's stem is
+tried too (at most three letters dropped, never below five). Measured on 20 queries (the 12 above plus
+8 more in both languages), rank of the right record in the top 10:
+
+| | Before | After |
+|---|---|---|
+| Found in top 10 | 17 / 20 | **18 / 20** |
+| At rank 1 | 11 | 11 |
+| Worse by one rank | | 1 ("onaylanan taslak…": 7 → 8) |
+| Newly found | | "eskimiş bilgiyi ertelemek": – → 3 |
+
+Using stems from the start, or in the "any word" fallback, was tried first and measured worse (it
+widened matches that were already right), so stems are only a middle step.
+
 ## What we learned so far
 
 1. Cortex pays off where the answer is not in the code: why something was decided, by whom, what was
@@ -166,13 +183,12 @@ What this shows:
 5. The larger design task (round 4) did not widen the gap: on a codebase this size, reading the code
    gives an agent the architecture. Cortex's edge stays with what the code cannot say.
 6. Semantic search, as built today, gave no measurable gain to agents and lost one keyword hit in
-   hybrid ranking. The fusion and Turkish word forms are the things to fix before it is worth the
-   420 MB download.
+   hybrid ranking. It stays optional and off; keyword search got stem matching instead.
 
 ## Next runs
 
-- Search: keep a strong single-list hit in the hybrid top results, add Turkish prefix matching to the
-  keyword index, embed title and summary separately from long bodies; then rerun round 5.
+- Search: English questions against Turkish knowledge are still the gap keyword search cannot close.
+  Agents close it themselves by rewriting the query, so it matters mostly for people using the board.
 
 - A larger, less commented codebase, where reading the code costs more.
 - A real implementation task with tests as the grader, not a written plan.
