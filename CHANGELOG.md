@@ -5,6 +5,11 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-09-24
+
+Connecting an AI agent to a team server, without the board getting in the way: access can be granted from
+a terminal, a refusal says who was refused, and the board stops re-reading lists it only wanted to count.
+
 ### Added
 
 - **`cortexboard hub member <project> <who>`** gives a person or an AI agent access to a project from the
@@ -226,7 +231,8 @@ was measured, by how much.
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
 
-[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.4
 [0.2.3]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.3
 [0.2.2]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.2
 [0.2.1]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.1
