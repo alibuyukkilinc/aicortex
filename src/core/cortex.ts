@@ -176,6 +176,12 @@ export class Cortex {
         }
       }, 300);
     });
+    // Without a listener an 'error' event kills the process. Windows emits EPERM when the watched folder
+    // is deleted or moved, even just after close() (closing is asynchronous there). Report it and keep
+    // serving from the index; after close() it is expected and ignored.
+    this.watcher.on("error", (e) => {
+      if (!this.closed) onError(e);
+    });
     // Commits happen outside .cortex; poll HEAD so staleness (and open boards) update without a restart.
     let head = this.staleness.currentHead();
     this.headPoll = setInterval(() => {
