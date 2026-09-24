@@ -33,7 +33,7 @@ test("two clones write on the same day and merge without conflicts; the index ha
     const b = join(root, "b");
     execFileSync("git", ["init", "-q", a]);
     setup(a);
-    initProject(a, "shop", { language: "en", timezone: "UTC" });
+    initProject(a, "shop", { language: "en", timezone: "UTC", bootstrapTask: false });
     git(a, "add", "-A");
     git(a, "commit", "-q", "-m", "cortex init");
     execFileSync("git", ["clone", "-q", a, b]);

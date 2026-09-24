@@ -18,7 +18,7 @@ test("paging as a member who sees a third of the project", async () => {
   const app = buildHubServer(new Hub(store));
   try {
     const dir = join(root, "shop");
-    initProject(dir, "shop", { language: "en", timezone: "UTC" });
+    initProject(dir, "shop", { language: "en", timezone: "UTC", bootstrapTask: false });
     store.addProject({ id: "shop", name: "shop", path: dir });
     const admin = store.createUser({ email: "ada@example.com", name: "Ada", org_admin: true });
     const dev = store.createUser({ email: "fe@example.com", name: "Fe" });

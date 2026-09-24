@@ -33,7 +33,7 @@ Connect your AI tool over MCP (Claude Code example; other tools and `--dir` for 
 claude mcp add cortex -- npx cortexboard mcp --actor ai-agent
 ```
 
-Then fill the tree: `npx cortexboard bootstrap` prints a task you hand to your AI.
+Then fill the tree: `init` has already opened a task for your AI ("Fill the knowledge tree from the code"), so tell it to start its Cortex task. `npx cortexboard bootstrap` prints the same text if you would rather paste it.
 
 ### Search by meaning (optional)
 
@@ -227,7 +227,7 @@ npx cortexboard init
 npx cortexboard start
 ```
 
-`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx cortexboard semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve `npx cortexboard bootstrap` çıktısını AI'ınıza verin. Ağacı o doldursun, siz onaylayın.
+`start` komutu panoya giriş için tek kullanımlık bir bağlantı yazdırır; şifre yoktur. `init --lang tr` ile AI'ların Cortex'e hangi dilde yazacağını belirlersiniz (verilmezse bilgisayarın dili); bu bir kuraldır ve Kurallar sayfasından değiştirilebilir. Anlamla arama isteğe bağlıdır: makine başına bir kez `npx cortexboard semantic on` çalıştırın (yerel model, ~420 MB, token harcamaz). Ardından AI aracınızı MCP ile bağlayın ve "Cortex'teki görevine başla" deyin: `init` AI için "Bilgi ağacını koddan doldur" görevini zaten açmıştır (aynı metin `npx cortexboard bootstrap` ile de yazdırılır). Ağacı o doldursun, siz onaylayın.
 
 **Ekip için:** `npx cortexboard hub init` ile tek sunucuda birden çok proje yönetilir. Kişiler e-posta ve şifreyle, AI ajanları token ile girer; her projede rol (Sahip, Yönetici, Üye, İzleyici; AI için Okuyucu, Katkıcı, Güvenilir) ve görünürlük (her şey / yalnızca kendi kayıtları, isteğe bağlı dal kısıtı) ayrı ayrı verilir. Proje bilgisi yine kendi reposundaki `.cortex/` klasöründe kalır.
 

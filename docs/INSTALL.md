@@ -113,13 +113,13 @@ Port 4747 taken? `npx cortexboard start --port 4800`.
 
 ### 3. Connect your AI and fill the tree
 
-[Connect your AI tool](#connect-your-ai-tool) (next section), then:
+`init` opens a task for your AI right away: **"Fill the knowledge tree from the code (first setup)"**,
+assigned to `@ai` and visible on the board. [Connect your AI tool](#connect-your-ai-tool) (next section),
+then just tell your AI "start your Cortex task". It finds the task in its inbox, and until the tree is
+filled the brief tells it to do that first. It reads the codebase and writes the knowledge tree. To hand
+the same text over yourself, `npx cortexboard bootstrap` prints it.
 
-```bash
-npx cortexboard bootstrap
-```
-
-It prints a task. Paste it to your AI: it reads the codebase and writes the knowledge tree. Every page it
+Every page it
 writes arrives as a **draft**; approve them on the board under **Approvals** (you can approve many at
 once). From then on the AI starts every session by reading a short brief instead of re-reading the
 project, and asks you in **Notifications** when it is unsure.
@@ -214,11 +214,18 @@ password (valid 48 hours).
 The server needs a checkout of each repository. Then:
 
 ```bash
-npx cortexboard hub add-project /srv/repos/shop            # already has .cortex/
-npx cortexboard hub add-project /srv/repos/blog --init     # creates .cortex/ first
+npx cortexboard hub add-project /srv/repos/shop                                            # already has .cortex/
+npx cortexboard hub add-project /srv/repos/blog --init --lang en --branches backend,frontend # creates .cortex/ first
 ```
 
 or on the board: **Organization → Projects → Add project**.
+
+A project that never used Cortex (`--init`) starts as a bare skeleton: the branches you chose and a task
+for the AI, **"Fill the knowledge tree from the code"**. The first AI agent you add to the project
+([step 5](#5-connect-ai-agents-to-the-hub)) finds it in its inbox; nobody has to run a command on the
+server and paste text. With the **Contributor** role its writes arrive as drafts, which the team approves
+(in bulk) under **Approvals**. On a large project the AI can work in passes, leaving a note on the task
+where it stopped.
 
 ### 3. Run it behind HTTPS
 

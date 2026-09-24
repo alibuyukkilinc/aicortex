@@ -26,12 +26,12 @@ Usage: cortex <command> [options]
                                      (any command: --dir <project folder> or CORTEX_DIR to point elsewhere)
   mcp --hub <url> --project <id> --token <t>
                                      Same tools against a project on a team server (env: CORTEX_HUB_URL, CORTEX_PROJECT, CORTEX_TOKEN)
-  bootstrap                          Print the task that lets your AI fill the tree
+  bootstrap                          Print the task that lets your AI fill the tree (init also opens it as a task for @ai)
   reindex                            Rebuild the search index from files
   semantic [on|off|status]           Meaning-based search (one-time ~420 MB download, shared by all projects)
   hub init --org <name> --admin-email <e> --admin-name <n> [--public-url <https://...>]
   hub start [--host 0.0.0.0] [--port 4747]    Team server: many projects, people with passwords, AI agents with tokens
-  hub add-project <folder> [--id] [--name] [--init]
+  hub add-project <folder> [--id] [--name] [--init [--lang tr] [--branches a,b]]
   hub invite <email>                 New invite / password-reset link for a user
   report [--since 7d] [--until <date>] [--lang en|tr] [--json] [--out <file>]
                                      What happened, what is waiting, knowledge health (markdown by default)
@@ -105,7 +105,8 @@ Next steps:
   1. npx cortexboard start                start the local API on http://localhost:4747
   2. Add the MCP server to your AI tool, e.g. Claude Code:
        claude mcp add cortex -- npx cortexboard mcp --actor ai-agent
-  3. npx cortexboard bootstrap            give the printed task to your AI to fill the tree
+  3. Ask your AI to start: the task that fills the knowledge tree is waiting in its inbox
+     (task ${r.bootstrapTask}; \`npx cortexboard bootstrap\` prints the same text to paste anywhere)
 `);
       if (r.markdownCandidates.length) {
         console.log(`Found ${r.markdownCandidates.length} markdown file(s) the bootstrap task will import.`);
@@ -307,13 +308,18 @@ async function hubCommand(sub: string | undefined, arg: string | undefined, v: R
       return; // keep running
     }
     if (sub === "add-project") {
-      if (!arg) throw new Error("Usage: cortexboard hub add-project <folder> [--id shop] [--name Shop] [--init]");
+      if (!arg) throw new Error("Usage: cortexboard hub add-project <folder> [--id shop] [--name Shop] [--init [--lang tr] [--branches backend,frontend]]");
       const path = resolve(arg);
       const name = str("name") ?? basename(path);
       if (!existsSync(join(path, ".cortex", "cortex.config.yaml"))) {
         if (!v.init) throw new Error(`${path} has no .cortex yet. Add --init to create one.`);
         const { initProject } = await import("./core/init.js");
-        initProject(path, name, { language: str("lang") });
+        const branches = str("branches")
+          ?.split(",")
+          .map((b) => b.trim())
+          .filter(Boolean);
+        const r = initProject(path, name, { language: str("lang"), branches });
+        console.log(`✔ Created ${r.dir}. The first AI agent you connect finds the task that fills the knowledge tree in its inbox (${r.bootstrapTask}).`);
       }
       const id = (str("id") ?? name)
         .toLowerCase()

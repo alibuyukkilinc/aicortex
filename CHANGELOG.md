@@ -7,6 +7,13 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ### Added
 
+- **A new project tells its first AI what to do.** `init` (also `hub add-project --init` and "Add project"
+  on the hub) opens a task for `@ai`, "Fill the knowledge tree from the code (first setup)", with the
+  bootstrap instructions as its body, in the project's language. Until the root summary is written, the
+  brief's `next` holds only that step. An agent connecting through a hub used to find an empty tree and
+  no instructions; now it finds the task in its inbox. `cortexboard bootstrap` still prints the text.
+- **`hub add-project --init --branches a,b`** (and `branches` on `POST /api/admin/projects`): pick the
+  top-level branches when registering a new project on the hub, as `init --branches` does.
 - **Fewer calls to read the queue.** `cortex_items(preview: true)` (REST `GET /items?preview=true`) adds a
   short gist of each item's body and its last reply (who, when, which status change) to every row, and
   `cortex_item` takes `ids` to read up to 10 related items in one call; a missing or hidden one only fails

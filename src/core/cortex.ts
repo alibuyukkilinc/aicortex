@@ -16,6 +16,7 @@ import type { Embedder } from "../search/embedder.js";
 import { TransformersEmbedder } from "../search/embedder.js";
 import { semanticEnabled } from "../search/runtime.js";
 import { SemanticIndex } from "../search/semantic.js";
+import { BOOTSTRAP_TAG, isPlaceholder } from "./init.js";
 import { ActivityService } from "./activity.js";
 import type { StaleChange, StaleInfo } from "./staleness.js";
 import { StalenessService, actionable } from "./staleness.js";
@@ -306,6 +307,10 @@ export class Cortex {
         ...(open ? { open_items: open } : {}),
       };
     });
+    const setup =
+      root && isPlaceholder(root.summary)
+        ? `Knowledge tree not filled yet: do the "${BOOTSTRAP_TAG}" task in your inbox first (none? ask a human to run \`cortexboard bootstrap\`)`
+        : null;
     const drafts = this.drafts.list();
     const mine = actor.kind === "human" ? drafts : drafts.filter((d) => d.proposed_by === actor.id);
     const allStale = this.staleness.list();
@@ -365,11 +370,14 @@ export class Cortex {
       search: ["ready", "indexing"].includes(this.semantic.status().state) ? "hybrid" : "keyword",
       // The language rule is the first global rule; no separate field, every token counts here.
       rules: { version: rulesVersion(this.project.dir), global: this.globalRules(), item_types: this.itemTypes() },
-      next: [
-        "cortex_inbox for everything waiting on you",
-        "cortex_search(q) before changing anything you don't fully understand",
-        "cortex_tree(path) / cortex_node(path) to drill down; cortex_log_activity after each change",
-      ],
+      // A project nobody has described yet has one next step, filling the tree; the usual hints can wait.
+      next: setup
+        ? [setup]
+        : [
+            "cortex_inbox for everything waiting on you",
+            "cortex_search(q) before changing anything you don't fully understand",
+            "cortex_tree(path) / cortex_node(path) to drill down; cortex_log_activity after each change",
+          ],
     });
     // Steps tried in order until the brief fits: shorter branch summaries, then fewer rows.
     const steps: [number, number, number][] = [

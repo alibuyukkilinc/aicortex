@@ -258,7 +258,7 @@ npx cortexboard start     # API + pano + dosya izleyici
 
 `init` sonrasında:
 1. Mevcut `.md` dosyaları (README, docs/, CLAUDE.md vb.) taranır ve "içe aktarım adayları" olarak listelenir.
-2. `cortexboard bootstrap`, kullanıcının kendi AI'ına verilecek hazır bir görev yazdırır: "Projeyi tara, ağacı kur, her dala özet yaz, kararları çıkar, çelişkileri soru olarak aç." Görev yazım dilini de söyler. AI bu görevi API/MCP üzerinden yapar; bilgi yazımları taslak olarak düşer.
+2. `init` bu görevi `@ai`'a atanmış bir **görev kaydı** olarak açar ("Bilgi ağacını koddan doldur (ilk kurulum)", etiket `bootstrap`): "Projeyi tara, ağacı kur, her dala özet yaz, kararları çıkar, çelişkileri soru olarak aç." Görev yazım dilini de söyler. İlk bağlanan AI (yerelde ya da hub üzerinden) onu gelen kutusunda bulur; kök özeti henüz yazılmadıysa brief'in `next` alanı yalnızca bu görevi gösterir. `cortexboard bootstrap` aynı metni elle vermek için yazdırır. AI görevi API/MCP üzerinden yapar; bilgi yazımları taslak olarak düşer.
 3. İnsan panelden (toplu) onaylar. Uymayan dalları siler.
 4. `--agent-files` verilmişse projedeki mevcut `CLAUDE.md` veya `AGENTS.md` dosyasına **tek bir kısa blok** eklenir: "Bu projede bilgi kaynağı Cortex'tir. Oturum başında `cortex_brief` çağır, değişiklikten önce `cortex_search` yap, değişiklikten sonra `cortex_log_activity` gönder." Bundan sonra `.md` dosyalarında doküman güncellenmez.
 
@@ -288,7 +288,7 @@ Tek sunucu, birden çok proje, ekip üyeleri ve AI ajanları. `cortexboard start
 - **Görünürlük:** Her üyelik "her şeyi" ya da "yalnızca kendi kayıtlarını" (yazdığı, kendisine veya grubuna atanan) görür; isteğe bağlı dal kısıtı (ör. yalnızca `frontend`) bilgi ağacını, düğümleri, kayıtları, aramayı, aktiviteyi, gelen kutusunu, brief'i ve canlı olayları süzer. Gizli olan 404 döner; kısmi görünüm proje raporu alamaz.
 - **Web:** `/` projelerim, `/admin` organizasyon (kişiler, AI ajanları, projeler), `/p/<proje>/` proje panosu (proje değiştirici, Üyeler sayfası), `/invite/<token>` şifre belirleme.
 - **AI bağlantısı:** `cortexboard mcp --hub <url> --project <id> --token <t>`; MCP araçları merkezdeki proje API'sini kullanır, rol ve görünürlük aynen geçerlidir.
-- **Komutlar:** `cortexboard hub init | start | add-project <klasör> | invite <e-posta>`. İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılır ve `public_url` https adrese ayarlanır.
+- **Komutlar:** `cortexboard hub init | start | add-project <klasör> [--init --lang tr --branches a,b] | invite <e-posta>`. İnternete açılacaksa HTTPS arkasında (ters vekil) çalıştırılır ve `public_url` https adrese ayarlanır.
 
 ## 17. Kapsam
 

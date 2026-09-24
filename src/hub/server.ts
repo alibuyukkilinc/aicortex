@@ -302,14 +302,15 @@ export function buildHubServer(hub: Hub): FastifyInstance {
   // Register an existing Cortex project by folder, or create .cortex in a folder that has none (init: true).
   app.post("/api/admin/projects", async (req, reply) => {
     const admin = orgAdmin(req);
-    const b = (req.body ?? {}) as { path?: string; id?: string; name?: string; init?: boolean; language?: string };
+    const b = (req.body ?? {}) as { path?: string; id?: string; name?: string; init?: boolean; language?: string; branches?: string[] | string };
     if (!b.path?.trim()) throw new CortexError("invalid_project", "Send the project folder as path.", 400);
     const path = resolve(b.path.trim());
     if (!existsSync(path)) throw new CortexError("invalid_project", `Folder not found: ${path}`, 400);
     const name = b.name?.trim() || basename(path);
     if (!existsSync(join(path, ".cortex", "cortex.config.yaml"))) {
       if (!b.init) throw new CortexError("not_initialized", "That folder has no .cortex yet. Send init: true to create one.", 400, { path });
-      initProject(path, name, { language: b.language });
+      const branches = typeof b.branches === "string" ? b.branches.split(",") : b.branches;
+      initProject(path, name, { language: b.language, branches: branches?.map((x) => String(x).trim()).filter(Boolean) });
     }
     const id = (b.id?.trim() || name)
       .toLowerCase()

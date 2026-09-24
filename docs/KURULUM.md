@@ -113,13 +113,13 @@ kullandığın sürece terminal açık kalsın (Ctrl+C durdurur).
 
 ### 3. AI'ını bağla ve ağacı doldur
 
-[AI aracını bağla](#ai-aracını-bağla) (sonraki bölüm), sonra:
+`init` ilk iş olarak AI için bir görev açar: **"Bilgi ağacını koddan doldur (ilk kurulum)"**. Görev `@ai`'a
+atanır ve panoda görünür. [AI aracını bağla](#ai-aracını-bağla) (sonraki bölüm), sonra AI'ına yalnızca
+"Cortex'teki görevine başla" de. Görevi gelen kutusunda bulur, brief de ağaç doldurulana kadar ona önce bunu
+yapmasını söyler. AI kod tabanını okur ve bilgi ağacını yazar. Aynı metni elle vermek istersen
+`npx cortexboard bootstrap` yazdırır.
 
-```bash
-npx cortexboard bootstrap
-```
-
-Bir görev yazdırır. Bunu AI'ına yapıştır: kod tabanını okur ve bilgi ağacını yazar. Yazdığı her sayfa
+Yazdığı her sayfa
 **taslak** olarak gelir; panoda **Onaylar** altından onayla (topluca da onaylanabilir). Bundan sonra AI her
 oturuma projeyi baştan okumak yerine kısa bir özetle başlar, emin olmadığında sana **Bildirimler**'den
 sorar.
@@ -215,11 +215,17 @@ bağlantı yazdırır (48 saat geçerli).
 Sunucuda her reponun bir kopyası olmalı. Sonra:
 
 ```bash
-npx cortexboard hub add-project /srv/repos/magaza            # .cortex/ zaten var
-npx cortexboard hub add-project /srv/repos/blog --init       # önce .cortex/ oluşturur
+npx cortexboard hub add-project /srv/repos/magaza                                            # .cortex/ zaten var
+npx cortexboard hub add-project /srv/repos/blog --init --lang tr --branches backend,frontend  # önce .cortex/ oluşturur
 ```
 
 ya da panoda: **Organizasyon → Projeler → Proje ekle**.
+
+Cortex'i hiç kullanmamış bir proje (`--init`) boş bir iskeletle başlar: seçtiğin dallar ve AI için açılmış
+**"Bilgi ağacını koddan doldur"** görevi. Projeye eklediğin ilk AI ajanı ([5. adım](#5-ai-ajanlarını-huba-bağla))
+bu görevi gelen kutusunda bulur; kimsenin sunucuda komut çalıştırıp metin kopyalaması gerekmez. Ajanın rolü
+**Katkıcı** olursa yazdıkları taslak düşer; ekip ağacı panodaki **Onaylar** sayfasından (topluca) onaylar.
+Büyük bir projede AI görevi birkaç oturuma bölebilir: görevi bırakırken nerede kaldığını not eder.
 
 ### 3. HTTPS arkasında çalıştır
 

@@ -10,7 +10,7 @@ import type { Embedder } from "../src/search/embedder.js";
 // Semantic search is off unless a test passes an embedder, so results never depend on this machine's setup.
 export function tempProject(name = "demo", opts: { embedder?: (() => Embedder) | null } = {}) {
   const root = mkdtempSync(join(tmpdir(), "cortex-test-"));
-  const init = initProject(root, name, { language: "en", timezone: "UTC" }); // fixed, so tests do not depend on this machine's locale
+  const init = initProject(root, name, { language: "en", timezone: "UTC", bootstrapTask: false }); // fixed, so tests do not depend on this machine's locale
   const cortex = new Cortex(loadProject(root), { embedder: opts.embedder ?? null });
   const human = cortex.actor("owner");
   const ai = cortex.actor("ai-agent");
@@ -50,7 +50,7 @@ export function gitProject() {
   write("src/pay/iyzico.ts", "export const provider = 'iyzico';\n");
   write("src/pay/refund_v2.ts", "export {};\n");
   write("README.md", "# demo\n");
-  const init = initProject(root, "demo", { language: "en" }); // fixed, like tempProject: the seed text follows the language
+  const init = initProject(root, "demo", { language: "en", bootstrapTask: false }); // fixed, like tempProject: the seed text follows the language
   const first = commit("initial");
   const cortex = new Cortex(loadProject(root), { embedder: null });
   return {

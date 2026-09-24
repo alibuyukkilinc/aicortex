@@ -6,6 +6,7 @@ import { CORTEX_DIR, GITATTRIBUTES, paths, secureSecretsFile } from "./project.j
 import type { CortexConfig, KnowledgeNode } from "./types.js";
 import { CortexError } from "./types.js";
 import { TreeStore, normalizePath } from "../store/tree.js";
+import { ItemStore } from "../store/items.js";
 import { nowIso, ulid } from "../util/text.js";
 import { ACTIVITY_SCHEMA, DEFAULT_SCHEMAS } from "./schema.js";
 import { languageRule } from "./language.js";
@@ -22,6 +23,7 @@ interface SeedText {
   pending: string; // appended to every seeded branch summary
   root: (project: string) => string;
   rootMark: string; // the part of `root` that says the summary is still unwritten
+  bootstrapTitle: string; // the task init opens for the first AI that connects
 }
 
 export const BRANCH_PATHS = ["backend", "frontend", "server", "mobile", "security", "seo", "code-structure"];
@@ -41,6 +43,7 @@ const SEED: Record<string, SeedText> = {
     pending: "(not documented yet)",
     root: (project) => `${project}: project summary not written yet. Run the bootstrap task to fill this in.`,
     rootMark: "summary not written yet",
+    bootstrapTitle: "Fill the knowledge tree from the code (first setup)",
   },
   tr: {
     branches: {
@@ -56,6 +59,7 @@ const SEED: Record<string, SeedText> = {
     pending: "(henüz belgelenmedi)",
     root: (project) => `${project}: proje özeti henüz yazılmadı. Doldurmak için bootstrap görevini çalıştır.`,
     rootMark: "özeti henüz yazılmadı",
+    bootstrapTitle: "Bilgi ağacını koddan doldur (ilk kurulum)",
   },
 };
 
@@ -111,6 +115,7 @@ export interface InitResult {
   dir: string;
   tokens: Record<string, string>;
   markdownCandidates: string[];
+  bootstrapTask: string | null; // id of the task that asks the first AI to fill the tree
 }
 
 // The machine's language ("tr" on a Turkish system) unless the user passes --lang.
@@ -135,7 +140,11 @@ export function resolveBranches(names?: string[], language?: string | null): Bra
   return out;
 }
 
-export function initProject(root: string, name = basename(root), opts: { language?: string; branches?: string[]; timezone?: string } = {}): InitResult {
+export function initProject(
+  root: string,
+  name = basename(root),
+  opts: { language?: string; branches?: string[]; timezone?: string; bootstrapTask?: boolean } = {},
+): InitResult {
   const dir = join(root, CORTEX_DIR);
   if (existsSync(join(dir, "cortex.config.yaml"))) {
     throw new CortexError("already_initialized", `Cortex is already initialized in ${dir}.`, 409);
@@ -202,8 +211,32 @@ export function initProject(root: string, name = basename(root), opts: { languag
   tree.write(make("", name, seed.root(name)));
   for (const [path, title, summary] of resolveBranches(opts.branches, language)) tree.write(make(path, title, `${summary} ${seed.pending}`));
 
-  return { dir, tokens, markdownCandidates: findMarkdown(root) };
+  // The bootstrap task as a real item for @ai, not only text printed by `cortexboard bootstrap`: an agent
+  // that connects later, on this computer or through a hub, finds it in its inbox and the board shows progress.
+  const markdownCandidates = findMarkdown(root);
+  const now = nowIso();
+  // Tests that count items turn it off (bootstrapTask: false); every real init opens it.
+  const bootstrapTask = opts.bootstrapTask === false ? null : ulid();
+  if (bootstrapTask)
+    new ItemStore(p.items).write({
+      id: bootstrapTask,
+      type: "task",
+      title: seed.bootstrapTitle,
+      status: "todo",
+      author: "owner",
+      assignee: "@ai",
+      tags: [BOOTSTRAP_TAG],
+      fields: { priority: "high" },
+      created_at: now,
+      updated_at: now,
+      updated_by: "owner",
+      body: bootstrapPrompt(name, markdownCandidates, language, true),
+    });
+
+  return { dir, tokens, markdownCandidates, bootstrapTask };
 }
+
+export const BOOTSTRAP_TAG = "bootstrap";
 
 function token(): string {
   return "ctx_" + randomBytes(24).toString("base64url");
@@ -230,7 +263,8 @@ export function findMarkdown(root: string, limit = 50): string[] {
 }
 
 // A ready-made task the user hands to their own AI, so filling the tree costs Cortex zero tokens.
-export function bootstrapPrompt(projectName: string, markdown: string[], language?: string | null): string {
+// `asTask`: the text is the body of the bootstrap task, so it also says how to close that task.
+export function bootstrapPrompt(projectName: string, markdown: string[], language?: string | null, asTask = false): string {
   return `# Cortex bootstrap task
 
 You are setting up the Cortex knowledge tree for "${projectName}".
@@ -251,7 +285,13 @@ ${markdown.length ? markdown.map((m) => `   - ${m}`).join("\n") : "   (none foun
 6. Past decisions you find in docs or commit history: record them with cortex_create_item (type "decision").
    Open questions and contradictions: cortex_create_item (type "question", assignee "@humans").
 7. Always include a short "reason" with each write.
-
+${
+  asTask
+    ? `8. Claim this task (cortex_claim) when you start and move it to "review" when you finish, with a reply listing what you wrote.
+   Work in passes if the project is large: a handoff note on release tells the next session where you stopped.
+`
+    : ""
+}
 Knowledge nodes you write become drafts until a human approves them in Cortex.
 `;
 }

@@ -19,7 +19,7 @@ async function setup(settings: Partial<HubSettings> = {}) {
   store.setPassword(admin.id, await hashPassword("correct-horse-1"));
   for (const id of ["shop", "blog"]) {
     const dir = join(root, id);
-    initProject(dir, id, { language: "en", timezone: "UTC" });
+    initProject(dir, id, { language: "en", timezone: "UTC", bootstrapTask: false });
     store.addProject({ id, name: id, path: dir });
   }
   const hub = new Hub(store);
@@ -258,12 +258,21 @@ test("hub projects: register a folder, create .cortex on request, unregister wit
       method: "POST",
       url: "/api/admin/projects",
       cookie: admin,
-      payload: { path: folder, name: "New App", init: true, language: "tr" },
+      payload: { path: folder, name: "New App", init: true, language: "tr", branches: "backend,mobile" },
     });
     assert.equal(r.statusCode, 201, r.body);
     assert.equal(r.json().project.id, "new-app");
     const brief = (await t.call({ url: "/api/p/new-app/brief", cookie: admin })).json();
     assert.match(brief.rules.global[0], /Turkish/);
+    assert.deepEqual(
+      brief.branches.map((b: { path: string }) => b.path),
+      ["backend", "mobile"],
+      "the chosen branches, not the whole template",
+    );
+    // The first agent on the hub finds the task that fills the tree; nobody has to paste a prompt.
+    const tasks = (await t.call({ url: "/api/p/new-app/items?type=task", cookie: admin })).json();
+    assert.equal(tasks.items[0].assignee, "@ai");
+    assert.match(tasks.items[0].title, /Bilgi ağacını koddan doldur/);
     assert.equal((await t.call({ method: "DELETE", url: "/api/admin/projects/new-app", cookie: admin })).statusCode, 200);
     assert.equal((await t.call({ url: "/api/p/new-app/brief", cookie: admin })).statusCode, 404);
     assert.ok((await import("node:fs")).existsSync(join(folder, ".cortex", "cortex.config.yaml")));
