@@ -1,19 +1,19 @@
 ---
 title: Anlamla arama (isteğe bağlı)
-summary: "`cortexboard semantic on` bilgisayara bir kez yerel model kurar (~/.cortex
-  altında, tüm projeler ortak). Vektörler SQLite'ta ve bellekte durur; kelime
-  aramasıyla RRF ile birleşir. Ölçüldü: hibrit arama ~7 ms, asıl maliyet tek
-  seferlik gömme (~50 ms/belge)."
+summary: "`cortexboard semantic on` bilgisayara bir kez yerel model kurar
+  (~/.cortex altında, tüm projeler ortak). Vektörler SQLite'ta ve bellekte
+  durur; kelime aramasıyla RRF ile birleşir. Ölçüldü: hibrit arama ~7 ms, asıl
+  maliyet tek seferlik gömme (~50 ms/belge)."
 links:
   code:
     - file: src/search/semantic.ts
     - file: src/search/runtime.ts
     - file: src/search/embedder.ts
-verified_at_commit: 0ee05a38f206a18ec39a2854c47b1a9fa4f57476
+verified_at_commit: da5966780fad6132cf36c160dd2acf10c664a69a
 id: 01M34QY9CTKEHQ7G89037EAWVN
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:30:11.240Z
+updated_at: 2026-09-24T07:57:58.348Z
 ---
 
 - Model: `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (q8). Çalışma ortamı `@huggingface/transformers`, `~/.cortex/runtime` altına kurulur; npx paketiyle gelmez çünkü ~290 MB.

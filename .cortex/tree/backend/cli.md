@@ -10,11 +10,11 @@ links:
     - file: src/core/init.ts
     - file: src/core/agentFiles.ts
     - file: src/util/runtime-check.ts
-verified_at_commit: fabbee9530eb06cc42492428bf966d1517ad9857
+verified_at_commit: da5966780fad6132cf36c160dd2acf10c664a69a
 id: 01M34QY9W1VNPQMRXK141RRDFS
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T07:54:41.142Z
+updated_at: 2026-09-24T07:57:58.296Z
 ---
 
 - Proje hangi klasörde: `--dir <klasör>`, yoksa `CORTEX_DIR`, yoksa çalışılan klasör (git gibi yukarı doğru aranır). Claude Desktop ve Codex MCP sunucularını proje klasöründe başlatmadığı için `mcp --dir` gerekir; `init --dir` projeyi o klasörde oluşturur (klasör yoksa açar). `hub` komutlarında `--dir` hub'ın veri klasörüdür (varsayılan `~/.cortex/hub`, `CORTEX_HUB`).
