@@ -23,6 +23,7 @@ Usage: cortex <command> [options]
   login [--actor <id>]               Print a 10-minute login link for the board (default: first human)
   logout [--actor <id>] [--all]      End that person's board sessions on every browser (--all: everyone's)
   mcp [--actor <id>]                 Run as an MCP server over stdio for the project in this folder
+                                     (any command: --dir <project folder> or CORTEX_DIR to point elsewhere)
   mcp --hub <url> --project <id> --token <t>
                                      Same tools against a project on a team server (env: CORTEX_HUB_URL, CORTEX_PROJECT, CORTEX_TOKEN)
   bootstrap                          Print the task that lets your AI fill the tree
@@ -77,11 +78,15 @@ async function main() {
   });
 
   const { loadProject } = await import("./core/project.js");
+  // Which project: --dir, CORTEX_DIR, or the folder this runs in (searched upwards, like git). MCP clients
+  // that do not start servers in the project folder (Claude Desktop) need --dir.
+  const projectDir = cmd === "hub" ? undefined : (values.dir ?? process.env.CORTEX_DIR);
 
   switch (cmd) {
     case "init": {
       const { initProject, AGENT_HINT, DEFAULT_BRANCHES } = await import("./core/init.js");
-      const root = process.cwd();
+      const { resolve } = await import("node:path");
+      const root = projectDir ? resolve(projectDir) : process.cwd();
       let branches = values.branches
         ?.split(",")
         .map((b) => b.trim())
@@ -111,7 +116,7 @@ Next steps:
     case "start": {
       const { Cortex } = await import("./core/cortex.js");
       const { buildServer } = await import("./api/server.js");
-      const project = loadProject();
+      const project = loadProject(projectDir);
       const cortex = new Cortex(project);
       cortex.watch((e) => console.error(`⚠ reindex failed: ${(e as Error).message}`));
       const port = values.port ? Number(values.port) : project.config.port;
@@ -124,7 +129,7 @@ Next steps:
     }
 
     case "login": {
-      const project = loadProject();
+      const project = loadProject(projectDir);
       const actor = values.actor ?? project.config.actors.find((a) => a.kind === "human")?.id;
       const found = project.config.actors.find((a) => a.id === actor);
       if (!found || found.kind !== "human") throw new Error(`"${actor ?? ""}" is not a human actor in cortex.config.yaml.`);
@@ -135,7 +140,7 @@ Next steps:
 
     case "logout": {
       const { SessionStore } = await import("./api/sessions.js");
-      const project = loadProject();
+      const project = loadProject(projectDir);
       const actor = values.all ? undefined : (values.actor ?? project.config.actors.find((a) => a.kind === "human")?.id);
       if (!values.all && !project.config.actors.some((a) => a.id === actor && a.kind === "human")) {
         throw new Error(`"${actor ?? ""}" is not a human actor in cortex.config.yaml.`);
@@ -159,7 +164,7 @@ Next steps:
         await runMcpStdio(remoteApi(hub, project, token));
       } else {
         const { Cortex } = await import("./core/cortex.js");
-        const cortex = new Cortex(loadProject());
+        const cortex = new Cortex(loadProject(projectDir));
         cortex.watch((e) => console.error(`cortex: reindex failed: ${(e as Error).message}`)); // stderr is safe for MCP
         await runMcpStdio(await localApi(cortex, cortex.actor(values.actor ?? "ai-agent")));
       }
@@ -168,7 +173,7 @@ Next steps:
 
     case "bootstrap": {
       const { bootstrapPrompt, findMarkdown } = await import("./core/init.js");
-      const project = loadProject();
+      const project = loadProject(projectDir);
       const { readGlobalLanguage } = await import("./core/language.js");
       console.log(bootstrapPrompt(project.config.project.name, findMarkdown(project.root), readGlobalLanguage(project.dir)));
       break;
@@ -177,7 +182,7 @@ Next steps:
     case "report": {
       const { Cortex } = await import("./core/cortex.js");
       const { reportToMarkdown } = await import("./core/reportMarkdown.js");
-      const cortex = new Cortex(loadProject(), { embedder: null }); // a report never needs the search model
+      const cortex = new Cortex(loadProject(projectDir), { embedder: null }); // a report never needs the search model
       try {
         const report = cortex.reports.build({ since: values.since, until: values.until });
         const text = values.json ? JSON.stringify(report, null, 2) : reportToMarkdown(report, values.lang === "tr" ? "tr" : "en");
@@ -239,7 +244,7 @@ Next steps:
 
     case "reindex": {
       const { Cortex } = await import("./core/cortex.js");
-      const cortex = new Cortex(loadProject());
+      const cortex = new Cortex(loadProject(projectDir));
       const r = cortex.reindex();
       console.log(`✔ Indexed ${r.nodes} node(s), ${r.items} item(s), ${r.activity} activity entr(ies).`);
       cortex.close();

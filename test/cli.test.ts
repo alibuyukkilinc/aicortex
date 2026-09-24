@@ -76,6 +76,20 @@ test("cli: wrong input fails with a message and a non-zero exit code", () => {
     assert.match(cli(f.dir, "logout", "--actor", "nobody").err, /not a human actor/);
 
     assert.equal(cli(f.dir, "help").code, 0);
+
+    // --dir points any command at a project elsewhere (MCP clients that do not start in the project folder).
+    const other = folder();
+    try {
+      const made = cli(other.dir, "init", "--dir", join(f.dir, "sub"), "--name", "sub", "--lang", "en", "--branches", "backend");
+      assert.equal(made.code, 0, made.err);
+      assert.ok(existsSync(join(f.dir, "sub", ".cortex", "cortex.config.yaml")), "created where --dir says, not in the current folder");
+      assert.ok(!existsSync(join(other.dir, ".cortex")));
+      const away = cli(other.dir, "login", "--dir", join(f.dir, "sub"));
+      assert.equal(away.code, 0, away.err);
+      assert.match(away.out, /login\?code=owner\./);
+    } finally {
+      other.cleanup();
+    }
     const version = cli(f.dir, "--version");
     assert.equal(version.code, 0);
     assert.equal(version.out.trim(), JSON.parse(readFileSync("package.json", "utf8")).version);

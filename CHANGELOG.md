@@ -5,26 +5,6 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
-### Added
-
-- **Attachments on items, Trello-style.** Paste a screenshot anywhere while a card is open (or in the
-  new-item dialog), drop files on it, or pick them. Files live next to the item in
-  `.cortex/items/<id>-<slug>/files/` (versioned in git; a file put there by hand is attached too), up to
-  15 MB each. Pictures show as thumbnails and the first becomes the card's cover; Markdown and text open
-  in a preview. `files/<name>` in Markdown points at an attachment of the same item, and pasting into a
-  description or reply inserts that reference at the cursor. REST: `GET|POST /items/:id/files`,
-  `GET|DELETE /items/:id/files/:name`. Anything that could run in the page (SVG, HTML, PDF) is served as a
-  download, never inline.
-- **`cortex_item_file` (MCP):** an AI reads an attached spec as text and a screenshot as an image.
-- **Board cards:** the priority (or severity) as a coloured label, the due date (red when late), badges
-  for description, replies and attachments, and "Add a card" at the bottom of every column.
-- **Descriptions are edited in place** on the card, with Write / Preview tabs.
-
-### Fixed
-
-- Escape closed every open window at once (a preview opened from a card took the card with it); it now
-  closes only the top one.
-
 ## [0.2.0] - 2026-09-24
 
 The theme of this release is making what 0.1 already had trustworthy: honest numbers, stale knowledge
@@ -72,8 +52,27 @@ was measured, by how much.
 - **Lint and format**: `npm run lint` (oxlint with type information: floating and misused promises,
   `await` on non-promises, type-only imports, React hooks rules, and four jsx-a11y rules) and
   `npm run format:check` (Prettier). Both run in CI.
-- **Tests** for the CLI, git, frontmatter, agent files, the full AI protocol over MCP and a two-clone
-  parallel merge. 89 → 133 tests.
+- **Attachments on items, Trello-style.** Paste a screenshot anywhere while a card is open (or in the
+  new-item dialog), drop files on it, or pick them. Files live next to the item in
+  `.cortex/items/<id>-<slug>/files/` (versioned in git; a file put there by hand is attached too), up to
+  15 MB each. Pictures show as thumbnails and the first becomes the card's cover; Markdown and text open
+  in a preview. `files/<name>` in Markdown points at an attachment of the same item, and pasting into a
+  description or reply inserts that reference at the cursor. REST: `GET|POST /items/:id/files`,
+  `GET|DELETE /items/:id/files/:name`. Anything that could run in the page (SVG, HTML, PDF) is served as a
+  download, never inline.
+- **`cortex_item_file` (MCP):** an AI reads an attached spec as text and a screenshot as an image.
+- **Board cards:** the priority (or severity) as a coloured label, the due date (red when late), badges
+  for description, replies and attachments, and "Add a card" at the bottom of every column.
+- **Descriptions are edited in place** on the card, with Write / Preview tabs.
+- **Installation guide** for people new to all of it, in English and Turkish ([docs/INSTALL.md](docs/INSTALL.md),
+  [docs/KURULUM.md](docs/KURULUM.md)): what to install, the two setups and how they differ, connecting
+  Claude Code, Cursor, VS Code, Claude Desktop and Codex, running a hub behind HTTPS, upgrading and
+  troubleshooting.
+- **`--dir <project folder>`** (or `CORTEX_DIR`) on every project command, for MCP clients that do not start
+  servers in the project folder (Claude Desktop, Codex). `init --dir` creates the project there.
+- **`cortex --version`**.
+- **Tests** for the CLI, git, frontmatter, agent files, the full AI protocol over MCP, a two-clone
+  parallel merge and attachments. 89 → 137 tests.
 
 ### Fixed
 
@@ -91,6 +90,8 @@ was measured, by how much.
   total of 24.
 - **Two async form handlers** in the hub screens were passed where a void handler was expected (found by
   the new lint rules).
+- Escape closed every open window at once (a preview opened from a card took the card with it); it now
+  closes only the top one.
 
 ### Security
 
