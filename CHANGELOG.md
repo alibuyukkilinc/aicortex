@@ -5,6 +5,12 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Changed
+
+- **The hub's own screens use the window.** Projects, Organization and Usage sat in a 1080px column,
+  a narrow strip next to a project board that fills the screen. They now take the width they are given
+  (up to 1900px) with the board's side padding; paragraphs keep their own reading measure.
+
 ## [0.2.4] - 2026-09-24
 
 Connecting an AI agent to a team server, without the board getting in the way: access can be granted from

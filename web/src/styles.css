@@ -1948,10 +1948,14 @@ button.chip {
   position: sticky;
   top: 0;
 }
+/* The hub's own screens (projects, organization, usage) used to sit in a 1080px column, which looks
+   like a narrow strip on a wide monitor while the project board next to it fills the window. They now
+   use the width they are given, with the board's side padding; text blocks keep their own measure. */
 .hub-main {
-  width: min(1080px, 100%);
+  width: 100%;
+  max-width: 1900px;
   margin: 0 auto;
-  padding: 44px 24px 64px;
+  padding: 44px 44px 64px;
 }
 .project-grid {
   display: grid;
