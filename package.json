@@ -1,6 +1,6 @@
 {
   "name": "cortexboard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Shared project brain for humans and AIs: knowledge tree, board, decisions and AI activity in one place.",
   "author": "alibuyukkilinc",
   "repository": {
@@ -68,7 +68,8 @@
     "dist",
     "!dist/**/*.map",
     "CHANGELOG.md",
-    "docs"
+    "docs",
+    "!docs/img"
   ],
   "engines": {
     "node": ">=22.16"

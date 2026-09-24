@@ -5,11 +5,22 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
-Memory that stays lean (archive), and three decisions reached in discussions, put to work: a project
-reads the projects it links to, the hub keeps its checkouts current by pulling, and the first round of
-the design work (the same look, applied with one system on every screen).
+## [0.4.0] - 2026-09-25
+
+Memory that stays lean (archive), outgoing webhooks, and three decisions reached in discussions, put to
+work: a project reads the projects it links to, the hub keeps its checkouts current by pulling, and the
+first round of the design work (the same look, applied with one system on every screen). The README now
+says what Cortex is in one screen, with pictures.
 
 ### Added
+
+- **Outgoing webhooks.** Every activity entry (an AI's change and why, an item created or moved, a draft
+  proposed or approved, a discussion decided) can be POSTed to a chat bridge, a CI job or your own
+  service: `webhooks: [{ name, url, events? }]` in `cortex.config.yaml`, where `events` takes action names
+  and `item.*` prefixes. A secret in the git-ignored `.secrets.yaml` signs each body
+  (`X-Cortex-Signature: sha256=<HMAC>`). The process that writes the entry sends it, so nothing is sent
+  twice; a slow or failing endpoint never holds up a write (5 s timeout, one retry on network errors and
+  5xx, failures on stderr).
 
 - **Archive: memory that stays lean.** Knowledge and records that no longer apply (a one-off server
   problem solved for good, a superseded decision, a branch for code that is gone) leave search, the
@@ -52,6 +63,12 @@ the design work (the same look, applied with one system on every screen).
 - **The board's title and its main action sit apart from the filters**, which have a row of their own.
 - **Fewer inline styles:** 45 of 142 became shared classes (`.grow`, `.w-auto`, `.text-xs`…); the inline
   font sizes left use the scale.
+
+- **README: what Cortex is, in one screen.** It opened with every feature at once and still said
+  "early (v0.2)" while the package was 0.3.0. It now leads with one sentence, a two-command start, three
+  parts (memory the AI reads cheaply, people in charge, work and decisions in one place) and screenshots
+  of a real board; the version comes from an npm badge instead of being typed in. The roadmap names what
+  is next: GitHub Issues sync, Jira/Linear/Plane import, SSO and an independent benchmark.
 
 ### Fixed
 
@@ -322,7 +339,8 @@ was measured, by how much.
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
 
-[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.4.0
 [0.3.0]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.3.0
 [0.2.4]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.4
 [0.2.3]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.3

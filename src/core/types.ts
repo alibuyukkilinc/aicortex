@@ -120,6 +120,8 @@ export interface CortexConfig {
   // Archiving: finished items older than after_days are suggested (default 30); activity older than
   // activity_days leaves default search (default 90). Files and reports keep everything.
   archive?: { after_days?: number; activity_days?: number };
+  // Outgoing webhooks for activity entries; secrets live in .secrets.yaml under webhooks: <name>.
+  webhooks?: { name: string; url: string; events?: string[] }[];
 }
 
 export type Draft = (DraftBase & { kind: "node"; data: KnowledgeNode }) | (DraftBase & { kind: "item"; data: Item });

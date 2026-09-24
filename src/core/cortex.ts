@@ -24,6 +24,7 @@ import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
 import { DiscussionService } from "./discussions.js";
 import { ArchiveService } from "./archive.js";
+import { Webhooks } from "./webhooks.js";
 import type { SyncStats } from "./sync.js";
 import { SyncService } from "./sync.js";
 import type { Project } from "./project.js";
@@ -90,6 +91,7 @@ export class Cortex {
   readonly items: ItemService;
   readonly discussions: DiscussionService;
   readonly archive: ArchiveService;
+  readonly webhooks: Webhooks;
   readonly activity: ActivityService;
   // "change" fires after every write and every reindex; the web board streams it to browsers.
   readonly events = new EventEmitter();
@@ -116,6 +118,7 @@ export class Cortex {
     this.items = new ItemService(this);
     this.discussions = new DiscussionService(this);
     this.archive = new ArchiveService(this);
+    this.webhooks = new Webhooks(this);
     this.activity = new ActivityService(this);
     const wantSemantic = project.config.search?.semantic !== false && semanticEnabled();
     const factory = opts.embedder !== undefined ? opts.embedder : wantSemantic ? () => new TransformersEmbedder() : null;
