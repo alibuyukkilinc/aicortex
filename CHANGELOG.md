@@ -5,6 +5,11 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-24
+
+Discussions: a question put to people and AI agents together, argued out on its own screen and settled
+by a person, with the views and votes kept next to the decision they produced.
+
 ### Added
 
 - **Discussions.** A question put to people and AI agents together ("MySQL instead of PostgreSQL?"), on its
@@ -264,7 +269,8 @@ was measured, by how much.
 First version: knowledge tree, items and rules, the web board, optional semantic search, git-based
 staleness, reports, the team server (hub) with roles, and MCP tools for AIs.
 
-[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/alibuyukkilinc/cortexboard/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.3.0
 [0.2.4]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.4
 [0.2.3]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.3
 [0.2.2]: https://github.com/alibuyukkilinc/cortexboard/releases/tag/v0.2.2
