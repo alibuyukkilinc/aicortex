@@ -5,9 +5,9 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
-Memory that stays lean (archive), and three decisions reached in discussions, put to work: a project reads the projects it links to, the hub
-keeps its checkouts current by pulling, and the first round of the design work (the same look, applied
-with one system on every screen).
+Memory that stays lean (archive), and three decisions reached in discussions, put to work: a project
+reads the projects it links to, the hub keeps its checkouts current by pulling, and the first round of
+the design work (the same look, applied with one system on every screen).
 
 ### Added
 
