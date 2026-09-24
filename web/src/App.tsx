@@ -9,6 +9,7 @@ import { AskDialog, ItemDrawer } from "./items";
 import { Activity } from "./pages/Activity";
 import { Approvals } from "./pages/Approvals";
 import { Board } from "./pages/Board";
+import { DiscussionView, Discussions } from "./pages/Discussions";
 import { Inbox } from "./pages/Inbox";
 import { Guide } from "./pages/Guide";
 import { Knowledge } from "./pages/Knowledge";
@@ -156,6 +157,7 @@ function useLive() {
 const NAV: { key: Key; route: string; icon: string }[] = [
   { key: "nav.inbox", route: "inbox", icon: "inbox" },
   { key: "nav.board", route: "board", icon: "board" },
+  { key: "nav.discussions", route: "discussions", icon: "debate" },
   { key: "nav.knowledge", route: "knowledge", icon: "tree" },
   { key: "nav.activity", route: "activity", icon: "activity" },
   { key: "nav.approvals", route: "approvals", icon: "check" },
@@ -198,7 +200,8 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
     () => ({
       me: me.actor,
       actors: me.actors,
-      itemTypes: me.item_types,
+      itemTypes: me.item_types.filter((x) => x !== "discussion"),
+      allItemTypes: me.item_types,
       projectName: me.project.name,
       openItem: (id: string) => setOpenId(id),
       ask: (about: string, label: string) => setAsking({ about, label }),
@@ -222,6 +225,9 @@ function Shell({ me, hubMe }: { me: Me; hubMe?: HubMe }) {
   switch (page) {
     case "board":
       content = <Board key={route[1]} type={route[1] ?? me.item_types[0] ?? "task"} />;
+      break;
+    case "discussions":
+      content = route[1] ? <DiscussionView key={route[1]} id={route[1]} /> : <Discussions />;
       break;
     case "knowledge":
       content = <Knowledge path={route.slice(1).join("/")} />;
@@ -341,9 +347,10 @@ function SideBar({ page, hubMe, me }: { page: string; hubMe?: HubMe; me: Me }) {
   const t = useT();
   // One small request for the three badges: the lists behind them are fetched by their own pages.
   // `stale` counts high and medium only: formatting-only and snoozed ones are not work.
-  const badges = useApi<{ inbox: number; approvals: number; stale: number }>("/api/counts");
+  const badges = useApi<{ inbox: number; approvals: number; stale: number; discussions?: number }>("/api/counts");
   const counts: Record<string, number> = {
     inbox: badges.data?.inbox ?? 0,
+    discussions: badges.data?.discussions ?? 0,
     approvals: badges.data?.approvals ?? 0,
     stale: badges.data?.stale ?? 0,
   };

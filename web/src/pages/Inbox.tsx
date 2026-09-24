@@ -24,6 +24,7 @@ export function Inbox() {
   const answered = by("your_question_answered");
   const replies = by("new_reply");
   const decisions = by("decision_needs_review");
+  const discussions = by("discussion_needs_your_view");
   const pending = drafts.data?.drafts ?? [];
   // Only what needs a person: formatting-only changes and snoozed nodes wait on the stale page instead.
   const outdated = (stale.data?.nodes ?? []).filter((s) => s.severity !== "low" && !s.snoozed);
@@ -34,12 +35,13 @@ export function Inbox() {
     n("notif.summaryTasks", mine.length + group.length),
     n("notif.summaryQuestions", blocking.length),
     n("notif.summaryDecisions", decisions.length),
+    n("notif.summaryDiscussions", discussions.length),
     n("notif.summaryDrafts", pending.length),
     n("notif.summaryStale", outdated.length),
   ].filter(Boolean);
 
   const itemRow = (i: ItemSummary) => (
-    <ListRow key={i.id} onPress={() => openItem(i.id)}>
+    <ListRow key={i.id} onPress={() => (i.type === "discussion" ? go(`discussions/${i.id}`) : openItem(i.id))}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="title">{i.title}</div>
         <div className="meta">
@@ -80,6 +82,7 @@ export function Inbox() {
           <Group title={t("notif.group")} why={t("notif.groupWhy")} rows={group.map(itemRow)} />
           <Group title={t("notif.answered")} why={t("notif.answeredWhy")} rows={answered.map(itemRow)} />
           <Group title={t("notif.replies")} why={t("notif.repliesWhy")} rows={replies.map(itemRow)} />
+          <Group title={t("notif.discussions")} why={t("notif.discussionsWhy")} rows={discussions.map(itemRow)} />
           <Group title={t("notif.decisions")} why={t("notif.decisionsWhy")} rows={decisions.map(itemRow)} />
           <Group
             title={t("notif.drafts")}

@@ -41,6 +41,7 @@ export function buildMcpServer(api: McpApi): McpServer {
         "search with cortex_search, and read full detail with cortex_node only when needed. Never try to load everything. " +
         "Before editing files call cortex_code_context; knowledge marked stale may be wrong. " +
         "After each meaningful change call cortex_log_activity. When unsure, cortex_ask instead of guessing. " +
+        "Discussions waiting on your view show up in cortex_inbox; answer them with cortex_discuss. " +
         "On a team server your role decides what you may write and what you can see; a refusal explains which permission is missing.",
     },
   );
@@ -389,6 +390,58 @@ export function buildMcpServer(api: McpApi): McpServer {
       const markdown = await api.call("GET", "/report", { query: { since: a.since, until: a.until, format: "md", lang: a.lang }, text: true });
       return { markdown };
     }),
+  );
+
+  // ---- discussions -----------------------------------------------------------
+
+  server.registerTool(
+    "cortex_discussions",
+    {
+      description:
+        'Discussions: questions people and AI agents argue out before a person decides (e.g. "MySQL instead of PostgreSQL?"). ' +
+        "Lists them with their options, who posted, who is still waited on and, once views are visible, the vote count. " +
+        '`asks_you` marks the ones waiting on your view. Read one with cortex_item; open one with cortex_create_item type "discussion".',
+      inputSchema: { open: z.boolean().optional().describe("true = only discussions still running or waiting for a decision") },
+    },
+    wrap((a: { open?: boolean }) => get("/discussions", { open: a.open })),
+  );
+
+  server.registerTool(
+    "cortex_discuss",
+    {
+      description:
+        "Post your view in a discussion. First read the project (cortex_search, cortex_code_context, the code) and back every claim " +
+        "with evidence. kind: 'opinion' = your view, backing one option (required once per discussion; while the round is blind you " +
+        "see the others only after posting); 'rebuttal' = answer another view once it is deliberating (a new stance changes your vote); " +
+        "'synthesis' = weigh all views, no vote; 'comment' = anything else. Only people decide.",
+      inputSchema: {
+        id: z.string().describe("Discussion id"),
+        kind: z.enum(["opinion", "rebuttal", "synthesis", "comment"]).default("opinion"),
+        stance: z.string().optional().describe("The option you back, exactly as written in the discussion. Required for an opinion."),
+        confidence: z.enum(["low", "medium", "high"]).optional().describe("Required for an opinion"),
+        evidence: z
+          .array(z.string())
+          .max(30)
+          .optional()
+          .describe('What backs you: "src/db/pool.ts:12-40", a knowledge node path or an item id. Required for an opinion.'),
+        body: z.string().min(1).describe("Your reasoning: what you found, what it means, what it would cost"),
+      },
+    },
+    wrap(({ id, body, ...f }: { id: string; body: string; kind: string; stance?: string; confidence?: string; evidence?: string[] }) => {
+      const fields = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined));
+      return api.call("POST", `/items/${encodeURIComponent(id)}/replies`, { body: { body, fields } });
+    }),
+  );
+
+  server.registerTool(
+    "cortex_close_vote",
+    {
+      description:
+        "Count a discussion's votes (each participant's latest stance). A clear majority becomes a proposed decision a person accepts; " +
+        "a tie leaves the call to a person. Do this only when asked, or when every invited participant has posted and it is deliberating.",
+      inputSchema: { id: z.string() },
+    },
+    wrap((a: { id: string }) => api.call("POST", `/discussions/${encodeURIComponent(a.id)}/close-vote`, {})),
   );
 
   // ---- activity -------------------------------------------------------------

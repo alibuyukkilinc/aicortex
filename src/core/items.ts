@@ -8,6 +8,7 @@ import type { ItemSchema, ValidationContext } from "./schema.js";
 import { canTransition, describeSchema, validateFields } from "./schema.js";
 import type { Actor, Item, ItemLinks, Reply } from "./types.js";
 import { CortexError, GROUP_ASSIGNEES } from "./types.js";
+import { DISCUSSION, checkFields as checkDiscussion, checkReply as checkDiscussionReply, isSealed, viewReplies } from "./discussions.js";
 
 const Links = z
   .object({
@@ -83,7 +84,11 @@ export interface ItemWriteResult {
   message: string;
 }
 
-export type InboxReason = "assigned_to_you" | "assigned_to_group" | "your_question_answered" | "new_reply" | "decision_needs_review";
+export type InboxReason =
+  "assigned_to_you" | "assigned_to_group" | "your_question_answered" | "new_reply" | "decision_needs_review" | "discussion_needs_your_view";
+
+// Statuses a discussion reaches only through the discussion service, which counts the votes and writes the decision.
+const DISCUSSION_MANAGED = ["voted", "decided"];
 
 export function itemRevision(i: Item): string {
   return shortHash(JSON.stringify([i.title, i.body, i.status, i.assignee ?? null, i.category_path ?? null, i.fields, i.links ?? {}, i.updated_at]));
@@ -189,6 +194,7 @@ export class ItemService {
       ...this.checkAssignee(d.assignee),
       ...this.checkLinks(d.links),
       ...validateFields(schema.fields, d.fields, this.ctx(), schema.require_when),
+      ...(d.type === DISCUSSION ? checkDiscussion(d.fields) : []),
     ];
     if (issues.length) throw this.invalid(schema, issues);
 
@@ -219,7 +225,8 @@ export class ItemService {
     return { applied: true, id: item.id, status: item.status, message: `${item.type} created.` };
   }
 
-  update(actor: Actor, id: string, input: UpdateItemInput): ItemWriteResult {
+  // `internal`: a write by another core service (the discussion count), allowed statuses a caller may not set directly.
+  update(actor: Actor, id: string, input: UpdateItemInput, opts: { internal?: boolean } = {}): ItemWriteResult {
     const current = this.get(id).item;
     const schema = this.schema(current.type);
     const parsed = UpdateItemInput.safeParse(input);
@@ -245,8 +252,14 @@ export class ItemService {
       ...(d.assignee !== undefined ? this.checkAssignee(next.assignee) : []),
       ...(d.links !== undefined ? this.checkLinks(next.links) : []),
       ...validateFields(schema.fields, next.fields, this.ctx(), schema.require_when),
+      ...(current.type === DISCUSSION && d.fields?.options !== undefined ? checkDiscussion(next.fields) : []),
     ];
     if (issues.length) throw this.invalid(schema, issues, "Update");
+    if (current.type === DISCUSSION && !opts.internal && d.status && d.status !== current.status && DISCUSSION_MANAGED.includes(d.status)) {
+      throw new CortexError("invalid_transition", `A discussion becomes "${d.status}" by counting or deciding, not by a status change.`, 400, {
+        hint: "POST /discussions/:id/close-vote counts the votes; a person decides with POST /discussions/:id/decide or by accepting the decision.",
+      });
+    }
     if (d.status !== undefined) {
       this.checkStatusChange(actor, schema, current.status, d.status, d.force);
       next.status = d.status;
@@ -272,6 +285,7 @@ export class ItemService {
       from: current.status,
       to: next.status,
     });
+    if (next.type === "decision" && next.status === "accepted" && current.status !== "accepted") this.c.discussions.onDecisionAccepted(actor, next);
     return { applied: true, id, status: next.status, message: `${next.type} updated.` };
   }
 
@@ -283,6 +297,11 @@ export class ItemService {
     const d = parsed.data;
     const issues = validateFields(schema.reply?.fields ?? {}, d.fields, this.ctx(), schema.reply?.require_when);
     if (issues.length) throw this.invalid(schema, issues, "Reply");
+    if (item.type === DISCUSSION) {
+      checkDiscussionReply(actor, item, d.fields);
+      if (d.status !== undefined && d.status !== item.status)
+        throw new CortexError("invalid_request", "Change a discussion's phase separately from posting a view.", 400);
+    }
 
     let to = d.status;
     if (to === undefined) {
@@ -475,10 +494,13 @@ export class ItemService {
 
   // ---- reads --------------------------------------------------------------
 
-  get(id: string, opts: { replies?: number; budget?: number } = {}) {
+  // `viewer`: who reads it. A discussion's blind round hides the others' views from them; internal reads pass none.
+  get(id: string, opts: { replies?: number; budget?: number; viewer?: Actor } = {}) {
     const item = this.c.itemStore.read(id);
     if (!item) throw new CortexError("not_found", `No item with id "${id}".`, 404);
-    let replies = this.c.itemStore.replies(id);
+    const stored = this.c.itemStore.replies(id);
+    const discussion = item.type === DISCUSSION && opts.viewer ? this.c.discussions.summary(opts.viewer, item, stored) : undefined;
+    let replies = item.type === DISCUSSION && opts.viewer ? viewReplies(opts.viewer, item, stored) : stored;
     const total = replies.length;
     // Newest replies matter most; trim older ones to respect the limit and the token budget.
     if (opts.replies !== undefined) replies = replies.slice(Math.max(0, replies.length - opts.replies));
@@ -499,6 +521,7 @@ export class ItemService {
       replies,
       replies_omitted: total - replies.length,
       ...(attachments.length ? { attachments } : {}),
+      ...(discussion ? { discussion } : {}),
       rules_url: `/api/rules/${item.type}`,
     };
   }
@@ -540,7 +563,8 @@ export class ItemService {
     if (!item) return {};
     const flat = (t: string) => t.replace(/\s+/g, " ").trim();
     const gist = flat(item.body);
-    const last = this.c.itemStore.replies(id).at(-1);
+    // A blind round's views stay out of previews: they would tell the next participant what the others said.
+    const last = isSealed(item) ? undefined : this.c.itemStore.replies(id).at(-1);
     return {
       ...(gist ? { gist: shorten(gist, PREVIEW_CHARS) } : {}),
       ...(last
@@ -577,6 +601,8 @@ export class ItemService {
     if (actor.kind === "human") {
       for (const i of q({ open: true, type: "decision", status: "proposed", limit: 200, offset: 0 })) add(i, "decision_needs_review");
     }
+    const asked = new Set(this.c.discussions.askingFor(actor, visible));
+    for (const i of q({ open: true, type: DISCUSSION, limit: 500, offset: 0 })) if (asked.has(i.id)) add(i, "discussion_needs_your_view");
     for (const i of q({ open: true, author: actor.id, limit: 200, offset: 0 })) {
       if (i.last_reply_by && i.last_reply_by !== actor.id) add(i, "new_reply");
     }

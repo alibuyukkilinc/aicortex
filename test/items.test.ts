@@ -22,11 +22,11 @@ function err(fn: () => unknown): CortexError {
 test("init writes editable schemas for every built-in type", () => {
   const t = tempProject();
   try {
-    for (const type of ["task", "issue", "question", "note", "decision", "activity"]) {
+    for (const type of ["task", "issue", "question", "note", "decision", "discussion", "activity"]) {
       assert.ok(existsSync(join(t.root, `.cortex/rules/${type}.schema.yaml`)), type);
     }
     assert.ok(existsSync(join(t.root, ".cortex/.gitattributes")));
-    assert.deepEqual(t.cortex.itemTypes(), ["task", "issue", "question", "note", "decision"]);
+    assert.deepEqual(t.cortex.itemTypes(), ["task", "issue", "question", "note", "decision", "discussion"]);
   } finally {
     t.cleanup();
   }

@@ -6,6 +6,7 @@ import { CortexError } from "../core/types.js";
 import { NODE_TOO_OLD_MESSAGE } from "../util/runtime-check.js";
 import { fold, shortHash } from "../util/text.js";
 import { parentPath } from "../store/tree.js";
+import { isSealed } from "../core/discussions.js";
 
 export interface IndexedNode {
   path: string;
@@ -321,7 +322,8 @@ export class Index {
     const fieldText = Object.values(i.fields ?? {})
       .filter((v) => typeof v === "string")
       .join(" ");
-    const replyText = replies.map((r) => r.body).join(" ");
+    // A discussion's blind round keeps its views out of search: a participant could otherwise read them before posting.
+    const replyText = isSealed(i) ? "" : replies.map((r) => r.body).join(" ");
     this.insertDoc(
       "item",
       i.id,

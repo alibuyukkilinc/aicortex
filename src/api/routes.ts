@@ -203,6 +203,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       inbox: req.cortex.items.inbox(req.actor, 0, req.access?.itemSql() ?? null).count,
       approvals: visibleDrafts(req).length,
       stale,
+      discussions: req.cortex.discussions.askingFor(req.actor, req.access?.itemSql() ?? null).length,
     });
   });
   app.get("/stale", async (req) => {
@@ -336,7 +337,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
     const id = (req.params as Q).id!;
     itemVisibleOr404(req, id);
     const q = req.query as Q;
-    return ok(req, req.cortex.items.get(id, { replies: num(q.replies), budget: num(q.budget) }));
+    return ok(req, req.cortex.items.get(id, { replies: num(q.replies), budget: num(q.budget), viewer: req.actor }));
   });
   app.patch("/items/:id", async (req, reply) => {
     need(req, "write_items");
@@ -355,10 +356,33 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   app.post("/items/:id/replies", async (req, reply) => {
     const id = (req.params as Q).id!;
     itemVisibleOr404(req, id);
-    // Viewers may answer and follow up on questions; everything else needs write access.
-    need(req, req.cortex.index.getItem(id)?.type === "question" ? "ask" : "write_items");
+    // Viewers may answer and follow up on questions and take part in discussions; everything else needs write access.
+    const type = req.cortex.index.getItem(id)?.type;
+    need(req, type === "question" || type === "discussion" ? "ask" : "write_items");
     return reply.code(201).send(ok(req, req.cortex.items.reply(req.actor, id, (req.body ?? {}) as never)));
   });
+  // ---- discussions ----------------------------------------------------------------
+  // A discussion is an item (created with POST /items, views are replies); these add the list with vote
+  // counts, the count that proposes a decision, and a person's final call.
+
+  app.get("/discussions", async (req) => {
+    return ok(req, req.cortex.discussions.list(req.actor, { open: bool((req.query as Q).open), visible: req.access?.itemSql() ?? null }));
+  });
+  app.post("/discussions/:id/close-vote", async (req) => {
+    need(req, "write_items");
+    const id = (req.params as Q).id!;
+    itemVisibleOr404(req, id);
+    return ok(req, req.cortex.discussions.closeVote(req.actor, id));
+  });
+  app.post("/discussions/:id/decide", async (req) => {
+    need(req, "approve");
+    const id = (req.params as Q).id!;
+    itemVisibleOr404(req, id);
+    const option = ((req.body ?? {}) as { option?: unknown }).option;
+    if (typeof option !== "string") throw new CortexError("invalid_request", "Send { option }: one of the discussion's options.", 400);
+    return ok(req, req.cortex.discussions.decide(req.actor, id, option));
+  });
+
   // ---- attachments ---------------------------------------------------------------
   // Upload is the raw file as the request body (any content type) with its name in ?name=, so the
   // board can send a pasted screenshot as-is and no multipart parser is needed. Files are served back

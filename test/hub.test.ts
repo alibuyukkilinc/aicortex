@@ -350,7 +350,7 @@ test("MCP over the hub: same tools, and the agent's role still decides", async (
     };
 
     const agent = await connect(writer);
-    assert.equal((await agent.listTools()).tools.length, 20, "the same tool set as a local project");
+    assert.equal((await agent.listTools()).tools.length, 23, "the same tool set as a local project");
     const brief = await call(agent, "cortex_brief");
     assert.equal(brief.data.you.id, "claude-code");
     assert.equal(brief.data.you.role, "contributor");
@@ -403,7 +403,7 @@ test("MCP over HTTP: an AI that is not on this machine gets the same tools and t
     };
 
     const bot = await connect(token);
-    assert.equal((await bot.listTools()).tools.length, 20);
+    assert.equal((await bot.listTools()).tools.length, 23);
     const brief = await call(bot, "cortex_brief");
     assert.equal(brief.data.you.id, "remote-bot");
     assert.equal(brief.data.you.role, "contributor");

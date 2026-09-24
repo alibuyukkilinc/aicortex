@@ -63,6 +63,8 @@ const paths: Record<string, string> = {
   trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
   text: "M4 6h16M4 11h16M4 16h10",
   clock: "M12 12m-9 0a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 7v5l3 2",
+  debate: "M3 5h11v8H7l-4 3zM10 16h7l4 3v-9h-4",
+  eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 12m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0",
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof paths | string; size?: number }) {
@@ -155,6 +157,10 @@ const STATUS_TONE: Record<string, string> = {
   draft: "warn",
   stale: "danger",
   deprecated: "",
+  deliberating: "accent",
+  voted: "warn",
+  decided: "ok",
+  cancelled: "",
 };
 export function StatusChip({ status }: { status: string }) {
   const label = useLabels();
@@ -366,7 +372,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export interface Session {
   me: Actor;
   actors: Actor[];
-  itemTypes: string[];
+  itemTypes: string[]; // the board's types: discussions live on their own screen
+  allItemTypes: string[];
   projectName: string;
   openItem: (id: string) => void;
   ask: (about: string, label: string) => void;

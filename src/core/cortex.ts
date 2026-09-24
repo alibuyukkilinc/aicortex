@@ -22,6 +22,7 @@ import type { StaleChange, StaleInfo } from "./staleness.js";
 import { StalenessService, actionable } from "./staleness.js";
 import { ReportService } from "./reports.js";
 import { ItemService, itemRevision } from "./items.js";
+import { DiscussionService } from "./discussions.js";
 import type { SyncStats } from "./sync.js";
 import { SyncService } from "./sync.js";
 import type { Project } from "./project.js";
@@ -86,6 +87,7 @@ export class Cortex {
   readonly activityStore: ActivityStore;
   readonly index: Index;
   readonly items: ItemService;
+  readonly discussions: DiscussionService;
   readonly activity: ActivityService;
   // "change" fires after every write and every reindex; the web board streams it to browsers.
   readonly events = new EventEmitter();
@@ -110,6 +112,7 @@ export class Cortex {
     this.activityStore = new ActivityStore(this.p.activity);
     this.index = new Index(this.p.index);
     this.items = new ItemService(this);
+    this.discussions = new DiscussionService(this);
     this.activity = new ActivityService(this);
     const wantSemantic = project.config.search?.semantic !== false && semanticEnabled();
     const factory = opts.embedder !== undefined ? opts.embedder : wantSemantic ? () => new TransformersEmbedder() : null;

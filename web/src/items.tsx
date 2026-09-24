@@ -99,6 +99,14 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
 
+  // A discussion opened from search or a link has its own screen; the drawer hands it over.
+  const discussionId = data?.item.type === "discussion" ? data.item.id : null;
+  useEffect(() => {
+    if (!discussionId) return;
+    onClose();
+    go(`discussions/${discussionId}`);
+  }, [discussionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading || !data) {
     return (
       <Drawer onClose={onClose} head={<span />}>
@@ -107,6 +115,7 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
     );
   }
   const { item, replies } = data;
+  if (item.type === "discussion") return null; // handed over to its own screen (effect above)
   const next = schema ? nextStatuses(schema, item.status) : [];
 
   const move = async (status: string, force = false) => {

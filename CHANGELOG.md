@@ -5,6 +5,21 @@ and the project uses [semantic versioning](https://semver.org/) (while it is 0.x
 
 ## [Unreleased]
 
+### Added
+
+- **Discussions.** A question put to people and AI agents together ("MySQL instead of PostgreSQL?"), on its
+  own screen next to the board. The one who opens it lists 2 to 8 options and who is invited; each
+  participant reads the project and posts a view that backs one option, with a confidence and evidence
+  (`file:lines`, a knowledge path, an item). The first round is blind by default: a participant sees the
+  others' views only after posting, so an agent does not just repeat the first answer it reads; blind views
+  also stay out of search and list previews. Once the views are opened, participants answer each other and a
+  new stance changes their vote. Counting the votes turns a clear majority into a proposed decision whose
+  alternatives are filled from the views; a person accepts it, or picks another option, and the discussion
+  is decided. It is an item type (`discussion`) with views as replies, so it lives in git like the rest.
+  New MCP tools: `cortex_discussions`, `cortex_discuss`, `cortex_close_vote`; invited agents find open
+  discussions in `cortex_inbox`. REST: `GET /discussions`, `POST /discussions/:id/close-vote`,
+  `POST /discussions/:id/decide` (people only).
+
 ### Changed
 
 - **The hub's own screens use the window.** Projects, Organization and Usage sat in a 1080px column,

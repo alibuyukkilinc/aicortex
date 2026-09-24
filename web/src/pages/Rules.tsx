@@ -19,8 +19,8 @@ ai_instructions: ""
 
 export function Rules({ name }: { name: string }) {
   const t = useT();
-  const { itemTypes, me } = useSession();
-  const names = [...SPECIAL, ...itemTypes];
+  const { allItemTypes, me } = useSession();
+  const names = [...SPECIAL, ...allItemTypes];
 
   return (
     <>

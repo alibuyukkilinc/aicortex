@@ -102,6 +102,7 @@ export interface Reply {
   created_at: string;
   status_change?: { from: string; to: string };
   fields?: Record<string, unknown>;
+  sealed?: boolean; // a discussion view hidden from this reader until they post theirs
   body: string;
 }
 
