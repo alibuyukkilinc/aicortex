@@ -34,6 +34,10 @@ export default async function* annotations(source) {
     const message = [
       cause?.message ?? String(cause ?? "failed"),
       error?.failureType ? `failureType: ${error.failureType}` : "",
+      // A file whose process died: the exit code says how (0xC0000005 = 3221225477 is a native crash on Windows).
+      error?.exitCode != null || error?.signal
+        ? `exitCode: ${error.exitCode}${error.exitCode > 255 ? ` (0x${Number(error.exitCode).toString(16).toUpperCase()})` : ""} signal: ${error.signal}`
+        : "",
       cause?.expected !== undefined ? `expected: ${JSON.stringify(cause.expected)}` : "",
       cause?.actual !== undefined ? `actual: ${JSON.stringify(cause.actual)}` : "",
       String(cause?.stack ?? "")
