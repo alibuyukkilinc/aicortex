@@ -192,6 +192,14 @@ GET  /api/events               live updates (server-sent events)
 - [x] **0.2:** honest numbers, stale knowledge you can clear (severity, snooze, a work-list page), board sessions instead of tokens in cookies, a hardened hub, tests for the protocol and parallel merges, lint, accessibility, Trello-style cards with attachments. See [CHANGELOG.md](CHANGELOG.md)
 - [ ] Later: SSO, invite emails, webhooks, GitHub sync
 
+## Does it help? Measured
+
+We run A/B tests of AI agents on this repository, with and without Cortex, and record every round in
+**[docs/BENCHMARKS.md](docs/BENCHMARKS.md)**. So far: when the answer lives in decisions, history or open
+work, agents with Cortex answered about twice as accurately for the same tokens; when the code already
+explains it, reading the code was as good. Each round lists the method and the numbers, including the
+ones that went against Cortex.
+
 ## Development
 
 Contributions are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) explains the layout, the tests and the habits this project keeps. Security reports: [SECURITY.md](SECURITY.md).
