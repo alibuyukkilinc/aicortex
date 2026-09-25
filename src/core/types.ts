@@ -64,6 +64,7 @@ export interface Item {
   claimed_by?: string; // actor id actively working this right now; separate from assignee
   claimed_at?: string;
   handoff_note?: string; // where the claim holder left off; set on claim/release only
+  reply_required?: boolean; // moving it to a status in its schema's reply_required list needs a reply
   archived?: Archived;
   tags?: string[];
   links?: ItemLinks;

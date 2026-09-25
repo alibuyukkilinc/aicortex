@@ -2,15 +2,15 @@
 id: 01M35A202YF7D3HZWH8RQH97XS
 type: issue
 title: Mobil ekip Cortex'e nasıl katılmalı? Öneri ve kurulum adımları
-status: review
+status: closed
 category_path: backend/hub
 author: owner
 assignee: "@ai"
 fields:
   severity: medium
 created_at: 2026-09-22T19:39:04.158Z
-updated_at: 2026-09-22T19:52:02.990Z
-updated_by: chatgpt
+updated_at: 2026-09-25T19:28:29.581Z
+updated_by: alihanlaarsamobil
 ---
 
 Üç kişilik bir mobil ekip ve onların kendi AI ajanı bu sisteme katılacak. Mobil kod ayrı bir repoda duruyor.

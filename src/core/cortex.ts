@@ -1034,6 +1034,14 @@ export function validateRulesDoc(name: string, doc: unknown): string[] {
       }
   }
   validateFieldSpecs("fields", d.fields, issues);
+  if (d.reply_required !== undefined && d.reply_required !== null) {
+    const rr = d.reply_required as Record<string, unknown>;
+    if (typeof rr !== "object" || Array.isArray(rr)) issues.push("reply_required: must be a map like { statuses: [review], default: true }");
+    else {
+      if (!(isStrList(rr.statuses) && rr.statuses.every(inStatuses))) issues.push("reply_required.statuses: must list statuses");
+      if (typeof rr.default !== "boolean") issues.push("reply_required.default: must be true or false");
+    }
+  }
   const reply = d.reply as Record<string, unknown> | undefined;
   if (reply) {
     validateFieldSpecs("reply.fields", reply.fields, issues);

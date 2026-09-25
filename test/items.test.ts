@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Cortex } from "../src/core/cortex.js";
+import { Cortex, validateRulesDoc } from "../src/core/cortex.js";
 import { loadProject } from "../src/core/project.js";
 import { itemRevision } from "../src/core/items.js";
 import type { Actor, CortexError } from "../src/core/types.js";
@@ -458,3 +458,89 @@ test("REST: POST /items/:id/claim wires through to ItemService.claim, conflict c
     t.cleanup();
   }
 });
+
+test("finishing a task or issue needs a reply: an AI cannot move it with a bare status change", () => {
+  const t = tempProject();
+  try {
+    const task = t.cortex.items.create(t.human, { type: "task", title: "Edit listings in the panel" }).id;
+    assert.equal(t.cortex.items.get(task).item.reply_required, true, "on by default");
+    t.cortex.items.update(t.ai, task, { status: "doing" }); // not a finishing status
+
+    const e = err(() => t.cortex.items.update(t.ai, task, { status: "review", reason: "done" }));
+    assert.equal(e.code, "reply_required");
+    assert.match(JSON.stringify(e.hint), /cortex_reply/);
+    assert.equal(t.cortex.items.get(task).item.status, "doing", "nothing moved");
+
+    // The reply path carries the outcome onto the card and moves it in one step.
+    t.cortex.items.reply(t.ai, task, { body: "Added inline edit; commit abc1234; test by editing a row.", status: "review" });
+    const read = t.cortex.items.get(task);
+    assert.equal(read.item.status, "review");
+    assert.equal(read.replies.at(-1)?.status_change?.to, "review");
+
+    // Issues too, and the same reply can carry the fix fields.
+    const issue = t.cortex.items.create(t.human, { type: "issue", title: "500 on login", category_path: "backend", fields: { severity: "high" } }).id;
+    t.cortex.items.update(t.ai, issue, { status: "in_progress" });
+    assert.equal(err(() => t.cortex.items.update(t.ai, issue, { status: "review" })).code, "reply_required");
+
+    // A person moving the card is the one deciding: not stopped.
+    t.cortex.items.update(t.human, issue, { status: "review" });
+    assert.equal(t.cortex.items.get(issue).item.status, "review");
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("the reply rule can be turned off per card, by people only", () => {
+  const t = tempProject();
+  try {
+    const off = t.cortex.items.create(t.human, { type: "task", title: "Bump a version", reply_required: false }).id;
+    assert.equal(t.cortex.items.get(off).item.reply_required, false);
+    t.cortex.items.update(t.ai, off, { status: "review" });
+    assert.equal(t.cortex.items.get(off).item.status, "review", "flag off: old behaviour");
+
+    const on = t.cortex.items.create(t.human, { type: "task", title: "Rewrite search" }).id;
+    assert.equal(err(() => t.cortex.items.update(t.ai, on, { reply_required: false })).code, "forbidden", "an AI cannot waive it");
+    t.cortex.items.update(t.human, on, { reply_required: false });
+    t.cortex.items.update(t.ai, on, { status: "review" });
+    assert.equal(t.cortex.items.get(on).item.status, "review");
+
+    // Types without the rule carry no flag and are never stopped.
+    const note = t.cortex.items.create(t.ai, { type: "note", title: "Staging resets Mondays" }).id;
+    assert.equal(t.cortex.items.get(note).item.reply_required, undefined);
+    t.cortex.items.update(t.ai, note, { status: "archived" });
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("reply rule: older projects fall back to the built-in rule, and rules edits are checked", () => {
+  const t = tempProject();
+  try {
+    // A schema file written before the rule existed has no reply_required key.
+    const file = join(t.root, ".cortex/rules/task.schema.yaml");
+    const src = readFileSync(file, "utf8").replace(/reply_required:\n(\s+.*\n)+?(?=\S)/, "");
+    assert.ok(!src.includes("reply_required"));
+    writeFileSync(file, src, "utf8");
+    assert.deepEqual(t.cortex.schema("task")?.reply_required, { statuses: ["review", "done"], default: true });
+
+    // An item written before the flag existed follows the type's default.
+    const id = t.cortex.items.create(t.human, { type: "task", title: "Old card" }).id;
+    const item = t.cortex.items.get(id).item;
+    delete item.reply_required;
+    t.cortex.itemStore.write(item);
+    t.cortex.items.update(t.ai, id, { status: "doing" });
+    assert.equal(err(() => t.cortex.items.update(t.ai, id, { status: "review" })).code, "reply_required");
+
+    assert.deepEqual(validateRulesDoc("task", { ...taskDoc(), reply_required: { statuses: ["shipped"], default: "yes" } }), [
+      "reply_required.statuses: must list statuses",
+      "reply_required.default: must be true or false",
+    ]);
+    assert.deepEqual(validateRulesDoc("task", { ...taskDoc(), reply_required: { statuses: ["review"], default: false } }), []);
+  } finally {
+    t.cleanup();
+  }
+});
+
+function taskDoc() {
+  return { type: "task", statuses: ["backlog", "doing", "review", "done"], initial: "backlog", terminal: ["done"], transitions: "any", fields: {} };
+}

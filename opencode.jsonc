@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "cortex-back": {
+        "type": "remote",
+        "url": "https://mcp.atmaver.net.tr/mcp/p/cortex",
+        "oauth": false,
+        "headers": {
+          "Authorization": "Bearer ctx_Fy0APwcY3XbtbmT0YQEqr-r_1TeiDgJUSM_vXzmjETA"
+        }
+      }
+    }
+  }
+}

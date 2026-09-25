@@ -11,11 +11,11 @@ links:
     - file: src/mcp/client.ts
     - file: src/hub/mcpHttp.ts
     - file: src/core/items.ts
-verified_at_commit: b2ffcf3274cd981a82cd0839e44e5d900cde3a64
+verified_at_commit: 8c9308d6b3104cd7b3c9f80f5427097d2b7944d8
 id: 01M34QY9T47QSX4Q0GQ8V6GPEH
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T20:09:05.022Z
+updated_at: 2026-09-25T19:27:44.411Z
 ---
 
 - Araçlar (`src/mcp/server.ts`) doğrudan çekirdeği değil `McpApi`yi çağırır (`src/mcp/client.ts`):
@@ -36,3 +36,4 @@ updated_at: 2026-09-24T20:09:05.022Z
 - `cortex_claim` (`action: "claim"|"release"`) ve `cortex_update_item`'daki `if_rev`: görev devri ve eşzamanlılık. Ayrıntı: `backend/items-and-rules`.
 - MCP sunucusu kaynaktan çalışsa da oturum başında açılır: araç kodu değişince yeni araçlar için sunucu yeniden bağlanmalı.
 - `test/interfaces.test.ts` araç listesini, `test/hub.test.ts` merkez üzerinden MCP'yi (araç sayısı 23), `test/protocol.test.ts` §14 protokolünü uçtan uca, `test/attachments.test.ts` ek okumayı, `test/open-queue.test.ts` önizleme ve toplu okumayı, `test/discussions.test.ts` tartışmaları kontrol eder.
+- **Bağlı projeler** (commit 8c9308d, `backend/hub`): `cortex_search`, `cortex_tree`, `cortex_node`, `cortex_items`, `cortex_item` isteğe bağlı `project` alır (ortak `LINKED` şeması) ve isteği `?project=<id>` ile gönderir. Araç sayısı değişmez; sunucu talimatı ajanlara brief'teki `linked` listesini söyler. Salt okuma; yazan araçlarda bu parametre yok.

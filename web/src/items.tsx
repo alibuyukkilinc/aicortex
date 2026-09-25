@@ -117,6 +117,17 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
   const { item, replies } = data;
   if (item.type === "discussion") return null; // handed over to its own screen (effect above)
   const next = schema ? nextStatuses(schema, item.status) : [];
+  const replyRule = schema?.reply_required?.statuses.length ? schema.reply_required : null;
+  const replyRequired = item.reply_required ?? replyRule?.default ?? false;
+
+  const setReplyRequired = async (on: boolean) => {
+    try {
+      await api(`/api/items/${id}`, { method: "PATCH", body: { reply_required: on } });
+      reload();
+    } catch (e) {
+      toast({ text: (e as Error).message, error: true });
+    }
+  };
 
   const move = async (status: string, force = false) => {
     try {
@@ -255,6 +266,20 @@ export function ItemDrawer({ id, onClose }: { id: string; onClose: () => void })
           </button>
         )}
       </div>
+
+      {replyRule && (
+        <label htmlFor="items-item-reply-required" className="check" style={{ marginBottom: 16 }} title={t("item.replyRequiredHint")}>
+          <input
+            id="items-item-reply-required"
+            type="checkbox"
+            checked={replyRequired}
+            disabled={me.kind !== "human"}
+            onChange={(e) => void setReplyRequired(e.target.checked)}
+          />{" "}
+          {t("item.replyRequired")}{" "}
+          <span className="muted text-xs">({replyRule.statuses.map((s) => label.status(s)).join(", ")})</span>
+        </label>
+      )}
 
       <div className={`drop-area${drop.dragging ? " dropping" : ""}`} {...drop.props}>
         {drop.dragging && <div className="drop-hint">{t("att.dropHere")}</div>}
@@ -479,6 +504,7 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
   const [category, setCategory] = useState(defaultPath ?? "");
   const [assignee, setAssignee] = useState("");
   const [fields, setFields] = useState<Record<string, unknown>>({});
+  const [replyRequired, setReplyRequired] = useState<boolean | null>(null); // null = the type's default
   const [err, setErr] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<PendingFile[]>([]);
@@ -511,13 +537,23 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
   const drop = useDropZone((list) => void queue(list));
   usePasteFiles((list) => void queue(list), t("att.screenshot"));
 
+  const replyRule = schema?.reply_required?.statuses.length ? schema.reply_required : null;
+
   const submit = async () => {
     setBusy(true);
     setErr(null);
     try {
       const r = await api<{ id: string }>("/api/items", {
         method: "POST",
-        body: { type: kind, title, body, fields, ...(category ? { category_path: category } : {}), ...(assignee ? { assignee } : {}) },
+        body: {
+          type: kind,
+          title,
+          body,
+          fields,
+          ...(category ? { category_path: category } : {}),
+          ...(assignee ? { assignee } : {}),
+          ...(replyRule && replyRequired !== null ? { reply_required: replyRequired } : {}),
+        },
       });
       // The item exists now: send the files. One failing does not undo the item; the rest still go.
       const failed: string[] = [];
@@ -545,7 +581,7 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
         <div className="grid2">
           <div className="field">
             <label htmlFor="items-board-type">{t("board.type")}</label>
-            <select id="items-board-type" className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}))}>
+            <select id="items-board-type" className="select" value={kind} onChange={(e) => (setKind(e.target.value), setFields({}), setReplyRequired(null))}>
               {itemTypes.map((x) => (
                 <option key={x} value={x}>
                   {label.type(x)}
@@ -598,6 +634,17 @@ export function NewItemDialog({ type, onClose, defaultPath }: { type: string; on
           <p className="faint att-tip">{t("att.tip")}</p>
         </div>
         {schema && <SchemaForm fields={schema.fields} value={fields} onChange={setFields} actors={actors} />}
+        {replyRule && (
+          <label htmlFor="items-new-reply-required" className="check" title={t("item.replyRequiredHint")}>
+            <input
+              id="items-new-reply-required"
+              type="checkbox"
+              checked={replyRequired ?? replyRule.default}
+              onChange={(e) => setReplyRequired(e.target.checked)}
+            />{" "}
+            {t("item.replyRequired")}
+          </label>
+        )}
       </div>
       <ErrorBox error={err} />
       <div className="modal-foot">

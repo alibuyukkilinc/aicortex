@@ -5,7 +5,7 @@ import { normalizePath } from "../store/tree.js";
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } from "../store/attachments.js";
 import { estimateTokens, nowIso, shortHash, shorten, ulid } from "../util/text.js";
 import type { ItemSchema, ValidationContext } from "./schema.js";
-import { canTransition, describeSchema, validateFields } from "./schema.js";
+import { canTransition, describeSchema, needsReply, validateFields } from "./schema.js";
 import type { Actor, Item, ItemLinks, Reply } from "./types.js";
 import { CortexError, GROUP_ASSIGNEES } from "./types.js";
 import { DISCUSSION, checkFields as checkDiscussion, checkReply as checkDiscussionReply, isSealed, viewReplies } from "./discussions.js";
@@ -32,6 +32,7 @@ export const CreateItemInput = z
     tags: z.array(z.string().max(40)).max(20).optional(),
     links: Links.optional(),
     fields: z.record(z.string(), z.unknown()).default({}),
+    reply_required: z.boolean().optional(), // omitted = the type's default
     reason: z.string().max(500).optional(),
   })
   .strict();
@@ -47,6 +48,7 @@ export const UpdateItemInput = z
     tags: z.array(z.string().max(40)).max(20).optional(),
     links: Links.optional(),
     fields: z.record(z.string(), z.unknown()).optional(), // merged; null removes a field
+    reply_required: z.boolean().optional(), // humans only once the item exists
     reason: z.string().max(500).optional(),
     force: z.boolean().optional(),
     if_rev: z.string().optional(), // the _rev you last read; mismatch throws a 409 conflict
@@ -210,6 +212,7 @@ export class ItemService {
       tags: d.tags,
       links: d.links,
       fields: d.fields,
+      ...(schema.reply_required?.statuses.length ? { reply_required: d.reply_required ?? schema.reply_required.default } : {}),
       created_at: now,
       updated_at: now,
       updated_by: actor.id,
@@ -260,8 +263,25 @@ export class ItemService {
         hint: "POST /discussions/:id/close-vote counts the votes; a person decides with POST /discussions/:id/decide or by accepting the decision.",
       });
     }
+    if (d.reply_required !== undefined && d.reply_required !== current.reply_required) {
+      // Whoever has to write the reply must not be able to waive it; the person who decides can.
+      if (actor.kind !== "human") {
+        throw new CortexError("forbidden", "Only humans can change whether an item needs a reply when it is closed.", 403);
+      }
+      next.reply_required = d.reply_required;
+    }
     if (d.status !== undefined) {
       this.checkStatusChange(actor, schema, current.status, d.status, d.force);
+      // An AI finishing work must say what it did where the card's reader looks: in a reply. A person
+      // moving the card is the one deciding, so the rule does not stop them.
+      if (actor.kind === "ai" && d.status !== current.status && needsReply(schema, next.reply_required, d.status)) {
+        throw new CortexError("reply_required", `Moving this ${schema.type} to "${d.status}" needs a reply saying what was done.`, 400, {
+          hint:
+            `Use cortex_reply (POST /items/${id}/replies) with status "${d.status}" and a body covering what you did, commits, files, ` +
+            "what is left out and how to test it. A status change's reason, a handoff note or an activity entry do not show on the card.",
+          reply_required_statuses: schema.reply_required?.statuses ?? [],
+        });
+      }
       next.status = d.status;
     }
     next.updated_at = nowIso();

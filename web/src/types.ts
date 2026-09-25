@@ -40,6 +40,7 @@ export interface Schema {
   category_required: boolean;
   fields: Record<string, FieldSpec>;
   reply: { fields?: Record<string, FieldSpec> };
+  reply_required?: { statuses: string[]; default: boolean };
   ai_instructions?: string;
 }
 
@@ -87,6 +88,7 @@ export interface Item {
   claimed_by?: string;
   claimed_at?: string;
   handoff_note?: string;
+  reply_required?: boolean;
   tags?: string[];
   links?: { nodes?: string[]; items?: string[]; activity?: string[]; code?: CodeLink[] };
   fields: Record<string, unknown>;

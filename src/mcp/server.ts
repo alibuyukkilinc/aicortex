@@ -308,6 +308,10 @@ export function buildMcpServer(api: McpApi): McpServer {
           })
           .optional(),
         fields: z.record(z.string(), z.unknown()).default({}),
+        reply_required: z
+          .boolean()
+          .optional()
+          .describe("Whether finishing this item (e.g. review/done) needs a reply saying what was done. Omit for the type's default (on for tasks and issues)."),
         reason: z.string().optional(),
       },
     },
@@ -317,7 +321,10 @@ export function buildMcpServer(api: McpApi): McpServer {
   server.registerTool(
     "cortex_update_item",
     {
-      description: "Change an item: status (must follow the allowed transitions), assignee, title, body, fields (merged; null removes).",
+      description:
+        "Change an item: status (must follow the allowed transitions), assignee, title, body, fields (merged; null removes). " +
+        "Finishing a task or issue (review, done, closed) usually needs a reply: use cortex_reply with `status` instead, so the card " +
+        "shows what you did. `reason` is not shown on the card.",
       inputSchema: {
         id: z.string(),
         status: z.string().optional(),
@@ -359,7 +366,8 @@ export function buildMcpServer(api: McpApi): McpServer {
     "cortex_reply",
     {
       description:
-        "Reply on an item. Some replies change status automatically (answering a question marks it answered). Reply fields follow the type's rules (e.g. a 'fixed' issue needs commits and files).",
+        "Reply on an item. Some replies change status automatically (answering a question marks it answered). Reply fields follow the type's rules (e.g. a 'fixed' issue needs commits and files). " +
+        "This is how you finish work: reply with what you did, commits, files, what is left out and how to test it, and pass `status` (e.g. review) to move the item in the same step.",
       inputSchema: {
         id: z.string(),
         body: z.string().min(1),

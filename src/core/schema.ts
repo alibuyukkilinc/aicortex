@@ -29,6 +29,11 @@ export interface OnReplyRule {
   to: string;
 }
 
+export interface ReplyRequiredRule {
+  statuses: string[];
+  default: boolean;
+}
+
 export interface ItemSchema {
   type: string;
   description?: string;
@@ -45,6 +50,10 @@ export interface ItemSchema {
   fields: Record<string, FieldSpec>;
   require_when?: ConditionalRule[];
   reply?: { fields?: Record<string, FieldSpec>; require_when?: ConditionalRule[]; on_reply?: OnReplyRule[] };
+  // Moving an item into one of these statuses needs a reply saying what was done, when the item's own
+  // `reply_required` flag is on (it starts as `default`). A status change alone, its `reason`, a handoff
+  // note or an activity entry never show on the card, so a person opening it would not see the outcome.
+  reply_required?: ReplyRequiredRule;
   ai_instructions?: string;
   example?: Record<string, unknown>;
 }
@@ -70,7 +79,11 @@ export const DEFAULT_SCHEMAS: Record<string, ItemSchema> = {
       due: { type: "date", description: "YYYY-MM-DD" },
       estimate: { type: "string", max: 40, description: 'Free text, e.g. "2h" or "3 points"' },
     },
-    ai_instructions: "Move a task to 'doing' when you start and 'review' when you finish; humans move it to 'done'.",
+    reply_required: { statuses: ["review", "done"], default: true },
+    ai_instructions:
+      "Move a task to 'doing' when you start. When you finish, move it to 'review' with a reply (cortex_reply with status) that says " +
+      "what you did, the commits, the files, what is left out and how to test it; humans move it to 'done'. " +
+      "A status change's reason, a handoff note or an activity entry do not show on the card.",
     human_only_statuses: ["done"],
     example: { type: "task", title: "Add rate limiting to login", category_path: "backend", fields: { priority: "high" } },
   },
@@ -104,8 +117,10 @@ export const DEFAULT_SCHEMAS: Record<string, ItemSchema> = {
         { when: { resolution: "fixed" }, require: ["commits", "files"], message: "A 'fixed' resolution must list the commits and changed files." },
       ],
     },
+    reply_required: { statuses: ["review", "closed"], default: true },
     ai_instructions:
-      "When you fix an issue, reply with resolution 'fixed', the commit hashes and changed files, and move it to 'review'. " +
+      "When you fix an issue, reply with resolution 'fixed', the commit hashes and changed files, and move it to 'review' in the same " +
+      "reply (cortex_reply with status). Say what you did, what is left out and how to test it. " +
       "If you are not sure about the cause, reply with 'needs_info' or open a question instead of guessing.",
     example: {
       type: "issue",
@@ -237,9 +252,18 @@ export function loadSchema(rulesDir: string, type: string): ItemSchema | null {
       // such key. Falling back to the built-in default fixes them on upgrade without touching their files.
       resolved: s.resolved ?? DEFAULT_SCHEMAS[type]?.resolved ?? [],
       transitions: s.transitions ?? "any",
+      // Same upgrade path: a project whose files predate the rule gets the built-in one.
+      reply_required: s.reply_required ?? DEFAULT_SCHEMAS[type]?.reply_required,
     };
   }
   return DEFAULT_SCHEMAS[type] ?? null;
+}
+
+// Whether moving this item to `to` needs a reply: the item's own flag, else the type's default.
+export function needsReply(schema: ItemSchema, flag: boolean | undefined, to: string): boolean {
+  const rule = schema.reply_required;
+  if (!rule?.statuses.includes(to)) return false;
+  return flag ?? rule.default;
 }
 
 // Work that still waits for someone: not finished by transition (terminal) and not settled (resolved).
@@ -355,6 +379,7 @@ export function describeSchema(schema: ItemSchema) {
     fields: schema.fields,
     require_when: schema.require_when ?? [],
     reply: schema.reply ?? {},
+    ...(schema.reply_required ? { reply_required: schema.reply_required } : {}),
     ai_instructions: schema.ai_instructions,
     example: schema.example,
   };

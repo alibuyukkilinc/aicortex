@@ -1,9 +1,9 @@
 ---
 title: Ekip sunucusu (hub)
 summary: "Tek sunucu, çok proje: kişiler e-posta + şifreyle, AI ajanları token
-  ile girer; proje başına rol ve görünürlük (SQL'de, sayfalamadan önce). Her
-  kapıda deneme sınırı, 48 saatlik davet. Merkez verisi ~/.cortex/hub'da SQLite,
-  proje bilgisi kendi reposunda."
+  ile girer; proje başına rol ve görünürlük. Bağlı projeler salt okunur okunur;
+  hub proje kopyalarını yalnızca pull ile günceller, commit/push yapmaz. Merkez
+  verisi ~/.cortex/hub'da SQLite."
 links:
   code:
     - file: src/hub/store.ts
@@ -12,11 +12,12 @@ links:
     - file: src/hub/access.ts
     - file: src/hub/crypto.ts
     - file: src/hub/limiter.ts
-verified_at_commit: b2ffcf3274cd981a82cd0839e44e5d900cde3a64
+    - file: src/hub/gitSync.ts
+verified_at_commit: d20d9ac72b3db6993a2b4a92d19d2cc89b23604c
 id: 01M34ZBMQDA04RDK228RSTYEHP
 status: active
 updated_by: ai-agent
-updated_at: 2026-09-24T20:05:09.205Z
+updated_at: 2026-09-25T19:27:43.793Z
 ---
 
 ## Parçalar (`src/hub`)
@@ -57,3 +58,19 @@ updated_at: 2026-09-24T20:05:09.205Z
 
 ## Komutlar
 `cortexboard hub init | start | add-project | member | invite` (`src/cli.ts` → `hubCommand`).
+
+## Bağlı projeler (karar `01M3AM8C6VZ0WB1MA2SMANEQJH`, commit 8c9308d)
+- Proje `cortex.config.yaml` → `linked: [backend]`. Okuma istekleri `?project=<id>` ile bağlı projeye yönlenir (MCP'de araçların `project` parametresi).
+- Hub `preHandler`'ı (`src/hub/server.ts`): kaynak projede üyelik denetlenir; hedef `linked` içinde mi, hedefte üyelik var mı bakılır; sonra `req.cortex` hedef proje, `req.access` hedefteki üyelikten ve **salt okumaya kısılmış** (`readOnly`), `req.crossProject` = hedef. Cevaplar `project` alanı taşır.
+- Yalnızca `GET` ve `CROSS_READS` (`/search`, `/tree`, `/node`, `/items`); diğerleri `cross_project_read_only`. Bağlı değilse `not_linked` (ipucunda bağlı liste), üye değilse 403.
+- Brief `linked: [{ id, name, summary, readable }]`; okunamayan projenin özeti boş.
+- Tek proje modunda `projectRoutes` `?project=`'i reddeder (sessizce kendi projesinden cevaplamasın).
+- Projeler arası soru yok (reader rolünde `ask` yok); ayrı bir iş.
+
+## Git: yalnızca pull (karar `01M3AM8C7QZG19TBK055EJYWXA`, commit 8c9308d)
+- `src/hub/gitSync.ts` → `pullProject(dir)`: upstream yoksa atla; `fetch`; geride değilse güncel; yerel commit varsa atla (ayrışma insana); yoksa `merge --ff-only`. Sonuç: durum, mesaj, ahead/behind, `pending` (`.cortex` altında commit bekleyen dosya sayısı).
+- Asenkron `execFile`, `GIT_TERMINAL_PROMPT=0`, 60 sn zaman aşımı: sunucu olay döngüsü ve parola sorusu yüzünden takılmaz.
+- `Hub.pull(id)` proje başına tek çalışan; son sonuç bellekte (`hub.pulls`). `startPulling(pull_minutes)` `hub start`'ta açılır, varsayılan kapalı.
+- Uçlar: `GET /api/p/:p/git`, `POST /api/p/:p/git/pull` (insan + approve); `/api/admin/projects` her projenin son çekmesini döndürür, Projeler tablosunda "Git" sütunu ve **Çek** düğmesi.
+- CLI: `cortexboard hub pull [proje]`.
+- Hub commit/push yapmaz; biriken `.cortex` değişikliklerini bir insan commit'ler.
